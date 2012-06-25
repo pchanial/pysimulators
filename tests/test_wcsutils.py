@@ -1,23 +1,19 @@
 import numpy as np
 
-from nose.tools import nottest
 from kapteyn import wcs
 from numpy.testing import assert_almost_equal
 from tamasis.utils import all_eq
-from pysimulators.wcsutils import angle_lonlat, barycenter_lonlat, combine_fitsheader, create_fitsheader, get_cdelt_pa, has_wcs, mean_degrees
+from pysimulators.wcsutils import angle_lonlat, barycenter_lonlat, combine_fitsheader, create_fitsheader, fitsheader2shape, get_cdelt_pa, has_wcs, mean_degrees
 
 
-@nottest
 def test_mean_degrees():
     assert mean_degrees([1,2]) == 1.5
     assert_almost_equal(mean_degrees([1,359.1]), 0.05, 12)
     assert_almost_equal(mean_degrees([0.1,359.1]), 359.6, 12)
 
-@nottest
 def test_angle_lonlat1():
     assert all_eq(angle_lonlat(30, 0, 40, 0), 10)
 
-@nottest
 def test_angle_lonlat2():
     input = (((30,0), (40,0), 10),
              ((39,0), (92, 90), 90),
@@ -30,7 +26,6 @@ def test_angle_lonlat2():
     for c1, c2, angle in input:
         yield func, c1, c2, angle
 
-@nottest
 def test_barycenter_lonlat():
     assert all_eq(barycenter_lonlat([30,40], [0, 0]), [35,0])
     assert all_eq(barycenter_lonlat([20,20,20], [-90,0,90]), [20,0])
@@ -50,7 +45,6 @@ def test_get_cdelt_pa2():
     assert all_eq(cdelt, cdelt_)
     assert all_eq(pa, pa_)
 
-@nottest
 def test_combine_fitsheader():
     headers = [
         create_fitsheader((1,1), cdelt=3., crval=(0,0)),

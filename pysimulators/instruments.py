@@ -8,7 +8,7 @@ from matplotlib import pyplot
 from pyoperators import I, asoperator
 from pyoperators.utils import product, strenum, strshape
 from pyoperators.utils.mpi import MPI
-#from . import tamasisfortran as tmf
+from tamasis import tmf
 from .acquisitionmodels import PointingMatrix
 from .datatypes import Map
 from .mpiutils import gather_fitsheader_if_needed
