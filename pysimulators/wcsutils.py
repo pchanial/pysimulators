@@ -18,6 +18,7 @@ from pyoperators.utils import isscalar, operation_assignment
 __all__ = [
     'angle_lonlat',
     'create_fitsheader',
+    'fitsheader2shape',
     'str2fitsheader',
     'DistortionOperator',
     'WCSToPixelOperator',
@@ -310,6 +311,14 @@ def create_fitsheader(
     header.update('equinox', 2000.0)
 
     return header
+
+
+# -------------------------------------------------------------------------------
+
+
+def fitsheader2shape(header):
+    ndim = header['NAXIS']
+    return tuple(header['NAXIS{0}'.format(i)] for i in range(ndim, 0, -1))
 
 
 # -------------------------------------------------------------------------------
