@@ -98,3 +98,12 @@ def test_create_fitsheader():
         assert h1['NAXIS1'] == a.shape[-1] if a.ndim > 0 else 1
     for a in arrays:
         yield func, a
+
+def test_fitsheader2shape():
+    def func(naxes):
+        header = create_fitsheader(naxes)
+        if len(naxes) == 0:
+            naxes = (1,)
+        assert all_eq(fitsheader2shape(header), naxes[::-1])
+    for naxes in [(), (1,), (1,2), (2,0,3)]:
+        yield func, naxes
