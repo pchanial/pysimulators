@@ -839,6 +839,8 @@ units_table = {
     # length
     'AU'     : Quantity(149597870700., 'm'),
     'km'     : Quantity(1000., 'm'),
+    'mm'     : Quantity(1e-3, 'm'),
+    'um'     : Quantity(1e-6, 'm'),
     'pc'     : Quantity(30.857e15, 'm'),
 
     # power
