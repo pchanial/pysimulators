@@ -2,7 +2,7 @@ import numpy as np
 
 from kapteyn import wcs
 from numpy.testing import assert_almost_equal
-from tamasis.utils import all_eq
+from pysimulators.utils import all_eq
 from pysimulators.wcsutils import (
     angle_lonlat,
     barycenter_lonlat,
