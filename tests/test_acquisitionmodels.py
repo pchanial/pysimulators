@@ -9,7 +9,7 @@ from pyoperators.utils.testing import assert_is_instance, skiptest
 from pysimulators.acquisitionmodels import BlackBodyOperator, ConvolutionOperator, CompressionAverageOperator, DdTddOperator, DiscreteDifferenceOperator, DownSamplingOperator, FftHalfComplexOperator, IdentityOperator, InvNttUncorrelatedOperator, InvNttUncorrelatedPythonOperator,  MaskOperator, PackOperator, PadOperator, ConvolutionTruncatedExponentialOperator, RollOperator, ShiftOperator, UnpackOperator, block_diagonal
 from pysimulators.utils import all_eq
 
-def test_partitioning():
+def test_partitioning_chunk():
 
     @block_diagonal('value', 'mykey', axisin=0)
     @decorators.square
@@ -91,6 +91,79 @@ def test_partitioning():
             for v in (2., (2.,), (2., 3)):
                 for k in (0., (0.,), (0., 1.)):
                     yield func, c, n, v, k
+
+def test_partitioning_stack():
+
+    @block_diagonal('value', 'mykey', new_axisin=0)
+    @decorators.square
+    class MyOp(Operator):
+        def __init__(self, arg1, value, arg3, mykey=None, **keywords):
+            Operator.__init__(self, **keywords)
+            self.arg1 = arg1
+            self.value = value
+            self.arg3 = arg3
+            self.mykey = mykey
+        def direct(self, input, output):
+            output[...] = self.value * input
+        __str__ = Operator.__repr__
+
+    @block_diagonal('value', 'mykey', new_axisin=0)
+    @decorators.square
+    class MySupOp(Operator):
+        def __init__(self, arg1, value, arg3, mykey=None, **keywords):
+            Operator.__init__(self, **keywords)
+            self.arg1 = arg1
+            self.value = value
+            self.arg3 = arg3
+            self.mykey = mykey
+    class MySubOp(MySupOp):
+        def direct(self, input, output):
+            output[...] = self.value * input
+        __str__ = Operator.__repr__
+
+    arg1 = [1, 2, 3, 4, 5]
+    arg3 = ['a', 'b', 'c', 'd']
+
+    def func(cls, v, k):
+        n1 = 1 if isscalar(v) else len(v)
+        n2 = 1 if isscalar(k) else len(k)
+        nn = max(n1,n2)
+        if not isscalar(v) and not isscalar(k) and n1 != n2:
+            # the partitioned arguments do not have the same length
+            assert_raises(ValueError, lambda: cls(arg1, v, arg3, mykey=k))
+            return
+
+        op = cls(arg1, v, arg3, mykey=k)
+        if nn == 1:
+            v = v if isscalar(v) else v[0]
+            k = k if isscalar(k) else k[0]
+            func2(cls, op, v, k)
+        else:
+            assert op.__class__ is BlockDiagonalOperator
+            assert len(op.operands) == nn
+            v = nn * [v] if isscalar(v) else v
+            k = nn * [k] if isscalar(k) else k
+            for op_, v_, k_ in zip(op.operands, v, k):
+                func2(cls, op_, v_, k_)
+            input = np.ones(nn)
+            output = op(input)
+            assert_equal(output, v)
+
+    def func2(cls, op, v, k):
+        assert op.__class__ is cls
+        assert op.arg1 is arg1
+        assert op.value is v
+        assert hasattr(op, 'arg3')
+        assert op.arg3 is arg3
+        assert op.mykey is k
+        input = np.ones(1)
+        output = op(input)
+        assert_equal(output, v)
+
+    for c in (MyOp, MySubOp):
+        for v in (2., (2.,), (2., 3)):
+            for k in (0., (0.,), (0., 1.)):
+                yield func, c, v, k
 
 def test_blackbody():
     def bb(w,T):

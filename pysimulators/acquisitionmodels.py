@@ -70,8 +70,10 @@ def block_diagonal(*partition_args, **keywords):
     
     Parameters
     ----------
-    axisin: int
-        Input partition axis.
+    axisin : int
+        Input partition axis for chunk partitioning.
+    new_axisin : int
+        Input partition axis for stack partitioning.
 
     *partition_args: string varargs
        Specify the class' arguments of the __init__ method that  can be a
@@ -98,11 +100,17 @@ def block_diagonal(*partition_args, **keywords):
         
     """
     # the following way to extract keywords is unnecessary in Python3 (PEP 3102)
-    if 'axisin' not in keywords:
-        raise TypeError("Missing 'axisin' keyword.")
+    if 'axisin' not in keywords and 'new_axisin' not in keywords: 
+        raise TypeError("Missing 'axisin' or 'new_axisin' keyword.")
 
-    axisin = keywords['axisin']
-    del keywords['axisin']
+    if 'axisin' in keywords:
+        axisin = keywords['axisin']
+        new_axisin = None
+        del keywords['axisin']
+    else:
+        axisin = None
+        new_axisin = keywords['new_axisin']
+        del keywords['new_axisin']
 
     if len(keywords) > 0:
         raise TypeError('Invalid keyed argument.')
@@ -151,7 +159,10 @@ def block_diagonal(*partition_args, **keywords):
 
             # Implicit partition
             if partitionin is None:
-                partitionin = n * (None,)
+                if axisin is not None:
+                    partitionin = n * (None,)
+                else:
+                    partitionin = n * (1,)
 
             # dispatch arguments
             n = len(partitionin)
@@ -163,18 +174,22 @@ def block_diagonal(*partition_args, **keywords):
                 for i in range(n))
             
             # the input shapein/out describe the BlockDiagonalOperator
-            def _reshape(s, p, a):
+            def _reshape(s, p, a, na):
                 s = list(tointtuple(s))
-                s[a] = p
+                if a is not None:
+                    s[a] = p
+                else:
+                    np.delete(s, na)
                 return tuple(s)
+
             if 'shapein' in keywords:
                 shapein = keywords['shapein']
                 for keys, p in zip(keyss, partitionin):
-                    keys['shapein'] = _reshape(shapein, p, axisin)
+                    keys['shapein'] = _reshape(shapein, p, axisin, new_axisin)
             if 'shapeout' in keywords:
                 shapeout = keywords['shapeout']
                 for keys, p in zip(keyss, partitionin):
-                    keys['shapeout'] = _reshape(shapeout, p, axisin)
+                    keys['shapeout'] = _reshape(shapeout, p, axisin, new_axisin)
 
             # instantiate the partitioned operators
             ops = [cls.__new_original__(cls_, *a, **k) \
@@ -184,7 +199,7 @@ def block_diagonal(*partition_args, **keywords):
                     cls.__init_original__(o, *a, **k)
 
             return BlockDiagonalOperator(ops, partitionin=partitionin,
-                                         axisin=axisin)
+                                         axisin=axisin, new_axisin=new_axisin)
 
         @functools.wraps(cls.__init__)
         def partition_init(self, *args, **keys):
