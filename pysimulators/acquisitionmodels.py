@@ -1208,13 +1208,13 @@ class FftOperator(Operator):
     Performs complex fft
 
     """
-    def __init__(self, shape, flags=['measure'], nthreads=None, **keywords):
-        Operator.__init__(self, shapein=shape,
+    def __init__(self, shapein, flags=['measure'], nthreads=None, **keywords):
+        Operator.__init__(self, shapein=shapein,
                                 dtype=complex, **keywords)
         nthreads = min(nthreads or openmp_num_threads(), MAX_FFTW_NUM_THREADS)
-        self.n = product(shape)
-        self._in  = np.zeros(shape, dtype=complex)
-        self._out = np.zeros(shape, dtype=complex)
+        self.n = product(shapein)
+        self._in  = np.zeros(shapein, dtype=complex)
+        self._out = np.zeros(shapein, dtype=complex)
         self.forward_plan = fftw3.Plan(self._in, self._out, direction='forward',
                                        flags=flags, nthreads=nthreads)
         self.backward_plan= fftw3.Plan(self._in, self._out,direction='backward',
@@ -1289,21 +1289,22 @@ class FftHalfComplexOperator(Operator):
 @real
 @inplace
 class ConvolutionOperator(Operator):
-    def __init__(self, shape, kernel, flags=['measure'], nthreads=None,
+    def __init__(self, shapein, kernel, flags=['measure'], nthreads=None,
                  dtype=None, **keywords):
 
+        shapein = tointtuple(shapein)
         dtype = dtype or kernel.dtype
         kernel = np.array(kernel, dtype, copy=False)
-        Operator.__init__(self, shapein=shape, dtype=dtype, **keywords)
+        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
-        ndim = len(self.shapein)
+        ndim = len(shapein)
         if ndim != kernel.ndim:
             raise ValueError("The kernel dimension '" + str(kernel.ndim) + "' i"
                 "s incompatible with the specified shape '" + str(ndim) + "'.")
 
         # if the kernel is larger than the image, we don't crop it since it
         # might affect normalisation of the kernel
-        if any([ks > s for ks,s in zip(kernel.shape, shape)]):
+        if any([ks > s for ks,s in zip(kernel.shape, shapein)]):
             raise ValueError('The kernel must not be larger than the input.')
 
         nthreads = min(nthreads or openmp_num_threads(), MAX_FFTW_NUM_THREADS)
@@ -1314,13 +1315,13 @@ class ConvolutionOperator(Operator):
 
         # pad kernel with zeros
         ker_slice = [ slice(0,s) for s in kernel.shape ]
-        kernel, kernel[ker_slice] = np.zeros(shape, kernel.dtype), kernel
+        kernel, kernel[ker_slice] = np.zeros(shapein, kernel.dtype), kernel
         for axis, o in enumerate(ker_origin):
             kernel = np.roll(kernel, int(-o), axis=axis)
         
         # set up fftw plans
-        self._in = np.empty(shape, kernel.dtype)
-        self._out = np.empty(shape, complex)
+        self._in = np.empty(shapein, kernel.dtype)
+        self._out = np.empty(shapein, complex)
         self.forward_plan = fftw3.Plan(self._in, self._out,
                                        direction='forward',
                                        flags=flags,
