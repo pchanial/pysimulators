@@ -1385,8 +1385,8 @@ class ConvolutionOperator(Operator):
         nthreads = min(nthreads or openmp_num_threads(), MAX_FFTW_NUM_THREADS)
 
         ker_origin = (np.array(kernel.shape)-1) / 2
-        if any([int(o) != o for o in ker_origin]):
-            raise ValueError('Kernel with even dimension is not yet handled.')
+#        if any([int(o) != o for o in ker_origin]):
+#            raise ValueError('Kernel with even dimension is not yet handled.')
 
         # pad kernel with zeros
         ker_slice = [ slice(0,s) for s in kernel.shape ]
