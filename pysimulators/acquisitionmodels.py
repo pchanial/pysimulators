@@ -17,7 +17,8 @@ from pyoperators.memory import allocate
 from pyoperators.utils import (isscalar, openmp_num_threads,
                                operation_assignment, product, tointtuple)
 from pyoperators.utils.mpi import MPI, distribute_shape, distribute_shapes
-#from . import tamasisfortran as tmf
+from tamasis import tmf
+
 from .datatypes import Map, Tod
 from .quantities import Quantity, _divide_unit, _multiply_unit
 from .utils import diff, diffT, diffTdiff, shift
