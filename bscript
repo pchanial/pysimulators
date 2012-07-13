@@ -3,16 +3,13 @@ import waflib
 
 from bento.commands import hooks
 from bento.commands.core import Command
-from bento.core.utils import pprint
+from bento.utils.utils import pprint
 from bento.backends.waf_backend import WAF_TOOLDIR
 from waflib import Options
 
-class TestCommand(Command):
-    def run(self, opts):
-        pprint('BLUE', "Running test command....")
-
-def startup(context):
-    context.register_command("test", TestCommand)
+@hooks.command
+def test(context):
+    pprint('BLUE', "Running test command....")
 
 def _set_mangling_var(conf, u, du, case, f2pycompat=True):
     env = conf.env
@@ -67,8 +64,6 @@ def post_configure(context):
     if conf.env.CC_NAME == 'gcc':
         conf.env.append_value('CFLAGS_PYEXT', "-Wfatal-errors")
         conf.env.append_value('CXXFLAGS_PYEXT', "-Wfatal-errors")
-
-    print conf.env
 
     if conf.env.FC_NAME == 'GFORTRAN':
         conf.env.FCFLAGS = ['-ffree-form', '-Wall', '-fPIC', '-cpp', '-fdefault-real-8', '-DPRECISION_REAL=8', '-fopenmp']
