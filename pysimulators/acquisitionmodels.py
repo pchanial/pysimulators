@@ -9,7 +9,8 @@ import pyoperators
 from pyoperators import (Operator, IdentityOperator, DiagonalOperator,
                          BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DistributionIdentityOperator,
-                         MaskOperator, NumexprOperator, ZeroOperator)
+                         MaskOperator, MultiplicationOperator, NumexprOperator,
+                         ZeroOperator, memory)
 from pyoperators.decorators import (linear, orthogonal, real, square, symmetric,
                                     unitary, universal, inplace)
 from pyoperators.memory import allocate
@@ -49,6 +50,7 @@ __all__ = [
     'PackOperator',
     'PadOperator',
     'Projection', # obsolete
+    'PowerLawOperator',
     'ProjectionOperator',
     'ResponseTruncatedExponential', # obsolete
     'ConvolutionTruncatedExponentialOperator',
@@ -281,6 +283,80 @@ class BlackBodyFixedTemperatureOperator(NumexprOperator):
             global_dict = {'coef1':coef1, 'coef2':coef2, 'coef3':coef3,
                            'T':self.temperature}
         NumexprOperator.__init__(self, expr, global_dict, dtype=float)
+
+
+@real
+@symmetric
+@inplace
+class PowerLawOperator(Operator):
+    """
+    Diagonal operator whose output extrapolates a reference, following
+    the power law:
+
+        y(x) = (x/x0)**alpha * y(x0)
+
+    This operator is lightweight, in the sense that it does not hold a copy
+    of the inputs and that the diagonal elements are computed on the fly.
+
+    Parameters
+    ----------
+    x : float or array_like
+        Abscissa at which the extrapolation is performed.
+    x0 : float
+        The reference abscissa.
+    alpha : array-like
+        The power-law slope.
+
+    Example
+    -------
+    >>> c = scipy.constants.c
+    >>> nu0 = c/10.e-6
+    >>> op = PowerLawOperator(c/11.e-6, nu0, -1)
+    >>> fnu0 = 1e-3
+    >>> op(fnu0)
+    array(0.0010999999999999998)
+
+    """
+    def __new__(cls, x, x0, alpha, scalar=1, **keywords):
+        if not isscalar(x):
+            return BlockColumnOperator([PowerLawOperator(x_, x0, alpha, scalar,
+                       **keywords) for x_ in x], new_axisout=0)
+        return Operator.__new__(cls)
+
+    def __init__(self, x, x0, alpha, scalar=1, **keywords):
+        x = np.asarray(x)
+        if x.ndim != 0:
+            raise TypeError('The input is not a scalar.')
+        x0 = np.asarray(x0)
+        if x0.ndim != 0:
+            raise TypeError('The reference input is not a scalar.')
+        alpha = np.asarray(alpha)
+        if alpha.ndim > 0:
+            keywords['shapein'] = alpha.shape
+        scalar = np.array(scalar)
+        if scalar.ndim != 0:
+            raise TypeError('The scalar coefficient is not a scalar.')
+        if 'dtype' not in keywords:
+            keywords['dtype'] = float
+        Operator.__init__(self, **keywords)
+        self.x = x
+        self.x0 = x0
+        self.alpha = alpha
+        self.scalar = scalar
+        self.set_rule('{HomothetyOperator}.', lambda o, s: PowerLawOperator(
+                      x, x0, alpha, o.data * s.scalar), CompositionOperator)
+        self.set_rule('.{ConstantOperator}', lambda s, o: PowerLawOperator(
+                      x, x0, alpha, o.data * s.scalar) if o.broadcast ==
+                      'scalar' else None, MultiplicationOperator)
+
+    def direct(self, input, output):
+        if not self.same_data(input, output):
+            output[...] = input
+        memory.up()
+        buf = memory.get(output.shape, output.dtype, self.__name__)
+        buf[...] = self.scalar * (self.x/self.x0)**self.alpha
+        output *= buf
+        memory.down()
 
 
 @block_diagonal('factor', axisin=-1)
