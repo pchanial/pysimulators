@@ -1,12 +1,13 @@
 import numpy as np
 import scipy
+import scipy.constants
 import scipy.signal
 
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
-from pyoperators import Operator, AdditionOperator, CompositionOperator, BlockDiagonalOperator, asoperator, decorators
+from pyoperators import Operator, AdditionOperator, CompositionOperator, BlockDiagonalOperator, MultiplicationOperator, asoperator, decorators
 from pyoperators.utils import isscalar
 from pyoperators.utils.testing import assert_is_instance, skiptest
-from pysimulators.acquisitionmodels import BlackBodyOperator, ConvolutionOperator, CompressionAverageOperator, DdTddOperator, DiscreteDifferenceOperator, DownSamplingOperator, FftHalfComplexOperator, IdentityOperator, InvNttUncorrelatedOperator, InvNttUncorrelatedPythonOperator,  MaskOperator, PackOperator, PadOperator, ConvolutionTruncatedExponentialOperator, RollOperator, ShiftOperator, UnpackOperator, block_diagonal
+from pysimulators.acquisitionmodels import BlackBodyOperator, ConvolutionOperator, CompressionAverageOperator, DdTddOperator, DiscreteDifferenceOperator, DownSamplingOperator, FftHalfComplexOperator, IdentityOperator, InvNttUncorrelatedOperator, InvNttUncorrelatedPythonOperator,  MaskOperator, PackOperator, PadOperator, PowerLawOperator, ConvolutionTruncatedExponentialOperator, RollOperator, ShiftOperator, UnpackOperator, block_diagonal
 from pysimulators.utils import all_eq
 
 def test_partitioning_chunk():
@@ -187,6 +188,28 @@ def test_blackbody():
     flux2 = np.array([op(np.ones(T.size)) for op in ops])
     assert all_eq(flux, flux2)
     
+def test_power_law():
+    c = scipy.constants.c
+    w = np.arange(90., 111) * 1e-6
+    w0 = 100e-6
+    values = np.arange(10)
+    nu = c / w
+    nu0 = c / w0
+
+    def func(alpha):
+        expected = np.asarray([(nu_/nu0)**alpha * values for nu_ in nu])
+        op = PowerLawOperator(nu, nu0, alpha)
+        assert all_eq(op(values), expected)
+    for alpha in (-1, np.arange(values.size)-5):
+        yield func, alpha
+
+    def func2(cls):
+        op = cls([2, PowerLawOperator(nu[0], nu0, 1)])
+        assert_is_instance(op, PowerLawOperator)
+    for cls in CompositionOperator, MultiplicationOperator:
+        yield func2, cls
+
+
 @skiptest
 def test_compression_average1():
     data = np.array([1., 2., 2., 3.])
