@@ -34,31 +34,23 @@ except:
 
 __all__ = [
     'BlackBodyOperator',
-    'CompressionAverage', # obsolete
     'CompressionAverageOperator',
     'ConvolutionOperator',
     'DistributionLocalOperator',
-    'DdTdd', # Obsolete
     'DdTddOperator',
-    'DiscreteDifference', # obsolete
     'DiscreteDifferenceOperator',
     'DownSamplingOperator',
     'FftOperator',
     'FftHalfComplexOperator',
-    'InvNtt', # obsolete
     'InvNttOperator',
-    'Masking', # obsolete
     'PackOperator',
     'PadOperator',
-    'Projection', # obsolete
     'PowerLawOperator',
     'ProjectionOperator',
-    'ResponseTruncatedExponential', # obsolete
     'ConvolutionTruncatedExponentialOperator',
     'RollOperator',
     'ShiftOperator',
     'SqrtInvNttOperator',
-    'Unpacking', # obsolete
     'UnpackOperator',
     'PointingMatrix',
 ]
@@ -1465,49 +1457,3 @@ def _ravel_strided(array):
     stop = start + (n2 - 1) * s2 + n1
     flat = base.ravel()[start:stop]
     return flat, array_.shape, s2
-
-def obsolete(cls):
-    if type(cls) is not type:
-        def func(*args, **kwargs):
-            print("The class factory '{0}' has been renamed. Use '{1}' instead."
-                  .format(cls.__name__, cls.__name__ + 'Operator'))
-            return cls(*args, **kwargs)
-        return func
-
-    @functools.wraps(cls.__base__.__init__)
-    def init(self, *args, **keywords):
-        print("The class '{0}' has been renamed. Use class '{1}' instead." \
-              .format(cls.__name__, cls.__base__.__name__))
-        cls.__init_original__(self, *args, **keywords)
-    cls.__init_original__ = cls.__base__.__init__
-    cls.__init__ = init
-    return cls
-
-        
-@obsolete
-class CompressionAverage(CompressionAverageOperator):
-    pass
-@obsolete
-class DiscreteDifference(DiscreteDifferenceOperator):
-    pass
-@obsolete
-class DdTdd(DdTddOperator):
-    pass
-@obsolete
-class InvNtt(InvNttOperator):
-    pass
-@obsolete
-class Masking(MaskOperator):
-    pass
-@obsolete
-class Packing(PackOperator):
-    pass
-@obsolete
-def Projection(*args, **kwargs):
-    return ProjectionOperator(*args, **kwargs)
-@obsolete
-class ResponseTruncatedExponential(ConvolutionTruncatedExponentialOperator):
-    pass
-@obsolete
-class Unpacking(UnpackOperator):
-    pass
