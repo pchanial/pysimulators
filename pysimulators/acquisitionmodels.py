@@ -58,10 +58,10 @@ __all__ = [
 def block_diagonal(*partition_args, **keywords):
     """
     Class decorator that partitions an Operator along a specified axis.
-    It adds a 'partition' keyed argument to the class constructor.
+    It adds a 'partitionin' keyed argument to the class constructor.
 
     Subclasses can also benefit from a decorated class, as long as they do not
-    define a __init__ or __new__ method.
+    define an __init__ method.
     
     Parameters
     ----------
@@ -112,8 +112,8 @@ def block_diagonal(*partition_args, **keywords):
 
     def func(cls):
 
-        @functools.wraps(cls.__new__)
-        def partition_new(cls_, *args, **keywords):
+        @functools.wraps(cls.__init__)
+        def partition_init(self, *args, **keywords):
 
             # get number of blocks through the partitionin keyword
             n1 = 0
@@ -134,23 +134,21 @@ def block_diagonal(*partition_args, **keywords):
                  [0 if isscalar(v) else len(v) for k,v in keywords.items() \
                   if k in partition_args]
 
-            # required for copy.copy, which calls __new__ without arguments
-            if n1 == 0 and len(ns) == 0:
-                result = cls.__new_original__(cls_)
-                if len(class_args) == 0:
-                    cls.__init_original__(result)
-                return result
-
             n2 = 0 if len(ns) == 0 else max(ns)
             if any(n not in (0, n2) for n in ns):
                 raise ValueError('The partition variables do not have the same '
                                  'number of elements.')
 
+            # bail if no partitioning is found
+            n = max(n1, n2)
+            if n == 0:
+                cls.__init_original__(self, *args, **keywords)
+                return
+
             # check the two methods are compatible
             if n1 != 0 and n2 != 0 and n1 != n2:
                 raise ValueError('The specified partitioning is incompatible wi'
                     'th the number of elements in the partition variables.')
-            n = max(n1, n2, 1)
 
             # Implicit partition
             if partitionin is None:
@@ -187,22 +185,15 @@ def block_diagonal(*partition_args, **keywords):
                     keys['shapeout'] = _reshape(shapeout, p, axisin, new_axisin)
 
             # instantiate the partitioned operators
-            ops = [cls.__new_original__(cls_, *a, **k) \
-                   for a,k in zip(argss, keyss)]
+            ops = [cls.__new__(type(self), *a, **k) for a,k in zip(argss,keyss)]
             for o, a, k in zip(ops, argss, keyss):
                 if isinstance(o, cls):
                     cls.__init_original__(o, *a, **k)
 
-            return BlockDiagonalOperator(ops, partitionin=partitionin,
-                                         axisin=axisin, new_axisin=new_axisin)
+            self.__class__ = BlockDiagonalOperator
+            self.__init__(ops, partitionin=partitionin, axisin=axisin,
+                          new_axisin=new_axisin)
 
-        @functools.wraps(cls.__init__)
-        def partition_init(self, *args, **keys):
-            # opearator has already been initialised
-            pass
-
-        cls.__new_original__ = staticmethod(cls.__new__)
-        cls.__new__ = staticmethod(partition_new)
         cls.__init_original__ = cls.__init__
         cls.__init__ = partition_init
         return cls
