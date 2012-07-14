@@ -4,13 +4,16 @@ import functools
 import inspect
 import numpy as np
 import operator
+import os
 import pyoperators
+import time
 
 from pyoperators import (Operator, IdentityOperator, DiagonalOperator,
                          BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DistributionIdentityOperator,
                          MaskOperator, MultiplicationOperator, NumexprOperator,
                          ZeroOperator, memory)
+from pyoperators.config import LOCAL_PATH
 from pyoperators.decorators import (linear, orthogonal, real, square, symmetric,
                                     unitary, universal, inplace)
 from pyoperators.memory import allocate
@@ -29,6 +32,13 @@ try:
     import fftw3
     MAX_FFTW_NUM_THREADS = 1 if fftw3.planning.lib_threads is None \
         else openmp_num_threads()
+    FFTW_WISDOM_FILE = os.path.join(LOCAL_PATH, 'fftw.wisdom')
+    FFTW_WISDOM_MIN_DELAY = 0.1
+    try:
+        fftw3.import_system_wisdom()
+    except IOError:
+        pass
+    _is_fftw_wisdom_loaded = False
 except:
     print('Warning: Library PyFFTW3 is not installed.')
 
@@ -1284,16 +1294,33 @@ class FftOperator(Operator):
 
     """
     def __init__(self, shapein, flags=['measure'], nthreads=None, **keywords):
+        global _is_fftw_wisdom_loaded
         Operator.__init__(self, shapein=shapein,
                                 dtype=complex, **keywords)
         nthreads = min(nthreads or openmp_num_threads(), MAX_FFTW_NUM_THREADS)
         self.n = product(shapein)
         self._in  = np.zeros(shapein, dtype=complex)
         self._out = np.zeros(shapein, dtype=complex)
+        if not _is_fftw_wisdom_loaded:
+            try:
+                with open(FFTW_WISDOM_FILE) as f:
+                    fftw3.import_wisdom_from_string(f.read())
+            except IOError:
+                pass
+            _is_fftw_wisdom_loaded = True
+
+        t0 = time.time()
         self.forward_plan = fftw3.Plan(self._in, self._out, direction='forward',
                                        flags=flags, nthreads=nthreads)
         self.backward_plan= fftw3.Plan(self._in, self._out,direction='backward',
                                        flags=flags, nthreads=nthreads)
+        if time.time() - t0 > FFTW_WISDOM_MIN_DELAY:
+            try:
+                os.remove(FFTW_WISDOM_FILE)
+            except OSError:
+                pass
+            with open(FFTW_WISDOM_FILE, 'w') as f:
+                f.write(fftw3.export_wisdom_to_string())
 
     def direct(self, input, output):
         self._in[...] = input
