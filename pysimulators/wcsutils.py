@@ -199,7 +199,7 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
                          "d.")
 
     if fromdata is None:
-        naxis = np.array(naxis, ndmin=1)
+        naxis = np.array(naxis, dtype=int, ndmin=1)
         naxis = tuple(naxis)
         if len(naxis) > 8:
             raise ValueError('First argument is naxis=(NAXIS1,NAXIS2,...)')
