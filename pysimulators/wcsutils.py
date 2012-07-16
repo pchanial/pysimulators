@@ -213,7 +213,7 @@ def create_fitsheader(
         raise ValueError("Either keyword 'naxis' or 'fromdata' must be specifie" "d.")
 
     if fromdata is None:
-        naxis = np.array(naxis, ndmin=1)
+        naxis = np.array(naxis, dtype=int, ndmin=1)
         naxis = tuple(naxis)
         if len(naxis) > 8:
             raise ValueError('First argument is naxis=(NAXIS1,NAXIS2,...)')
