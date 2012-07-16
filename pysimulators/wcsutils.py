@@ -147,7 +147,7 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
 #-------------------------------------------------------------------------------
 
 
-def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
+def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
                       crval=(0.,0.), crpix=None, ctype=('RA---TAN','DEC--TAN'),
                       cunit='deg', cd=None, cdelt=None, pa=None, equinox=2000.):
     """
@@ -155,8 +155,9 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
 
     Parameters
     ----------
-    naxis : array, optional
+    naxes : array, optional
         (NAXIS1,NAXIS2,...) tuple, which specifies the data dimensions.
+        Note that the dimensions in FITS and ndarrays are reversed.
     dtype : data-type, optional
         Desired data type for the data stored in the FITS file
     fromdata : array_like, optional
@@ -189,20 +190,20 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
     Examples
     --------
     >>> map = Map.ones((10,100), unit='Jy/pixel')
-    >>> map.header = create_fitsheader(naxis=(100,10), cd=[[-1,0],[0,1]])
+    >>> map.header = create_fitsheader(map.shape[::-1], cd=[[-1,0],[0,1]])
     >>> map.header = create_fitsheader(fromdata=map)
-    """
 
-    if naxis is not None and fromdata is not None or naxis is None and \
+    """
+    if naxes is not None and fromdata is not None or naxes is None and \
        fromdata is None:
-        raise ValueError("Either keyword 'naxis' or 'fromdata' must be specifie"
+        raise ValueError("Either keyword 'naxes' or 'fromdata' must be specifie"
                          "d.")
 
     if fromdata is None:
-        naxis = np.array(naxis, dtype=int, ndmin=1)
-        naxis = tuple(naxis)
-        if len(naxis) > 8:
-            raise ValueError('First argument is naxis=(NAXIS1,NAXIS2,...)')
+        naxes = np.array(naxes, dtype=int, ndmin=1)
+        naxes = tuple(naxes)
+        if len(naxes) > 8:
+            raise ValueError('First argument is naxes=(NAXIS1,NAXIS2,...)')
         if dtype is not None:
             dtype = np.dtype(dtype)
             typename = dtype.name
@@ -210,7 +211,7 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
             typename = 'float64'
     else:
         array = np.array(fromdata, copy=False)
-        naxis = tuple(reversed(array.shape))
+        naxes = tuple(reversed(array.shape))
         if dtype is not None:
             array = array.astype(dtype)
         if array.dtype.itemsize == 1:
@@ -221,10 +222,10 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
             typename = array.dtype.name
 
     # FITS format does not handle scalar values
-    if len(naxis) == 0:
-        naxis = (1,)
+    if len(naxes) == 0:
+        naxes = (1,)
 
-    numaxis = len(naxis)
+    numaxis = len(naxes)
 
     if extname is None:
         card = pyfits.create_card('simple', True)
@@ -236,7 +237,7 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
                       'array data type')
     header.update('naxis', numaxis, 'number of array dimensions')
     for dim in range(numaxis):
-        header.update('naxis'+str(dim+1), naxis[dim])
+        header.update('naxis'+str(dim+1), naxes[dim])
     if extname is None:
         header.update('extend', True)
     else:
@@ -265,7 +266,7 @@ def create_fitsheader(naxis=None, dtype=None, fromdata=None, extname=None,
         raise ValueError('CRVAL does not have two elements.')
 
     if crpix is None:
-        crpix = (np.array(naxis) + 1) / 2
+        crpix = (np.array(naxes) + 1) / 2
     else:
         crpix = np.asarray(crpix, float)
     if crpix.size != 2:
