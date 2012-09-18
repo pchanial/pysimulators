@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Download
-excerpt: Download pyoperators package
+excerpt: Download pysimulators package
 ---
 
 h1. {{ page.title }}
@@ -14,7 +14,7 @@ The easiest way to download and install this package is by using the easy_instal
 
 bc. sudo easy_install pysimulators
 
-To upgrade an already installed PyOperator package:
+To upgrade an already installed PySimulators package:
 
 bc. sudo easy_install --upgrade pysimulators
 
