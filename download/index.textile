@@ -1,0 +1,32 @@
+---
+layout: default
+title: Download
+excerpt: Download pyoperators package
+---
+
+h1. {{ page.title }}
+
+The PySimulators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pysimulators. The current version of the pysimulators package is {{ site.version_stable }}, and it is still in beta stage.
+
+h2. The easy way
+
+The easiest way to download and install this package is by using the easy_install utility:
+
+bc. sudo easy_install pysimulators
+
+To upgrade an already installed PyOperator package:
+
+bc. sudo easy_install --upgrade pysimulators
+
+h2. The Git way
+
+You can also clone the Github repository, using the version control system "Git":http://git-scm.com/:
+
+bc. $ git clone git://github.com/pchanial/pysimulators.git
+$ cd pysimulators.git
+$ sudo python setup.py install
+
+This method is convenient to test pysimulators' development branch. The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
+
+bc. $ git pull
+Already up-to-date.

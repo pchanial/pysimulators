@@ -1,0 +1,16 @@
+---
+layout: default
+title: Credits
+---
+
+h1. Credits
+
+To cite this package, use:
+
+<div class="definition">
+2011, PySimulators: Tools to build an instrument model, P. Chanial, in&nbsp;prep., http://pchanial.github.com/pysimulators
+</div>
+
+h1. Acknowledgements
+
+Pierre Chanial thank the ASTRONET consortium for funding this work through the TAMASIS project.
