@@ -1,6 +1,7 @@
 from pyoperators.utils.mpi import MPI
 
 from . import _wcsutils
+from .config import VERSION as __version__
 from .acquisitionmodels import *
 from .datatypes import *
 from .instruments import *
