@@ -11,7 +11,7 @@ import time
 from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DiagonalOperator,
                          DiagonalNumexprSeparableOperator,
-                         DistributionIdentityOperator,
+                         DistributionIdentityOperator, GroupOperator,
                          IdentityOperator, MaskOperator, MultiplicationOperator,
                          NumexprOperator, ZeroOperator)
 from pyoperators.config import LOCAL_PATH
@@ -1383,16 +1383,14 @@ class FftHalfComplexOperator(Operator):
 
 @linear
 @square
-@real
-@inplace
-class ConvolutionOperator(Operator):
+class ConvolutionOperator(GroupOperator):
     def __init__(self, shapein, kernel, flags=['measure'], nthreads=None,
                  dtype=None, **keywords):
 
         shapein = tointtuple(shapein)
-        dtype = dtype or kernel.dtype
+        if isinstance(kernel, np.ndarray):
+            dtype = dtype or kernel.dtype
         kernel = np.array(kernel, dtype, copy=False)
-        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
         ndim = len(shapein)
         if ndim != kernel.ndim:
@@ -1404,8 +1402,6 @@ class ConvolutionOperator(Operator):
         if any([ks > s for ks,s in zip(kernel.shape, shapein)]):
             raise ValueError('The kernel must not be larger than the input.')
 
-        nthreads = min(nthreads or openmp_num_threads(), MAX_FFTW_NUM_THREADS)
-
         ker_origin = (np.array(kernel.shape)-1) / 2
 #        if any([int(o) != o for o in ker_origin]):
 #            raise ValueError('Kernel with even dimension is not yet handled.')
@@ -1415,39 +1411,14 @@ class ConvolutionOperator(Operator):
         kernel, kernel[ker_slice] = np.zeros(shapein, kernel.dtype), kernel
         for axis, o in enumerate(ker_origin):
             kernel = np.roll(kernel, int(-o), axis=axis)
-        
-        # set up fftw plans
-        self._in = np.empty(shapein, kernel.dtype)
-        self._out = np.empty(shapein, complex)
-        self.forward_plan = fftw3.Plan(self._in, self._out,
-                                       direction='forward',
-                                       flags=flags,
-                                       nthreads=nthreads)
-        self.backward_plan = fftw3.Plan(self._out, self._in,
-                                        direction='backward',
-                                        flags=flags,
-                                        nthreads=nthreads)
 
         # FT kernel
-        self._in[:] = kernel
-        fftw3.execute(self.forward_plan)
-        self.kernel = self._out / kernel.size
+        fft = FftOperator(shapein, flags=flags, nthreads=nthreads)
+        kernel = fft(kernel)
+        kernel /= kernel.size
         
-    def direct(self, input, output):
-        self._in[...] = input
-        fftw3.execute(self.forward_plan)
-        self._out *= self.kernel
-        fftw3.execute(self.backward_plan)
-        output[...] = self._in
-        
-    def transpose(self, input, output):
-        self._in[...] = input
-        fftw3.execute(self.forward_plan)
-        # avoid temp array in 'self._out *= self.kernel.conjugate()'
-        tmf.multiply_conjugate_complex(self._out.ravel(), self.kernel.ravel(),
-                                       self._out.ravel())
-        fftw3.execute(self.backward_plan)
-        output[...] = self._in
+        GroupOperator.__init__(self, [fft.H, DiagonalOperator(kernel), fft],
+                               shapein=shapein, dtype=dtype, **keywords)
 
 
 def _ravel_strided(array):

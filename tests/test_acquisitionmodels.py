@@ -508,7 +508,6 @@ def test_packing():
     assert all_eq(np.dot(udense, pdense), m.todense())
 
 
-@skiptest
 def test_convolution():
     imashape = (7, 7)
     kershape = (3, 3)
