@@ -1322,7 +1322,7 @@ class FftOperator(Operator):
         fftw3.execute(self.forward_plan)
         output[...] = self._out
 
-    def transpose(self, input, output):
+    def adjoint(self, input, output):
         self._in[...] = input
         fftw3.execute(self.backward_plan)
         output[...] = self._out / self.n
