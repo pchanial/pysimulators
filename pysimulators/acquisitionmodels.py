@@ -8,11 +8,12 @@ import os
 import pyoperators
 import time
 
-from pyoperators import (Operator, IdentityOperator, DiagonalOperator,
-                         BlockColumnOperator, BlockDiagonalOperator,
-                         CompositionOperator, DistributionIdentityOperator,
-                         MaskOperator, MultiplicationOperator, NumexprOperator,
-                         ZeroOperator, memory)
+from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
+                         CompositionOperator, DiagonalOperator,
+                         DiagonalNumexprSeparableOperator,
+                         DistributionIdentityOperator,
+                         IdentityOperator, MaskOperator, MultiplicationOperator,
+                         NumexprOperator, ZeroOperator)
 from pyoperators.config import LOCAL_PATH
 from pyoperators.decorators import (linear, orthogonal, real, square, symmetric,
                                     unitary, universal, inplace)
@@ -283,44 +284,36 @@ class BlackBodyFixedTemperatureOperator(NumexprOperator):
 
 
 @real
-@symmetric
-@inplace
-class PowerLawOperator(Operator):
+class PowerLawOperator(DiagonalNumexprSeparableOperator):
     """
-    Diagonal operator whose output extrapolates a reference, following
-    the power law:
+    Diagonal operator which extrapolates an input following the power law:
+        output = (x/x0)**alpha * input
 
-        y(x) = (x/x0)**alpha * y(x0)
-
-    This operator is lightweight, in the sense that it does not hold a copy
-    of the inputs and that the diagonal elements are computed on the fly.
+    This operator is lightweight, in the sense that it does not copy the
+    potentially large argument 'alpha' and that the diagonal elements are
+    computed on the fly.
 
     Parameters
     ----------
-    x : float or array_like
+    alpha : array-like
+        The broadcastable power-law slope.
+    x : float
         Abscissa at which the extrapolation is performed.
     x0 : float
         The reference abscissa.
-    alpha : array-like
-        The power-law slope.
 
     Example
     -------
+    >>> import scipy.constants
     >>> c = scipy.constants.c
     >>> nu0 = c/10.e-6
-    >>> op = PowerLawOperator(c/11.e-6, nu0, -1)
+    >>> op = PowerLawOperator(-1, c/11.e-6, nu0)
     >>> fnu0 = 1e-3
     >>> op(fnu0)
     array(0.0010999999999999998)
 
     """
-    def __new__(cls, x, x0, alpha, scalar=1, **keywords):
-        if not isscalar(x):
-            return BlockColumnOperator([PowerLawOperator(x_, x0, alpha, scalar,
-                       **keywords) for x_ in x], new_axisout=0)
-        return Operator.__new__(cls)
-
-    def __init__(self, x, x0, alpha, scalar=1, **keywords):
+    def __init__(self, alpha, x, x0, scalar=1, **keywords):
         x = np.asarray(x)
         if x.ndim != 0:
             raise TypeError('The input is not a scalar.')
@@ -335,25 +328,24 @@ class PowerLawOperator(Operator):
             raise TypeError('The scalar coefficient is not a scalar.')
         if 'dtype' not in keywords:
             keywords['dtype'] = float
-        Operator.__init__(self, **keywords)
+        global_dict = {'x':x, 'x0':x0, 's':scalar}
+        DiagonalNumexprSeparableOperator.__init__(self, alpha,
+            's * (x / x0) ** alpha', global_dict, var='alpha',
+            **keywords)
         self.x = x
         self.x0 = x0
-        self.alpha = alpha
         self.scalar = scalar
         self.set_rule('{HomothetyOperator}.', lambda o, s: PowerLawOperator(
-                      x, x0, alpha, o.data * s.scalar), CompositionOperator)
+                      alpha, x, x0, o.data * s.scalar), CompositionOperator)
         self.set_rule('.{ConstantOperator}', lambda s, o: PowerLawOperator(
-                      x, x0, alpha, o.data * s.scalar) if o.broadcast ==
+                      alpha, x, x0, o.data * s.scalar) if o.broadcast ==
                       'scalar' else None, MultiplicationOperator)
 
-    def direct(self, input, output):
-        if not self.same_data(input, output):
-            output[...] = input
-        memory.up()
-        buf = memory.get(output.shape, output.dtype, self.__name__)
-        buf[...] = self.scalar * (self.x/self.x0)**self.alpha
-        output *= buf
-        memory.down()
+    @staticmethod
+    def _rule_block(self, op, shape, partition, axis, new_axis, func_operation):
+        return DiagonalOperator._rule_block(self, op, shape, partition, axis,
+                   new_axis, func_operation, self.x, self.x0, scalar=
+                   self.scalar)
 
 
 @block_diagonal('factor', axisin=-1)
