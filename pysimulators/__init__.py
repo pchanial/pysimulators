@@ -1,4 +1,6 @@
 from pyoperators.utils.mpi import MPI
+
+from . import _wcsutils
 from .acquisitionmodels import *
 from .datatypes import *
 from .instruments import *

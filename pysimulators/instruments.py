@@ -13,6 +13,7 @@ from .acquisitionmodels import PointingMatrix
 from .datatypes import Map
 from .mpiutils import gather_fitsheader_if_needed
 from .wcsutils import barycenter_lonlat, combine_fitsheader, create_fitsheader
+from ._wcsutils import wcsutils
 
 __all__ = ['Instrument']
 
@@ -634,7 +635,7 @@ class Instrument(object):
                 )
         else:
             out = np.empty(shape_corners)
-        tmf.wcsutils.create_grid_square(
+        wcsutils.create_grid_square(
             size,
             filling_factor,
             xreflection,
