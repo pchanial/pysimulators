@@ -17,16 +17,16 @@ contains
         !f2py threadsafe
         integer, intent(in)    :: nx                 ! number of detectors along the x axis
         integer, intent(in)    :: ny                 ! number of detectors along the y axis
-        real(p), intent(in)    :: size               ! size of the detector placeholder
-        real(p), intent(in)    :: filling_factor     ! fraction of transmitting detector area
+        real*8, intent(in)     :: size               ! size of the detector placeholder
+        real*8, intent(in)     :: filling_factor     ! fraction of transmitting detector area
         logical, intent(in)    :: xreflection        ! reflection along the x-axis (before rotation)
         logical, intent(in)    :: yreflection        ! reflection along the y-axis (before rotation)
-        real(p), intent(in)    :: rotation           ! counter-clockwise rotation in degrees (before translation)
-        real(p), intent(in)    :: xcenter, ycenter   ! coordinates of the grid center
-        real(p), intent(inout) :: coords(2,4,nx,ny)  ! output coordinates of the detector corners (first dimension is x and y)
+        real*8, intent(in)     :: rotation           ! counter-clockwise rotation in degrees (before translation)
+        real*8, intent(in)     :: xcenter, ycenter   ! coordinates of the grid center
+        real*8, intent(inout)  :: coords(2,4,nx,ny)  ! output coordinates of the detector corners (first dimension is x and y)
 
         integer :: i, j, k
-        real(p) :: x, y, x0, y0, size_eff, r11, r12, r21, r22, tmp
+        real*8 :: x, y, x0, y0, size_eff, r11, r12, r21, r22, tmp
 
         size_eff = size * sqrt(filling_factor)
         r11 = cos(DEG2RAD * rotation)
