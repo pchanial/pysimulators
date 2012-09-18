@@ -28,6 +28,11 @@ except:
     ds9 = None
 
 from functools import reduce
+
+try:
+    from pyoperators.memory import empty
+except ImportError:
+    from pyoperators.memory import allocate as empty
 from pyoperators.utils import isscalar
 from pyoperators.utils.mpi import MPI
 
@@ -211,12 +216,7 @@ class FitsArray(Quantity):
         shape, header=None, unit=None, derived_units=None, dtype=None, order=None
     ):
         return FitsArray(
-            np.empty(shape, dtype, order),
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy=False,
+            empty(shape, dtype, order), header, unit, derived_units, dtype, copy=False
         )
 
     @staticmethod
@@ -717,7 +717,7 @@ class Map(FitsArray):
         order=None,
     ):
         return Map(
-            np.empty(shape, dtype, order),
+            empty(shape, dtype, order),
             header,
             unit,
             derived_units,
@@ -1072,7 +1072,7 @@ class Tod(FitsArray):
         order=None,
     ):
         return Tod(
-            np.empty(shape, dtype, order),
+            empty(shape, dtype, order),
             mask,
             header,
             unit,
