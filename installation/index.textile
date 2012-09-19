@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Download
-excerpt: Download pysimulators package
+title: Installation
+excerpt: Install pysimulators package
 ---
 
 h1. {{ page.title }}
