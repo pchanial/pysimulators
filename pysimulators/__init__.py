@@ -1,6 +1,6 @@
 from pyoperators.utils.mpi import MPI
 
-from . import _wcsutils
+from . import _flib
 from . import geometry
 from .config import VERSION as __version__
 from .acquisitionmodels import *

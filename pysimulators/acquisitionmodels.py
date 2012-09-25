@@ -26,10 +26,11 @@ from pyoperators.utils import (isscalar, openmp_num_threads,
 from pyoperators.utils.mpi import MPI, distribute_shape, distribute_shapes
 from tamasis import tmf
 
+from . import _flib as flib
 from .datatypes import Map, Tod
 from .quantities import Quantity, _divide_unit, _multiply_unit
 from .utils import diff, diffT, diffTdiff, shift
-from .wcsutils import str2fitsheader
+from .wcsutils import fitsheader2shape, str2fitsheader
 from .mpiutils import gather_fitsheader_if_needed, scatter_fitsheader
 
 try:
@@ -593,6 +594,21 @@ class PointingMatrix(np.ndarray):
         buffer.value = 0
         buffer.index = -1
         return PointingMatrix(buffer, shape_input, info=info, copy=False)
+
+    def check(self, npixels=None):
+        """
+        Return true if the indices in the pointing matrix are greater or equal
+        to -1 or less than the number of pixels in the map.
+        """
+        if self.size == 0:
+            return True
+        if self.info is not None and 'header' in self.info:
+            npixels = product(fitsheader2shape(self.info['header']))
+        elif npixels is None:
+            raise ValueError('The number of map pixels is not specified.')
+        result = flib.pointingmatrix.check(self.ravel().view(np.int64),
+                     self.shape[-1], product(self.shape[:-1]), npixels)
+        return bool(result)
 
     def pack(self, mask):
         """
@@ -1384,7 +1400,7 @@ class FftHalfComplexOperator(Operator):
 @linear
 @square
 class ConvolutionOperator(GroupOperator):
-    def __init__(self, shapein, kernel, flags=['measure'], nthreads=None,
+    def __init__(self, shapein, kernel, flags=['patient'], nthreads=None,
                  dtype=None, **keywords):
 
         shapein = tointtuple(shapein)
