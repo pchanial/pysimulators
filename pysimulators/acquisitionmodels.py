@@ -36,7 +36,7 @@ try:
     import fftw3
     MAX_FFTW_NUM_THREADS = 1 if fftw3.planning.lib_threads is None \
         else openmp_num_threads()
-    FFTW_WISDOM_FILE = os.path.join(LOCAL_PATH, 'fftw.wisdom')
+    FFTW_WISDOM_FILE = os.path.join(LOCAL_PATH, 'fftw3.wisdom')
     FFTW_WISDOM_MIN_DELAY = 0.1
     try:
         fftw3.import_system_wisdom()
