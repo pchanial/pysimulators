@@ -21,8 +21,11 @@ platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
 ext_modules = [
     Extension(
-        'pysimulators._wcsutils',
-        sources=['pysimulators/module_wcsutils.f90'],
+        'pysimulators._flib',
+        sources=[
+            'pysimulators/module_wcsutils.f90',
+            'pysimulators/module_pointingmatrix.f90',
+        ],
         include_dirs=['.', np.get_include()],
         f2py_options=[],
     )
