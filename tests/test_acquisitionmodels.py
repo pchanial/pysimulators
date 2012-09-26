@@ -1,7 +1,6 @@
 import numpy as np
 import scipy
 import scipy.constants
-import scipy.signal
 
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from pyoperators import (
@@ -17,7 +16,6 @@ from pyoperators.utils import isscalar
 from pyoperators.utils.testing import assert_is_instance, skiptest
 from pysimulators.acquisitionmodels import (
     BlackBodyOperator,
-    ConvolutionOperator,
     CompressionAverageOperator,
     DdTddOperator,
     DiscreteDifferenceOperator,
@@ -504,82 +502,6 @@ def test_packing():
     assert_is_instance(u * p, MaskOperator)
     m = u * p
     assert all_eq(np.dot(udense, pdense), m.todense())
-
-
-def test_convolution():
-    imashape = (7, 7)
-    kershape = (3, 3)
-    kerorig = (np.array(kershape) - 1) // 2
-    kernel = np.zeros(kershape)
-    kernel[kerorig[0] - 1 : kerorig[0] + 2, kerorig[1] - 1 : kerorig[1] + 2] = 0.5**4
-    kernel[kerorig[0], kerorig[1]] = 0.5
-    kernel[kerorig[0] - 1, kerorig[1] - 1] *= 2
-    kernel[kerorig[0] + 1, kerorig[1] + 1] = 0
-
-    image = np.zeros(imashape)
-    image[3, 3] = 1.0
-    ref = scipy.signal.convolve(image, kernel, mode='same')
-    convol = ConvolutionOperator(image.shape, kernel)
-    con = convol(image)
-    assert np.allclose(ref, con, atol=1.0e-15)
-
-    image = np.array([0, 1, 0, 0, 0, 0, 0])
-    kernel = [1, 1, 0.5]
-    convol = ConvolutionOperator(image.shape, [1, 1, 1])
-    con = convol(image)
-    ref = scipy.signal.convolve(image, kernel, mode='same')
-
-    for kx in range(1, 4, 2):
-        kshape = (kx,)
-        kernel = np.ones(kshape)
-        kernel.flat[-1] = 0.5
-        for ix in range(kx * 2, kx * 2 + 3):
-            ishape = (ix,)
-            image = np.zeros(ishape)
-            image.flat[image.size // 2] = 1.0
-            convol = ConvolutionOperator(image.shape, kernel)
-            con = convol(image)
-            ref = scipy.signal.convolve(image, kernel, mode='same')
-            assert np.allclose(con, ref, atol=1.0e-15)
-            assert np.allclose(convol.todense().T, convol.T.todense(), atol=1.0e-15)
-
-    for kx in range(1, 4, 2):
-        for ky in range(1, 4, 2):
-            kshape = (kx, ky)
-            kernel = np.ones(kshape)
-            kernel.flat[-1] = 0.5
-            for ix in range(kx * 2 + 1, kx * 2 + 3):
-                for iy in range(ky * 2 + 1, ky * 2 + 3):
-                    ishape = (ix, iy)
-                    image = np.zeros(ishape)
-                    image[tuple([s // 2 for s in image.shape])] = 1.0
-                    convol = ConvolutionOperator(image.shape, kernel)
-                    con = convol(image)
-                    ref = scipy.signal.convolve(image, kernel, mode='same')
-                    assert np.allclose(con, ref, atol=1.0e-15)
-                    assert np.allclose(
-                        convol.todense().T, convol.T.todense(), atol=1.0e-15
-                    )
-
-    for kx in range(1, 4, 2):
-        for ky in range(1, 4, 2):
-            for kz in range(1, 4, 2):
-                kshape = (kx, ky, kz)
-                kernel = np.ones(kshape)
-                kernel.flat[-1] = 0.5
-                for ix in range(kx * 2 + 1, kx * 2 + 3):
-                    for iy in range(ky * 2 + 1, ky * 2 + 3):
-                        for iz in range(kz * 2 + 1, kz * 2 + 3):
-                            ishape = (ix, iy, iz)
-                            image = np.zeros(ishape)
-                            image[tuple([s // 2 for s in image.shape])] = 1.0
-                            convol = ConvolutionOperator(image.shape, kernel)
-                            con = convol(image)
-                            ref = scipy.signal.convolve(image, kernel, mode='same')
-                            assert np.allclose(con, ref, atol=1.0e-15)
-                            assert np.allclose(
-                                convol.todense().T, convol.T.todense(), atol=1.0e-15
-                            )
 
 
 def test_scipy_linear_operator():

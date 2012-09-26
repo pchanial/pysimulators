@@ -6,17 +6,16 @@ import numpy as np
 import operator
 import os
 import pyoperators
-import time
 
 from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DiagonalOperator,
                          DiagonalNumexprSeparableOperator,
-                         DistributionIdentityOperator, GroupOperator,
-                         IdentityOperator, MaskOperator, MultiplicationOperator,
-                         NumexprOperator, ZeroOperator)
+                         DistributionIdentityOperator, IdentityOperator,
+                         MaskOperator, MultiplicationOperator, NumexprOperator,
+                         ZeroOperator)
 from pyoperators.config import LOCAL_PATH
 from pyoperators.decorators import (linear, orthogonal, real, square, symmetric,
-                                    unitary, universal, inplace)
+                                    universal, inplace)
 try:
     from pyoperators.memory import empty
 except ImportError:
@@ -50,12 +49,10 @@ except:
 __all__ = [
     'BlackBodyOperator',
     'CompressionAverageOperator',
-    'ConvolutionOperator',
     'DistributionLocalOperator',
     'DdTddOperator',
     'DiscreteDifferenceOperator',
     'DownSamplingOperator',
-    'FftOperator',
     'FftHalfComplexOperator',
     'InvNttOperator',
     'PackOperator',
@@ -1297,52 +1294,6 @@ class RollOperator(Operator):
             output[...] = np.roll(output, -n, axis=axis)
 
 
-@unitary
-@inplace
-class FftOperator(Operator):
-    """
-    Performs complex fft
-
-    """
-    def __init__(self, shapein, flags=['measure'], nthreads=None, **keywords):
-        global _is_fftw_wisdom_loaded
-        Operator.__init__(self, shapein=shapein,
-                                dtype=complex, **keywords)
-        nthreads = min(nthreads or openmp_num_threads(), MAX_FFTW_NUM_THREADS)
-        self.n = product(shapein)
-        self._in  = np.zeros(shapein, dtype=complex)
-        self._out = np.zeros(shapein, dtype=complex)
-        if not _is_fftw_wisdom_loaded:
-            try:
-                with open(FFTW_WISDOM_FILE) as f:
-                    fftw3.import_wisdom_from_string(f.read())
-            except IOError:
-                pass
-            _is_fftw_wisdom_loaded = True
-
-        t0 = time.time()
-        self.forward_plan = fftw3.Plan(self._in, self._out, direction='forward',
-                                       flags=flags, nthreads=nthreads)
-        self.backward_plan= fftw3.Plan(self._in, self._out,direction='backward',
-                                       flags=flags, nthreads=nthreads)
-        if time.time() - t0 > FFTW_WISDOM_MIN_DELAY:
-            try:
-                os.remove(FFTW_WISDOM_FILE)
-            except OSError:
-                pass
-            with open(FFTW_WISDOM_FILE, 'w') as f:
-                f.write(fftw3.export_wisdom_to_string())
-
-    def direct(self, input, output):
-        self._in[...] = input
-        fftw3.execute(self.forward_plan)
-        output[...] = self._out
-
-    def adjoint(self, input, output):
-        self._in[...] = input
-        fftw3.execute(self.backward_plan)
-        output[...] = self._out / self.n
-
 @real
 @orthogonal
 @inplace
@@ -1396,48 +1347,6 @@ class FftHalfComplexOperator(Operator):
         if shapein[-1] != self.size:
             raise ValueError("Invalid input dimension '{0}'. Expected dimension"
                              " is '{1}'".format(shapein[-1], self.size))
-
-@linear
-@square
-class ConvolutionOperator(GroupOperator):
-    def __init__(self, kernel, shapein=None, flags=['patient'], nthreads=None,
-                 dtype=None, **keywords):
-
-        if isinstance(kernel, np.ndarray):
-            dtype = dtype or kernel.dtype
-        kernel = np.array(kernel, dtype, copy=False)
-
-        if shapein is None:
-            shapein = kernel.shape
-        shapein = tointtuple(shapein)
-        ndim = len(shapein)
-        if ndim != kernel.ndim:
-            raise ValueError("The kernel dimension '" + str(kernel.ndim) + "' i"
-                "s incompatible with the specified shape '" + str(ndim) + "'.")
-
-        # if the kernel is larger than the image, we don't crop it since it
-        # might affect normalisation of the kernel
-        if any([ks > s for ks,s in zip(kernel.shape, shapein)]):
-            raise ValueError('The kernel must not be larger than the input.')
-
-        ker_origin = (np.array(kernel.shape)-1) / 2
-#        if any([int(o) != o for o in ker_origin]):
-#            raise ValueError('Kernel with even dimension is not yet handled.')
-
-        # pad kernel with zeros
-        ker_slice = [ slice(0,s) for s in kernel.shape ]
-        kernel, kernel[ker_slice] = np.zeros(shapein, kernel.dtype), kernel
-        for axis, o in enumerate(ker_origin):
-            kernel = np.roll(kernel, int(-o), axis=axis)
-        self.kernel_padded = kernel.copy()
-
-        # FT kernel
-        fft = FftOperator(shapein, flags=flags, nthreads=nthreads)
-        kernel = fft(kernel)
-        kernel /= kernel.size
-        
-        GroupOperator.__init__(self, [fft.H, DiagonalOperator(kernel), fft],
-                               shapein=shapein, dtype=dtype, **keywords)
 
 
 def _ravel_strided(array):
