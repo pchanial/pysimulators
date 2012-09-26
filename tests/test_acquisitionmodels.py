@@ -190,25 +190,22 @@ def test_blackbody():
     
 def test_power_law():
     c = scipy.constants.c
-    w = np.arange(90., 111) * 1e-6
-    w0 = 100e-6
-    values = np.arange(10)
-    nu = c / w
-    nu0 = c / w0
+    nu = c / 120e-6
+    nu0 = c / 100e-6
+    values = np.arange(11)
 
     def func(alpha):
-        expected = np.asarray([(nu_/nu0)**alpha * values for nu_ in nu])
-        op = PowerLawOperator(nu, nu0, alpha)
+        expected = (nu/nu0)**alpha * values
+        op = PowerLawOperator(alpha, nu, nu0)
         assert all_eq(op(values), expected)
-    for alpha in (-1, np.arange(values.size)-5):
+    for alpha in (-1, np.arange(11)-5):
         yield func, alpha
 
     def func2(cls):
-        op = cls([2, PowerLawOperator(nu[0], nu0, 1)])
+        op = cls([2, PowerLawOperator(1, nu, nu0)])
         assert_is_instance(op, PowerLawOperator)
     for cls in CompositionOperator, MultiplicationOperator:
         yield func2, cls
-
 
 @skiptest
 def test_compression_average1():
