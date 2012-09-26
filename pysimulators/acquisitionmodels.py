@@ -583,13 +583,13 @@ class PointingMatrix(np.ndarray):
 
     @classmethod
     def empty(cls, shape, shape_input, info=None, verbose=True):
-        buffer = empty(shape, cls.DTYPE, 'for the pointing matrix',
+        buffer = empty(shape, cls.DTYPE, description='for the pointing matrix',
                        verbose=verbose)
         return PointingMatrix(buffer, shape_input, info=info, copy=False)
 
     @classmethod
     def zeros(cls, shape, shape_input, info=None, verbose=True):
-        buffer = empty(shape, cls.DTYPE, 'for the pointing matrix',
+        buffer = empty(shape, cls.DTYPE, description='for the pointing matrix',
                        verbose=verbose)
         buffer.value = 0
         buffer.index = -1
@@ -1400,14 +1400,16 @@ class FftHalfComplexOperator(Operator):
 @linear
 @square
 class ConvolutionOperator(GroupOperator):
-    def __init__(self, shapein, kernel, flags=['patient'], nthreads=None,
+    def __init__(self, kernel, shapein=None, flags=['patient'], nthreads=None,
                  dtype=None, **keywords):
 
-        shapein = tointtuple(shapein)
         if isinstance(kernel, np.ndarray):
             dtype = dtype or kernel.dtype
         kernel = np.array(kernel, dtype, copy=False)
 
+        if shapein is None:
+            shapein = kernel.shape
+        shapein = tointtuple(shapein)
         ndim = len(shapein)
         if ndim != kernel.ndim:
             raise ValueError("The kernel dimension '" + str(kernel.ndim) + "' i"
@@ -1427,6 +1429,7 @@ class ConvolutionOperator(GroupOperator):
         kernel, kernel[ker_slice] = np.zeros(shapein, kernel.dtype), kernel
         for axis, o in enumerate(ker_origin):
             kernel = np.roll(kernel, int(-o), axis=axis)
+        self.kernel_padded = kernel.copy()
 
         # FT kernel
         fft = FftOperator(shapein, flags=flags, nthreads=nthreads)
