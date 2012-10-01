@@ -9,7 +9,7 @@ import pyoperators
 
 from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DiagonalOperator,
-                         DiagonalNumexprSeparableOperator,
+                         DiagonalNumexprOperator,
                          DistributionIdentityOperator, IdentityOperator,
                          MaskOperator, MultiplicationOperator, NumexprOperator,
                          ZeroOperator)
@@ -282,7 +282,7 @@ class BlackBodyFixedTemperatureOperator(NumexprOperator):
 
 
 @real
-class PowerLawOperator(DiagonalNumexprSeparableOperator):
+class PowerLawOperator(DiagonalNumexprOperator):
     """
     Diagonal operator which extrapolates an input following the power law:
         output = (x/x0)**alpha * input
@@ -327,9 +327,8 @@ class PowerLawOperator(DiagonalNumexprSeparableOperator):
         if 'dtype' not in keywords:
             keywords['dtype'] = float
         global_dict = {'x':x, 'x0':x0, 's':scalar}
-        DiagonalNumexprSeparableOperator.__init__(self, alpha,
-            's * (x / x0) ** alpha', global_dict, var='alpha',
-            **keywords)
+        DiagonalNumexprOperator.__init__(self, alpha, 's * (x / x0) ** alpha',
+                                         global_dict, var='alpha', **keywords)
         self.x = x
         self.x0 = x0
         self.scalar = scalar
