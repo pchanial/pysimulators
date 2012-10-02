@@ -41,7 +41,7 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
-    requires=['numpy (>1.6)', 'scipy (>0.9)', 'pyoperators'],
+    install_requires=['numpy (>1.6)', 'scipy (>0.9)', 'pyoperators>=0.6'],
     packages=['pysimulators'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
@@ -51,8 +51,7 @@ setup(
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 2 :: Only',
-        'Programming Language :: C',
-        'Programming Language :: Cython',
+        'Programming Language :: Fortran',
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
         'Operating System :: OS Independent',
