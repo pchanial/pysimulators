@@ -3,10 +3,10 @@
 #
 from __future__ import division
 
+from tamasis import tmf
 import numpy as np
 import re
 
-# from . import tamasisfortran as tmf
 from .utils import get_attributes, median
 
 __all__ = ['Quantity', 'UnitError', 'units']
