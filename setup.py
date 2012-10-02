@@ -45,4 +45,9 @@ setup(name='pysimulators',
           'Intended Audience :: Science/Research',
           'Operating System :: OS Independent',
           'Topic :: Scientific/Engineering',
-          'Topic :: Astrophysics'])
+          'Topic :: Scientific/Engineering :: Astronomy',
+          'Topic :: Scientific/Engineering :: Atmospheric Science',
+          'Topic :: Scientific/Engineering :: Information Analysis',
+          'Topic :: Scientific/Engineering :: Medical Science Apps.',
+          'Topic :: Scientific/Engineering :: Physics',
+          ])
