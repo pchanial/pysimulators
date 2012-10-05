@@ -3,8 +3,9 @@ import numpy as np
 
 from pyoperators.utils import product
 from pyoperators.utils.testing import skiptest
-from pysimulators.utils import (all_eq, any_neq, assert_all_eq, diff, median,
-                           minmax, profile, shift)
+from pysimulators.utils import (all_eq, any_neq, assert_all_eq, diff,
+                                integrated_profile, median, minmax, profile,
+                                shift)
 from pysimulators.datautils import distance
 
 def test_any_neq1():
@@ -79,7 +80,6 @@ def test_any_neq3():
         b = a.copy()
         assert all_eq(a,b)
 
-@skiptest
 def test_profile():
     def profile_slow(input, origin=None, bin=1.):
         d = distance(input.shape, origin=origin)
@@ -97,6 +97,22 @@ def test_profile():
     y2, n2 = profile_slow(d, origin=(4,5), bin=2.)
     assert all_eq(y, y2[0:y.size])
     assert all_eq(n, n2[0:n.size])
+
+def test_integrated_profile():
+    def integrated_profile_slow(input, origin=None, bin=1.):
+        d = distance(input.shape, origin=origin)
+        m = np.max(d)
+        x = np.ndarray(int(m+1))
+        y = np.ndarray(int(m+1))
+        for i in range(m+1):
+            x[i] = (i + 1) * bin
+            y[i] = np.sum(input[d < x[i]])
+        return x, y
+    d = distance((10,20))
+    x, y = integrated_profile(d, origin=(4,5), bin=2.)
+    x2, y2 = integrated_profile_slow(d, origin=(4,5), bin=2.)
+    assert all_eq(x, x2[0:y.size])
+    assert all_eq(y, y2[0:y.size])
 
 @skiptest
 def test_diff():

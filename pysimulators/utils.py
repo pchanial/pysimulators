@@ -9,11 +9,12 @@ import numpy as np
 from matplotlib import pyplot
 from pyoperators.utils import product
 from pyoperators.utils.mpi import MPI, filter_comm
-
-# from . import tamasisfortran as tmf
+from . import _flib as flib
+from tamasis import tmf
 
 __all__ = [
     'hs',
+    'integrated_profile',
     'minmax',
     'plot_tod',
     'profile',
@@ -379,13 +380,14 @@ def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
     input: array
         2d input array
     origin: (x0,y0)
-        center of the profile. (Fits convention). Default is the image center
+        center of the profile. (Fits convention). Default is the image center.
     bin: number
-        width of the profile bins (in unit of pixels)
+        width of the profile bins (in unit of pixels).
     nbins: integer
-        number of profile bins
+        number of profile bins.
     histogram: boolean
-        if set to True, return the histogram
+        if set to True, return the histogram.
+
     """
     input = np.ascontiguousarray(input, float)
     if origin is None:
@@ -404,11 +406,45 @@ def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
             / bin
         )
 
-    x, y, n = tmf.profile_axisymmetric_2d(input.T, origin, bin, nbins)
+    x, y, n = flib.maputils.profile_axisymmetric_2d(input.T, origin, bin, nbins)
     if histogram:
         return x, y, n
     else:
         return x, y
+
+
+# -------------------------------------------------------------------------------
+
+
+def integrated_profile(input, origin=None, bin=1.0, nbins=None):
+    """
+    Returns axisymmetric integrated profile of a 2d image.
+    x, y = integrated_profile(image, [origin, bin, nbins, histogram])
+
+    Parameters
+    ----------
+    input: array
+        2d input array.
+    origin: (x0,y0)
+        center of the profile. (Fits convention). Default is the image center.
+    bin: number
+        width of the profile bins (in unit of pixels).
+    nbins: integer
+        number of profile bins.
+
+    Returns
+    -------
+    x : array
+        The strict upper boundary within which each integration is performed.
+    y : array
+        The integrated profile.
+
+    """
+    x, y, n = profile(input, origin=origin, bin=bin, nbins=nbins, histogram=True)
+    x = np.arange(1, y.size + 1) * bin
+    y[~np.isfinite(y)] = 0
+    y *= n
+    return x, np.add.accumulate(y)
 
 
 # -------------------------------------------------------------------------------
