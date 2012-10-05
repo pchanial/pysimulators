@@ -5,8 +5,8 @@ import scipy.signal
 import scipy.special
 
 from pyoperators.utils import isscalar
-#from . import tamasisfortran as tmf
 from .datatypes import Map
+from tamasis import tmf
 
 __all__ = [ 
     'airy_disk',
