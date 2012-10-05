@@ -3,6 +3,7 @@ import numpy as np
 #from distutils.extension import Extension
 from numpy.distutils.core import setup, Extension
 from numpy.distutils.command.build_ext import build_ext
+from glob import glob
 
 def version():
     import os, re
@@ -16,8 +17,7 @@ keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
 ext_modules = [Extension('pysimulators._flib',
-                         sources=['pysimulators/module_wcsutils.f90',
-                                  'pysimulators/module_pointingmatrix.f90'],
+                         sources=glob('pysimulators/module_*f90'),
                          include_dirs=['.', np.get_include()],
                          f2py_options=[])]
 
@@ -30,7 +30,7 @@ setup(name='pysimulators',
       author_email='pierre.chanial@gmail.com',
       maintainer='Pierre Chanial',
       maintainer_email='pierre.chanial@gmail.com',
-      install_requires=['numpy (>1.6)', 'scipy (>0.9)', 'pyoperators>=0.6'],
+      install_requires=['numpy>=1.6', 'scipy>=0.9', 'pyoperators>=0.6'],
       packages=['pysimulators'],
       platforms=platforms.split(','),
       keywords=keywords.split(','),
