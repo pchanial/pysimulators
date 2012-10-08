@@ -16,11 +16,8 @@ from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
 from pyoperators.config import LOCAL_PATH
 from pyoperators.decorators import (linear, orthogonal, real, square, symmetric,
                                     universal, inplace)
-try:
-    from pyoperators.memory import empty
-except ImportError:
-    from pyoperators.memory import allocate as empty
-from pyoperators.utils import (isscalar, openmp_num_threads,
+from pyoperators.memory import empty
+from pyoperators.utils import (isalias, isscalar, openmp_num_threads,
                                operation_assignment, product, tointtuple)
 from pyoperators.utils.mpi import MPI, distribute_shape, distribute_shapes
 from tamasis import tmf
@@ -497,7 +494,7 @@ class InvNttUncorrelatedOperator(Operator):
         
     def direct(self, input, output):
         input_, ishape, istride = _ravel_strided(input)
-        if self.isalias(input, output):
+        if isalias(input, output):
             tmf.operators.invntt_uncorrelated_inplace(input_, ishape[1],
                 istride, self.fft_filter.T, self.fplan._get_parameter(),
                 self.bplan._get_parameter(), self.left, self.right)
@@ -1194,7 +1191,7 @@ class PackOperator(Operator):
 
     def direct(self, input, output):
         mask = self.mask.view(np.int8).ravel()
-        if self.isalias(input, output):
+        if isalias(input, output):
             tmf.operators.pack_inplace(input.ravel(), mask, input.size)
         else:
             tmf.operators.pack_outplace(input.ravel(), mask, output)
@@ -1234,7 +1231,7 @@ class UnpackOperator(Operator):
 
     def direct(self, input, output):
         mask = self.mask.view(np.int8).ravel()
-        if self.isalias(input, output):
+        if isalias(input, output):
             tmf.operators.unpack_inplace(output.ravel(), mask, input.size)
         else:
             tmf.operators.unpack_outplace(input, mask, output.ravel())
@@ -1323,7 +1320,7 @@ class FftHalfComplexOperator(Operator):
 
     def direct(self, input, output):
         input_, ishape, istride = _ravel_strided(input)
-        if self.isalias(input, output):
+        if isalias(input, output):
             tmf.fft_plan_inplace(input_, ishape[0], ishape[1], istride,
                                  self.ifplan._get_parameter())
             return
@@ -1333,7 +1330,7 @@ class FftHalfComplexOperator(Operator):
 
     def transpose(self, input, output):
         input_, ishape, istride = _ravel_strided(input)
-        if self.isalias(input, output):
+        if isalias(input, output):
             tmf.fft_plan_inplace(input_, ishape[0], ishape[1], istride,
                                  self.ibplan._get_parameter())
         else:
