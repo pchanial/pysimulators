@@ -3,7 +3,7 @@
 #
 from __future__ import division
 
-from tamasis import tmf
+# from tamasis import tmf
 import numpy as np
 import re
 

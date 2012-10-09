@@ -12,7 +12,8 @@ from kapteyn import wcs as kwcs
 from pyoperators import Operator
 from pyoperators.decorators import real, square, inplace
 from pyoperators.utils import isscalar, operation_assignment
-from tamasis import tmf
+
+# from tamasis import tmf
 
 __all__ = [
     'angle_lonlat',
