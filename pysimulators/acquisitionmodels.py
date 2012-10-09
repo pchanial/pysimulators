@@ -20,7 +20,7 @@ from pyoperators.memory import empty
 from pyoperators.utils import (isalias, isscalar, openmp_num_threads,
                                operation_assignment, product, tointtuple)
 from pyoperators.utils.mpi import MPI, distribute_shape, distribute_shapes
-from tamasis import tmf
+#from tamasis import tmf
 
 from . import _flib as flib
 from .datatypes import Map, Tod

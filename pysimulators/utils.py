@@ -10,7 +10,7 @@ from matplotlib import pyplot
 from pyoperators.utils import product
 from pyoperators.utils.mpi import MPI, filter_comm
 from . import _flib as flib
-from tamasis import tmf
+#from tamasis import tmf
 
 __all__ = [ 
     'hs',
