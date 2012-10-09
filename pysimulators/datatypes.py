@@ -290,7 +290,7 @@ class FitsArray(Quantity):
 
     def imshow(self, mask=None, new_figure=True, title=None, xlabel='',
                ylabel='', interpolation='nearest', colorbar=True,
-               percentile=1, **keywords):
+               percentile=0, **keywords):
         """
         A graphical display method specialising matplotlib's imshow.
 
@@ -669,7 +669,7 @@ class Map(FitsArray):
 
     def imshow(self, mask=None, new_figure=True, title=None, xlabel='X',
                ylabel='Y', interpolation='nearest', origin=None, colorbar=True,
-               percentile=1, **keywords):
+               percentile=0, **keywords):
         if mask is None and self.coverage is not None:
             mask = self.coverage <= 0
 
@@ -928,7 +928,7 @@ class Tod(FitsArray):
                    derived_units, dtype, copy=False)
 
     def imshow(self, mask=None, xlabel='Sample', ylabel='Detector number',
-               aspect='auto', origin='upper', percentile=1, **keywords):
+               aspect='auto', origin='upper', percentile=0, **keywords):
         if mask is None:
             mask = self.mask
         return super(Tod, self).imshow(mask=mask, xlabel=xlabel, ylabel=ylabel,
