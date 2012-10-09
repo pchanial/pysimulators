@@ -318,7 +318,7 @@ class FitsArray(Quantity):
         ylabel='',
         interpolation='nearest',
         colorbar=True,
-        percentile=1,
+        percentile=0,
         **keywords,
     ):
         """
@@ -786,7 +786,7 @@ class Map(FitsArray):
         interpolation='nearest',
         origin=None,
         colorbar=True,
-        percentile=1,
+        percentile=0,
         **keywords,
     ):
         if mask is None and self.coverage is not None:
@@ -1128,7 +1128,7 @@ class Tod(FitsArray):
         ylabel='Detector number',
         aspect='auto',
         origin='upper',
-        percentile=1,
+        percentile=0,
         **keywords,
     ):
         if mask is None:
