@@ -2,6 +2,7 @@ import numpy as np
 
 from kapteyn import wcs
 from numpy.testing import assert_almost_equal
+from pyoperators.utils.testing import skiptest
 from pysimulators.utils import all_eq
 from pysimulators.wcsutils import (
     angle_lonlat,
@@ -15,16 +16,19 @@ from pysimulators.wcsutils import (
 )
 
 
+@skiptest
 def test_mean_degrees():
     assert mean_degrees([1, 2]) == 1.5
     assert_almost_equal(mean_degrees([1, 359.1]), 0.05, 12)
     assert_almost_equal(mean_degrees([0.1, 359.1]), 359.6, 12)
 
 
+@skiptest
 def test_angle_lonlat1():
     assert all_eq(angle_lonlat(30, 0, 40, 0), 10)
 
 
+@skiptest
 def test_angle_lonlat2():
     input = (
         ((30, 0), (40, 0), 10),
