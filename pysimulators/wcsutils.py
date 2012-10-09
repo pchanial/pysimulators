@@ -12,10 +12,11 @@ from kapteyn import wcs as kwcs
 from pyoperators import Operator
 from pyoperators.decorators import real, square, inplace
 from pyoperators.utils import isscalar, operation_assignment
-#from tamasis import tmf
+from . import _flib as flib
 
 __all__ = [ 
     'angle_lonlat',
+    'barycenter_lonlat',
     'create_fitsheader',
     'fitsheader2shape',
     'str2fitsheader',
@@ -64,13 +65,13 @@ def barycenter_lonlat(lon, lat):
     Parameters
     ----------
     lon : array of numbers
-        longitude in degrees
+        Longitude in degrees.
     lat : array of numbers
-        latitude in degrees
+        Latitude in degrees.
     """
     lon = np.array(lon, float, ndmin=1, copy=False).ravel()
     lat = np.array(lat, float, ndmin=1, copy=False).ravel()
-    return tmf.barycenter_lonlat(lon, lat)
+    return flib.wcsutils.barycenter_lonlat(lon, lat)
 
 
 #-------------------------------------------------------------------------------

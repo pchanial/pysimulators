@@ -13,6 +13,46 @@ module wcsutils
 
 contains
 
+    subroutine barycenter_lonlat(lon, lat, n, lon0, lat0)
+
+        integer*8, intent(in) :: n
+        real*8, intent(in)    :: lon(n), lat(n)
+        real*8, intent(out)   :: lon0, lat0
+
+        real*8    :: x, y, z, phi, cotheta, cocotheta
+        integer*8 :: i
+
+        if (size(lon) == 0) then
+            lon0 = NaN
+            lat0 = NaN
+            return
+        end if
+
+        x = 0
+        y = 0
+        z = 0
+        !$omp parallel do reduction(+:x,y,z) private(phi,cotheta,cocotheta)
+        do i = 1, n
+            phi = lon(i) * DEG2RAD
+            cotheta = lat(i) * DEG2RAD
+            if (cotheta /= cotheta .or. phi /= phi) cycle
+            cocotheta = cos(cotheta)
+            x = x + cocotheta * cos(phi)
+            y = y + cocotheta * sin(phi)
+            z = z + sin(cotheta)
+        end do
+        !$omp end parallel do
+        
+        lon0 = modulo(atan2(y,x) * RAD2DEG + 360._p, 360._p)
+        lat0 = acos(sqrt((x**2 + y**2)/(x**2 + y**2 + z**2))) * RAD2DEG
+        lat0 = sign(lat0, z)
+        
+    end subroutine barycenter_lonlat
+
+
+    !-------------------------------------------------------------------------------------------------------------------------------
+
+
     subroutine create_grid_square(nx, ny, size, filling_factor, xreflection, yreflection, rotation, xcenter, ycenter, coords)
         !f2py threadsafe
         integer, intent(in)    :: nx                 ! number of detectors along the x axis
