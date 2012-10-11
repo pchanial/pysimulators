@@ -1,9 +1,12 @@
 module pointingmatrix
-    
+
+    use module_precision, only : sp
+    use module_tamasis, only : p
+
     implicit none
 
-    integer, parameter :: sp = selected_real_kind(6,37)  ! single precision
-    integer, parameter :: p = selected_real_kind(15,307) ! double precision
+!    integer, parameter :: sp = selected_real_kind(6,37)  ! single precision
+!    integer, parameter :: p = selected_real_kind(15,307) ! double precision
 
     type PointingElement
         real(sp) :: value
