@@ -9,7 +9,6 @@ from pyoperators import I, asoperator
 from pyoperators.utils import product, strenum, strshape
 from pyoperators.utils.mpi import MPI
 
-# from tamasis import tmf
 from . import _flib as flib
 from .acquisitionmodels import PointingMatrix
 from .datatypes import Map

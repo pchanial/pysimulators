@@ -3,11 +3,8 @@
 #
 from __future__ import division
 
-# from tamasis import tmf
 import numpy as np
 import re
-
-from .utils import get_attributes, median
 
 __all__ = ['Quantity', 'UnitError', 'units']
 
@@ -285,8 +282,7 @@ class Quantity(np.ndarray):
             if not isinstance(array, type(self)):
                 array = array.view(type(self))
             # copy over attributes
-            for a in get_attributes(self):
-                setattr(array, a, getattr(self, a))
+            array.__dict__.update(self.__dict__)
 
         if context is None or len(self._unit) == 0:
             return array
@@ -763,9 +759,9 @@ ities of different units may have changed operands to common unit '"
     mean.__doc__ = np.ndarray.mean.__doc__
 
     def median(self, *args, **kw):
-        return self._wrap_func(median, self.unit, *args, **kw)
+        return self._wrap_func(np.median, self.unit, *args, **kw)
 
-    median.__doc__ = median.__doc__
+    median.__doc__ = np.median.__doc__
 
     def ptp(self, *args, **kw):
         return self._wrap_func(np.ptp, self.unit, *args, **kw)

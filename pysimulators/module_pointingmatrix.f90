@@ -2,15 +2,56 @@ module pointingmatrix
     
     implicit none
 
-    integer, parameter :: p = kind(1.d0)
-    integer, parameter :: sp = kind(1.)
+    integer, parameter :: sp = selected_real_kind(6,37)  ! single precision
+    integer, parameter :: p = selected_real_kind(15,307) ! double precision
 
     type PointingElement
-        real*4  :: value
-        integer :: index
+        real(sp) :: value
+        integer  :: index
     end type PointingElement
 
 contains
+    
+    subroutine backprojection_weight(pmatrix, data, map1d, weight1d, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8,intent(in)        :: pmatrix(npixels_per_sample*nsamples)
+
+        type(PointingElement), intent(in) :: pmatrix(npixels_per_sample, nsamples)
+        real(p), intent(in)               :: data(nsamples)
+        real(p), intent(inout)            :: map1d(npixels)
+        real(p), intent(inout)            :: weight1d(npixels)
+        integer, intent(in)               :: npixels_per_sample
+        integer*8, intent(in)             :: nsamples
+        integer, intent(in)               :: npixels
+
+        call backprojection_weight__inner(pmatrix, data, map=map1d, weight=weight1d)
+
+    end subroutine backprojection_weight
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine backprojection_weight_mask(pmatrix, data, mask, map1d, weight1d, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8,intent(in)        :: pmatrix(npixels_per_sample*nsamples)
+
+        type(PointingElement), intent(in) :: pmatrix(npixels_per_sample, nsamples)
+        real(p), intent(in)               :: data(nsamples)
+        logical*1, intent(in)             :: mask(nsamples)
+        real(p), intent(inout)            :: map1d(npixels)
+        real(p), intent(inout)            :: weight1d(npixels)
+        integer, intent(in)               :: npixels_per_sample
+        integer*8, intent(in)             :: nsamples
+        integer, intent(in)               :: npixels
+
+        call backprojection_weight__inner(pmatrix, data, mask, map1d, weight1d)
+
+    end subroutine backprojection_weight_mask
+
+
+    !---------------------------------------------------------------------------
+
 
     subroutine check(matrix, npixels_per_sample, nsamples, npixels, isvalid)
         !f2py threadsafe
@@ -18,7 +59,7 @@ contains
 
         type(PointingElement), intent(in) :: matrix(npixels_per_sample,nsamples)
         integer, intent(in)               :: npixels_per_sample
-        integer, intent(in)               :: nsamples
+        integer*8, intent(in)             :: nsamples
         integer, intent(in)               :: npixels
         logical*1, intent(out)            :: isvalid
         integer :: index, ipixel, isample
@@ -39,13 +80,217 @@ contains
     !---------------------------------------------------------------------------
 
 
+    subroutine direct(pmatrix, map1d, signal, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
+
+        type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
+        real(p), intent(in)    :: map1d(npixels)
+        real(p), intent(inout) :: signal(nsamples)
+        integer, intent(in)    :: npixels_per_sample
+        integer*8, intent(in)  :: nsamples
+        integer, intent(in)    :: npixels
+
+        if (npixels_per_sample == 1) then
+            call pmatrix_direct_one_pixel_per_sample(pmatrix(1,:), map1d, signal)
+        else
+            call pmatrix_direct(pmatrix, map1d, signal)
+        end if
+
+    end subroutine direct
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine intersects(pmatrix, pixel, npixels_per_sample, nsamples, ndetectors, out)
+        !f2py integer*8, dimension(npixels_per_sample*nsamples*ndetectors), intent(in) :: pmatrix
+
+        integer*8, intent(in)                     :: nsamples
+        type(PointingElement), intent(in)         :: pmatrix(npixels_per_sample, nsamples, ndetectors)
+        integer(kind(pmatrix%value)), intent(in) :: pixel
+        integer, intent(in)                       :: npixels_per_sample
+        integer, intent(in)                       :: ndetectors
+        logical*1, intent(out)                    :: out
+        
+        out = any(pmatrix%index == pixel)
+
+    end subroutine intersects
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine intersects_openmp2(pmatrix, pixel, npixels_per_sample, nsamples, ndetectors, out)
+        !f2py integer*8, dimension(npixels_per_sample*nsamples*ndetectors), intent(in) :: pmatrix
+
+        integer*8, intent(in)                     :: nsamples
+        type(PointingElement), intent(in)         :: pmatrix(npixels_per_sample, nsamples, ndetectors)
+        integer(kind(pmatrix%value)), intent(in) :: pixel
+        integer, intent(in)                       :: npixels_per_sample
+        integer, intent(in)                       :: ndetectors
+        logical*1, intent(out)                    :: out
+        
+        !$omp parallel workshare
+        out = any(pmatrix%index == pixel)
+        !$omp end parallel workshare
+
+    end subroutine intersects_openmp2
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine intersects_axis2(pmatrix, pixel, npixels_per_sample, nsamples, ndetectors, out)
+        !f2py integer*8, dimension(npixels_per_sample*nsamples*ndetectors), intent(in) :: pmatrix
+
+        integer*8, intent(in)                     :: nsamples
+        type(PointingElement), intent(in)         :: pmatrix(npixels_per_sample, nsamples, ndetectors)
+        integer(kind(pmatrix%value)), intent(in) :: pixel
+        integer, intent(in)                       :: npixels_per_sample
+        integer, intent(in)                       :: ndetectors
+        logical*1, intent(out)                    :: out(ndetectors)
+
+        integer   :: idetector, ipixel
+        integer*8 :: isample
+
+        out = .false.
+        !$omp parallel do schedule(guided)
+        loop_detector: do idetector = 1, ndetectors
+            do isample = 1, nsamples
+                do ipixel = 1, npixels_per_sample
+                    if (pmatrix(ipixel,isample,idetector)%index == pixel) then
+                        out(idetector) = .true.
+                        cycle loop_detector
+                    end if
+                end do
+            end do
+        end do loop_detector
+        !$omp end parallel do
+
+    end subroutine intersects_axis2
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine intersects_axis3(pmatrix, pixel, npixels_per_sample, nsamples, ndetectors, out)
+        !f2py integer*8, dimension(npixels_per_sample*nsamples*ndetectors), intent(in) :: pmatrix
+
+        integer*8, intent(in)                     :: nsamples
+        type(PointingElement), intent(in)         :: pmatrix(npixels_per_sample, nsamples, ndetectors)
+        integer(kind(pmatrix%value)), intent(in) :: pixel
+        integer, intent(in)                       :: npixels_per_sample
+        integer, intent(in)                       :: ndetectors
+        logical*1, intent(out)                    :: out(nsamples)
+
+        integer   :: idetector, ipixel
+        integer*8 :: isample
+
+        out = .false.
+        !$omp parallel do schedule(guided)
+        loop_sample: do isample = 1, nsamples
+            do idetector = 1, ndetectors
+                do ipixel = 1, npixels_per_sample
+                    if (pmatrix(ipixel,isample,idetector)%index == pixel) then
+                        out(isample) = .true.
+                        cycle loop_sample
+                    end if
+                end do
+            end do
+        end do loop_sample
+        !$omp end parallel do
+
+    end subroutine intersects_axis3
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine mask(pmatrix, mask1d, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(in) :: pmatrix
+
+        type(PointingElement), intent(in) :: pmatrix(npixels_per_sample, nsamples)
+        logical*1, intent(inout)          :: mask1d(npixels)
+        integer, intent(in)               :: npixels_per_sample
+        integer*8, intent(in)             :: nsamples
+        integer, intent(in)               :: npixels
+
+        call pmatrix_mask(pmatrix, mask1d)
+
+    end subroutine mask
+
+
+    !---------------------------------------------------------------------------
+    
+    
+    subroutine pack(pmatrix, mask1d, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
+
+        type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
+        logical*1, intent(in)                :: mask1d(npixels)
+        integer, intent(in)                  :: npixels_per_sample
+        integer*8, intent(in)                :: nsamples
+        integer, intent(in)                  :: npixels
+
+        call pmatrix_pack(pmatrix, mask1d)
+
+    end subroutine pack
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine ptp(pmatrix, array, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
+
+        type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
+        real(p), intent(inout)               :: array(npixels, npixels)
+        integer, intent(in)                  :: npixels_per_sample
+        integer*8, intent(in)                :: nsamples
+        integer, intent(in)                  :: npixels
+
+        call pmatrix_ptp(pmatrix, array)
+
+    end subroutine ptp
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine transpose(pmatrix, signal, map1d, npixels_per_sample, nsamples, npixels)
+
+        !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
+
+        type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
+        real(p), intent(in)    :: signal(nsamples)
+        real(p), intent(inout) :: map1d(npixels)
+        integer, intent(in)    :: npixels_per_sample
+        integer*8, intent(in)  :: nsamples
+        integer, intent(in)    :: npixels
+
+        if (npixels_per_sample == 1) then
+            call pmatrix_transpose_one_pixel_per_sample(pmatrix(1,:), signal, map1d)
+        else
+            call pmatrix_transpose(pmatrix, signal, map1d)
+        end if
+
+    end subroutine transpose
+
+
+    !---------------------------------------------------------------------------
+
+
     subroutine roi2matrix_cartesian(roi, coords, ncoords, nvertices,           &
         npixels_per_sample, nx, ny, matrix, new_npixels_per_sample, out)
         !f2py threadsafe
         !f2py integer*8, dimension(npixels_per_sample*ncoords) :: matrix
 
         integer, intent(in)                 :: roi(2,2,ncoords)
-        real*8, intent(in)                  :: coords(2,nvertices,ncoords)
+        real(p), intent(in)                 :: coords(2,nvertices,ncoords)
         integer, intent(in)                 :: ncoords, nvertices
         integer, intent(in)                 :: npixels_per_sample
         integer, intent(in)                 :: nx, ny
@@ -53,7 +298,7 @@ contains
         logical, intent(out)                :: out
         type(PointingElement), intent(inout)::matrix(npixels_per_sample,ncoords)
 
-        real*8  :: polygon(2,nvertices)
+        real(p) :: polygon(2,nvertices)
         integer :: icoord, ix, iy, npixels
         real*4  :: val
 
@@ -94,6 +339,9 @@ contains
 
 
     !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
 
 
     pure function intersection_polygon_unity_square(xy, nvertices) result(out)
@@ -131,7 +379,7 @@ contains
                               ! (clipped in the square (0,0),(1,0),(1,1),(0,1)
         real*8 :: xhaut       ! value of x at which straight line crosses the
                               ! (0,1),(1,1) line
-        logical :: neg_delta_x! TRUE if delta_x < 0
+        logical:: neg_delta_x ! TRUE if delta_x < 0
 
         ! Check for vertical line : the area intercepted is 0
         if (x1 == x2) then
@@ -229,6 +477,256 @@ contains
         end if
 
     end function intersection_segment_unity_square
+
+
+    subroutine pmatrix_direct(pmatrix, map, timeline)
+
+        type(pointingelement), intent(in) :: pmatrix(:,:)
+        real(p), intent(in)               :: map(0:)
+        real(p), intent(inout)            :: timeline(:)
+        integer                           :: ipixel, isample, npixels_per_sample, nsamples
+
+        npixels_per_sample = size(pmatrix,1)
+        nsamples = size(pmatrix, 2)
+
+        !$omp parallel do
+        do isample = 1, nsamples
+!!$            timeline(isample) = sum(map(pmatrix(:,isample)%index) * pmatrix(:,isample)%value)
+            timeline(isample) = 0
+            do ipixel = 1, npixels_per_sample
+                if (pmatrix(ipixel,isample)%index == -1) exit
+                timeline(isample) = timeline(isample) + map(pmatrix(ipixel,isample)%index) * pmatrix(ipixel,isample)%value
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine pmatrix_direct
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine pmatrix_direct_one_pixel_per_sample(pmatrix, map, timeline)
+
+        type(pointingelement), intent(in) :: pmatrix(:)
+        real(p), intent(in)               :: map(0:)
+        real(p), intent(inout)            :: timeline(:)
+        integer                           :: isample, nsamples
+
+        nsamples = size(pmatrix, 1)
+
+        !$omp parallel do
+        do isample = 1, nsamples
+            if (pmatrix(isample)%index >= 0) then
+                timeline(isample) = map(pmatrix(isample)%index) * pmatrix(isample)%value
+            end if
+        end do
+        !$omp end parallel do
+
+    end subroutine pmatrix_direct_one_pixel_per_sample
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine pmatrix_transpose(pmatrix, timeline, map)
+        type(pointingelement), intent(in) :: pmatrix(:,:)
+        real(p), intent(in)          :: timeline(:)
+        real(p), intent(out)         :: map(0:)
+        integer                           :: isample, ipixel, npixels, nsamples
+
+        npixels  = size(pmatrix, 1)
+        nsamples = size(pmatrix, 2)
+
+#ifdef GFORTRAN
+        !$omp parallel do reduction(+:map)
+#else
+        !$omp parallel do
+#endif
+        do isample = 1, nsamples
+            do ipixel = 1, npixels
+                if (pmatrix(ipixel,isample)%index == -1) exit
+#ifndef GFORTRAN
+                !$omp atomic
+#endif
+                map(pmatrix(ipixel,isample)%index) = map(pmatrix(ipixel,isample)%index) +                                          &
+                    pmatrix(ipixel,isample)%value * timeline(isample)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine pmatrix_transpose
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine pmatrix_transpose_one_pixel_per_sample(pmatrix, timeline, map)
+        type(pointingelement), intent(in) :: pmatrix(:)
+        real(p), intent(in)          :: timeline(:)
+        real(p), intent(out)         :: map(0:)
+        integer                           :: isample, nsamples
+
+        nsamples = size(pmatrix, 1)
+
+        do isample = 1, nsamples
+            if (pmatrix(isample)%index >= 0) then
+                map(pmatrix(isample)%index) = map(pmatrix(isample)%index) + pmatrix(isample)%value * timeline(isample)
+            end if
+        end do
+
+    end subroutine pmatrix_transpose_one_pixel_per_sample
+
+
+    !---------------------------------------------------------------------------
+   
+   
+    subroutine pmatrix_ptp(pmatrix, ptp)
+        type(pointingelement), intent(in) :: pmatrix(:,:)
+        real(p), intent(inout)       :: ptp(0:,0:)
+        integer                           :: isample
+        integer                           :: ipixel, jpixel, i, j
+        integer                           :: npixels, nsamples
+        real(kind(pmatrix%value))        :: pi, pj
+       
+        npixels  = size(pmatrix, 1)
+        nsamples = size(pmatrix, 2)
+       
+        !$omp parallel do reduction(+:ptp) private(isample, ipixel, jpixel, i, j, pi, pj)
+        do isample = 1, nsamples
+            do ipixel = 1, npixels
+                if (pmatrix(ipixel,isample)%index == -1) exit
+                i  = pmatrix(ipixel,isample)%index
+                pi = pmatrix(ipixel,isample)%value
+                do jpixel = 1, npixels
+                    if (pmatrix(jpixel,isample)%index == -1) exit
+                    j  = pmatrix(jpixel,isample)%index
+                    pj = pmatrix(jpixel,isample)%value
+                    ptp(i,j) = ptp(i,j) + pi * pj
+                end do
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine pmatrix_ptp
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine pmatrix_mask(pmatrix, mask)
+        ! True means: not observed
+        type(pointingelement), intent(in) :: pmatrix(:,:)
+        logical(1), intent(inout)         :: mask(0:)
+
+        integer*8 :: isample, ipixel, npixels, nsamples
+        integer*4 :: pixel
+
+        npixels  = size(pmatrix, 1)
+        nsamples = size(pmatrix, 2)
+
+        !$omp parallel do private(pixel)
+        do isample = 1, nsamples
+            do ipixel = 1, npixels
+                pixel = pmatrix(ipixel,isample)%index
+                if (pixel == -1) exit
+                if (pmatrix(ipixel,isample)%value == 0) cycle
+                mask(pixel) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine pmatrix_mask
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine pmatrix_pack(pmatrix, mask)
+        ! True means: not observed
+
+        type(pointingelement), intent(inout) :: pmatrix(:,:)
+        logical(1), intent(in)               :: mask(0:)
+
+        integer*8 :: isample, nsamples
+        integer*4 :: table(lbound(mask,1):ubound(mask,1))
+        integer*4 :: pixel, ipixel, ipacked, npixels
+
+        ! fill a table which contains the packed indices of the non-masked pixels
+        ipacked = 0
+        do ipixel=0, size(mask)-1
+            if (mask(ipixel)) cycle
+            table(ipixel) = ipacked
+            ipacked = ipacked + 1
+        end do
+
+        npixels  = size(pmatrix, 1)
+        nsamples = size(pmatrix, 2)
+
+        !$omp parallel do private(pixel, ipixel)
+        do isample = 1, nsamples
+            ipixel = 1
+            do while (ipixel <= npixels)
+                pixel = pmatrix(ipixel,isample)%index
+                if (pixel == -1) exit
+                if (pmatrix(ipixel,isample)%value == 0 .or. mask(pixel)) then
+                    pmatrix(ipixel:npixels-1,isample) = pmatrix(ipixel+1:npixels,isample)
+                    pmatrix(npixels,isample)%index = -1
+                    pmatrix(npixels,isample)%value = 0
+                    cycle
+                end if
+                pmatrix(ipixel,isample)%index = table(pixel)
+                ipixel = ipixel + 1
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine pmatrix_pack
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine backprojection_weight__inner(pmatrix, timeline, mask, map, weight)
+        type(pointingelement), intent(in)     :: pmatrix(:,:)
+        real(p), intent(in)              :: timeline(:)
+        logical(kind=1), intent(in), optional :: mask(:)
+        real(p), intent(inout)           :: map(0:)
+        real(p), intent(inout)           :: weight(0:)
+
+        integer                               :: npixels, nsamples
+        integer                               :: ipixel, isample, imap          
+        logical                               :: domask
+
+        npixels  = size(pmatrix, 1)
+        nsamples = size(pmatrix, 2)
+        domask   = present(mask)
+
+        !$omp parallel do &
+#ifdef GFORTRAN
+        !$omp reduction(+:map,weight) &
+#endif
+        !$omp private(isample,ipixel,imap)
+        do isample = 1, nsamples
+            if (domask) then
+                if (mask(isample)) cycle
+            end if
+            do ipixel = 1, npixels
+                imap = pmatrix(ipixel,isample)%index
+                if (imap == -1) exit
+#ifndef GFORTRAN
+                !$omp atomic
+#endif
+                map   (imap) = map   (imap) + pmatrix(ipixel,isample)%value * timeline(isample)
+#ifndef GFORTRAN
+                !$omp atomic
+#endif
+                weight(imap) = weight(imap) + pmatrix(ipixel,isample)%value
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine backprojection_weight__inner
 
 
 end module pointingmatrix
