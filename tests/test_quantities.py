@@ -6,7 +6,6 @@ from nose.tools import assert_equal, assert_raises
 from numpy.testing import assert_almost_equal, assert_array_equal
 from pyoperators.utils.testing import assert_eq, assert_is, assert_is_instance
 from pysimulators.quantities import Quantity, UnitError
-from pysimulators.utils import all_eq
 
 class TestFailure(Exception): pass
 
@@ -20,13 +19,13 @@ def assert_quantity(q, m, u):
 
 def test1():
     q = Quantity(1, 'km')
-    assert all_eq(q.SI, Quantity(1000, 'm'))
+    assert_eq(q.SI, Quantity(1000, 'm'))
 
     q = Quantity(1, 'm')
-    assert all_eq(q, q.tounit('m'))
+    assert_eq(q, q.tounit('m'))
     q2 = q.copy()
     q.inunit('m')
-    assert all_eq(q, q2)
+    assert_eq(q, q2)
 
 def test2():
     q = Quantity(1, 'km').tounit('m')

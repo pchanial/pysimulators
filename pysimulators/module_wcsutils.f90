@@ -2,7 +2,7 @@ module wcsutils
 
     implicit none
 
-    integer, parameter :: p = kind(1.d0)
+    integer, parameter :: p = selected_real_kind(15,307)
     real(p), parameter :: PI = 4_p * atan(1._p)
     real(p), parameter :: DEG2RAD = PI / 180._p
     real(p), parameter :: RAD2DEG = 180._p / PI
@@ -11,7 +11,35 @@ module wcsutils
         mInf = transfer('1111111111110000000000000000000000000000000000000000000000000000'b, 0._p),                                &
         pInf = transfer('0111111111110000000000000000000000000000000000000000000000000000'b, 0._p)
 
+    type Astrometry
+        integer          :: naxis(2)
+        real(p)          :: crpix(2), crval(2), cd(2,2)
+        character(len=8) :: ctype(2), cunit(2)
+    end type Astrometry
+
 contains
+
+    subroutine angle_lonlat(lon1, lat1, m, lon2, lat2, n, angle)
+
+        real(p), intent(in)  :: lon1(m), lat1(m)
+        integer, intent(in)  :: m
+        real(p), intent(in)  :: lon2(n), lat2(n)
+        integer, intent(in)  :: n
+        real(p), intent(out) :: angle(max(m,n))
+
+        if (m == 1) then
+            call angle_lonlat__inner(lon1(1), lat1(1), lon2, lat2, angle)
+        else if (n == 1) then
+            call angle_lonlat__inner(lon1, lat1, lon2(1), lat2(1), angle)
+        else
+            call angle_lonlat__inner(lon1, lat1, lon2, lat2, angle)
+        end if
+
+    end subroutine angle_lonlat
+
+
+    !---------------------------------------------------------------------------
+
 
     subroutine barycenter_lonlat(lon, lat, n, lon0, lat0)
 
@@ -50,7 +78,7 @@ contains
     end subroutine barycenter_lonlat
 
 
-    !-------------------------------------------------------------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
 
 
     subroutine create_grid_square(nx, ny, size, filling_factor, xreflection, yreflection, rotation, xcenter, ycenter, coords)
@@ -105,6 +133,133 @@ contains
         end do
         
     end subroutine create_grid_square
+
+
+    !---------------------------------------------------------------------------
+    
+    
+    subroutine mean_degrees(array, n, mean)
+
+        integer*8, intent(in) :: n
+        real(p), intent(in)   :: array(n)
+        real(p), intent(out)  :: mean
+
+        real(p) :: val
+        integer :: isample, n180, nvalids
+        logical :: zero_minus, zero_plus
+
+        mean = 0
+        zero_minus = .false.
+        zero_plus  = .false.
+        n180 = 0
+        nvalids = 0
+
+        !$omp parallel do default(shared) reduction(+:n180, nvalids, mean)     &
+        !$omp reduction(.or.:zero_minus,zero_plus) private(isample, val)
+        do isample = 1, n
+            val = modulo(array(isample), 360._p)
+            if (val /= val) cycle
+            zero_minus = zero_minus .or. val > 270._p
+            zero_plus  = zero_plus  .or. val <= 90._p
+            if (val >= 180._p) n180 = n180 + 1
+            mean = mean + val
+            nvalids = nvalids + 1
+        end do
+        !$omp end parallel do
+
+        if (zero_minus .and. zero_plus) mean = mean - 360._p * n180
+
+        if (nvalids > 0) then
+            mean = modulo(mean / nvalids, 360._p)
+        else
+            mean = NaN
+        end if
+
+    end subroutine mean_degrees
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine minmax_degrees(array, n, minv, maxv)
+
+        real(p), intent(in)   :: array(n)
+        integer*8, intent(in) :: n
+        real(p), intent(out)  :: minv, maxv
+
+        real(p) :: val, meanv
+        integer :: isample
+
+        call mean_degrees(array, size(array, kind=8), meanv)
+        if (meanv /= meanv) then
+            minv = NaN
+            maxv = NaN
+            return
+        end if
+
+        minv = pInf
+        maxv = mInf
+        !$omp parallel do default(shared) reduction(min:minv) reduction(max:maxv) private(val)
+        do isample=1, size(array)
+            val = array(isample)
+            if (val /= val) cycle
+            val = modulo(val, 360._p)
+            if (val > meanv) then
+                if (abs(val-360._p-meanv) < abs(val-meanv)) val = val - 360._p
+            else
+                if (abs(val+360._p-meanv) < abs(val-meanv)) val = val + 360._p
+            end if
+            minv = min(minv, val)
+            maxv = max(maxv, val)
+        end do
+        !$omp end parallel do
+
+        minv = modulo(minv, 360._p)
+        maxv = modulo(maxv, 360._p)
+
+    end subroutine minmax_degrees
+
+
+!-------------------------------------------------------------------------------
+
+
+!!$subroutine projection_scale(header, nx, ny, array, status)
+!!$
+!!$    use module_wcs,     only : Astrometry, init_astrometry, projection_scale_ => projection_scale
+!!$    implicit none
+!!$
+!!$    character(len=*), intent(in) :: header
+!!$    integer, intent(in)          :: nx, ny
+!!$    real(p), intent(out)         :: array(nx,ny)
+!!$    integer, intent(out)         :: status
+!!$
+!!$    type(Astrometry) :: astr
+!!$
+!!$    call init_astrometry(header, astr, status)
+!!$    if (status /= 0) return
+!!$
+!!$    call projection_scale_(astr, array, status)
+!!$    if (status /= 0) return
+!!$
+!!$end subroutine projection_scale
+
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+
+    pure elemental subroutine angle_lonlat__inner(lon1, lat1, lon2, lat2, angle)
+
+        real*8, intent(in)  :: lon1, lat1, lon2, lat2
+        real*8, intent(out) :: angle
+        
+        angle = acos(cos(lat1*DEG2RAD) * cos(lat2*DEG2RAD) *                   &
+                     cos((lon2 - lon1)*DEG2RAD) +                              &
+                     sin(lat1*DEG2RAD) * sin(lat2*DEG2RAD)) * RAD2DEG
+
+    end subroutine angle_lonlat__inner
 
 
 end module wcsutils

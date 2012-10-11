@@ -1,8 +1,8 @@
 import numpy as np
 
 from pyoperators.utils import product
+from pyoperators.utils.testing import assert_eq
 from pysimulators import Instrument
-from pysimulators.utils import all_eq
 
 class MyInstrument(Instrument):
     def get_valid_detectors(self, masked=False):
@@ -20,7 +20,7 @@ def assert_pack_unpack(instrument):
     u.T[...] *= ~instrument.detector.removed.T
     p = instrument.pack(u)
     u2 = instrument.unpack(p)
-    assert all_eq(u, u2)
+    assert_eq(u, u2)
 
 def test_pack_unpack1():
     for ndim in range(1,4):

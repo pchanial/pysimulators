@@ -35,10 +35,8 @@ except ImportError:
 from pyoperators.utils import isscalar
 from pyoperators.utils.mpi import MPI
 
-#from . import tamasisfortran as tmf
 from .mpiutils import read_fits, write_fits
 from .quantities import Quantity
-from .utils import median
 from .wcsutils import create_fitsheader, has_wcs
 
 __all__ = [ 'FitsArray', 'Map', 'Tod' ]
@@ -962,14 +960,16 @@ class Tod(FitsArray):
             write_fits(filename, mask, None, True, 'Mask', comm)
 
     def median(self, axis=None):
-        result = Tod(median(self, mask=self.mask, axis=axis),
+#        result = Tod(median(self, mask=self.mask, axis=axis),
+        result = Tod(np.median(self, axis=axis),
                      header=self.header.copy(), unit=self.unit,
                      derived_units=self.derived_units, dtype=self.dtype, copy=False)
         result.mask = np.zeros_like(result, bool)
-        tmf.processing.filter_nonfinite_mask_inplace(result.ravel(),
-            result.mask.view(np.int8).ravel())
+#        # median might introduce NaN from the mask, let's remove them
+#        tmf.processing.filter_nonfinite_mask_inplace(result.ravel(),
+#            result.mask.view(np.int8).ravel())
         return result
-    median.__doc__ = median.__doc__
+    median.__doc__ = np.median.__doc__
 
     def ravel(self, order='c'):
         mask = self.mask.ravel() if self.mask is not None else None

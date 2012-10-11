@@ -4,9 +4,10 @@ import numpy as  np
 import scipy.signal
 import scipy.special
 
+from matplotlib import pyplot
 from pyoperators.utils import isscalar
+from . import _flib as flib
 from .datatypes import Map
-#from tamasis import tmf
 
 __all__ = [ 
     'airy_disk',
@@ -14,7 +15,9 @@ __all__ = [
     'distance',
     'ds9',
     'gaussian',
+    'integrated_profile',
     'phasemask_fourquadrant',
+    'profile',
     'psd2',
 ]
 
@@ -108,11 +111,12 @@ def distance(shape, origin=None, resolution=1.):
     resolution = np.asanyarray(resolution, dtype=float)
 
     if rank == 1:
-        d = tmf.distance_1d(shape[0], origin[0], resolution[0])
+        d = flib.datautils.distance_1d(shape[0], origin[0], resolution[0])
     elif rank == 2:
-        d = tmf.distance_2d(shape[1], shape[0], origin, resolution).T
+        d = flib.datautils.distance_2d(shape[1], shape[0], origin, resolution).T
     elif rank == 3:
-        d = tmf.distance_3d(shape[2], shape[1], shape[0], origin, resolution).T
+        d = flib.datautils.distance_3d(shape[2], shape[1], shape[0], origin,
+                                       resolution).T
     else:
         d = _distance_slow(shape, origin, resolution, float)
 
@@ -219,11 +223,121 @@ def gaussian(shape, fwhm, origin=None, resolution=1., unit=None):
 #-------------------------------------------------------------------------------
 
 
+def integrated_profile(input, origin=None, bin=1., nbins=None):
+    """
+    Returns axisymmetric integrated profile of a 2d image.
+    x, y = integrated_profile(image, [origin, bin, nbins, histogram])
+
+    Parameters
+    ----------
+    input: array
+        2d input array.
+    origin: (x0,y0)
+        center of the profile. (Fits convention). Default is the image center.
+    bin: number
+        width of the profile bins (in unit of pixels).
+    nbins: integer
+        number of profile bins.
+
+    Returns
+    -------
+    x : array
+        The strict upper boundary within which each integration is performed.
+    y : array
+        The integrated profile.
+
+    """
+    x, y, n = profile(input, origin=origin, bin=bin, nbins=nbins,
+                      histogram=True)
+    x = np.arange(1, y.size + 1) * bin
+    y[~np.isfinite(y)] = 0
+    y *= n
+    return x, np.add.accumulate(y)
+
+
+#-------------------------------------------------------------------------------
+
+
 def phasemask_fourquadrant(shape, phase=-1):
     array = Map.ones(shape, complex)
     array[0:shape[0]//2,shape[1]//2:] = phase
     array[shape[0]//2:,0:shape[1]//2] = phase
     return array
+
+
+#-------------------------------------------------------------------------------
+
+
+def plot_tod(tod, mask=None, **kw):
+    """Plot the signal timelines in a Tod and show masked samples.
+
+    Plotting every detector timelines may be time consuming, so it is
+    recommended to use this method on one or few detectors like this:
+    >>> plot_tod(tod[idetector])
+    """
+    if mask is None:
+        mask = getattr(tod, 'mask', None)
+
+    ndetectors = product(tod.shape[0:-1])
+    tod = tod.view().reshape((ndetectors, -1))
+    if mask is not None:
+        mask = mask.view().reshape((ndetectors, -1))
+        if np.all(mask):
+            print('There is no valid sample.')
+            return
+
+    for idetector in range(ndetectors):
+        pyplot.plot(tod[idetector], **kw)
+        if mask is not None:
+            index=np.where(mask[idetector])
+            pyplot.plot(index, tod[idetector,index],'ro')
+
+    unit = getattr(tod, 'unit', '')
+    if unit:
+        pyplot.ylabel('Signal [' + unit + ']')
+    else:
+        pyplot.ylabel('Signal')
+    pyplot.xlabel('Time sample')
+
+
+#-------------------------------------------------------------------------------
+
+
+def profile(input, origin=None, bin=1., nbins=None, histogram=False):
+    """
+    Returns axisymmetric profile of a 2d image.
+    x, y[, n] = profile(image, [origin, bin, nbins, histogram])
+
+    Parameters
+    ----------
+    input: array
+        2d input array
+    origin: (x0,y0)
+        center of the profile. (Fits convention). Default is the image center.
+    bin: number
+        width of the profile bins (in unit of pixels).
+    nbins: integer
+        number of profile bins.
+    histogram: boolean
+        if set to True, return the histogram.
+
+    """
+    input = np.ascontiguousarray(input, float)
+    if origin is None:
+        origin = (np.array(input.shape[::-1], float) + 1) / 2
+    else:
+        origin = np.ascontiguousarray(origin, float)
+    
+    if nbins is None:
+        nbins = int(max(input.shape[0]-origin[1], origin[1],
+                        input.shape[1]-origin[0], origin[0]) / bin)
+
+    x, y, n = flib.datautils.profile_axisymmetric_2d(input.T, origin, bin,
+                                                     nbins)
+    if histogram:
+        return x, y, n
+    else:
+        return x, y
 
 
 #-------------------------------------------------------------------------------

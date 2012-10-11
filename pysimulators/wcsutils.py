@@ -49,7 +49,7 @@ def angle_lonlat(lon1, lat1, lon2=None, lat2=None):
     lat1 = np.array(lat1, float, ndmin=1, copy=False).ravel()
     lon2 = np.array(lon2, float, ndmin=1, copy=False).ravel()
     lat2 = np.array(lat2, float, ndmin=1, copy=False).ravel()
-    angle = tmf.angle_lonlat(lon1, lat1, lon2, lat2)
+    angle = flib.wcsutils.angle_lonlat(lon1, lat1, lon2, lat2)
     if angle.size == 1:
         angle = float(angle)
     return angle
@@ -112,7 +112,7 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
         cdelt = min([np.min(abs(cdelt)) for cdelt, pa in cdeltpa])
 
     if pa is None:
-        pa = tmf.mean_degrees(np.array([pa for cdelt, pa in cdeltpa]))
+        pa = flib.wcsutils.mean_degrees(np.array([pa for cdelt, pa in cdeltpa]))
 
     # first, create the combined header with a single pixel centred on the
     # reference coordinates, with correct orientation and cdelt
@@ -365,7 +365,7 @@ def mean_degrees(array):
     Returns the mean value of an array of values in degrees, by taking into 
     account the discrepancy at 0 degree
     """
-    return tmf.mean_degrees(np.asarray(array, dtype=float).ravel())
+    return flib.wcsutils.mean_degrees(np.asarray(array, dtype=float).ravel())
 
 
 #-------------------------------------------------------------------------------
@@ -376,7 +376,7 @@ def minmax_degrees(array):
     Returns the minimum and maximum value of an array of values in degrees, 
     by taking into account the discrepancy at 0 degree.
     """
-    return tmf.minmax_degrees(np.asarray(array, dtype=float).ravel())
+    return flib.wcsutils.minmax_degrees(np.asarray(array, dtype=float).ravel())
 
 
 #-------------------------------------------------------------------------------

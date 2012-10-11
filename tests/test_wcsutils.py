@@ -2,22 +2,19 @@ import numpy as np
 
 from kapteyn import wcs
 from numpy.testing import assert_almost_equal
-from pyoperators.utils.testing import skiptest
-from pysimulators.utils import all_eq
-from pysimulators.wcsutils import angle_lonlat, barycenter_lonlat, combine_fitsheader, create_fitsheader, fitsheader2shape, get_cdelt_pa, has_wcs, mean_degrees
+from pyoperators.utils.testing import assert_eq
+from pysimulators.wcsutils import (angle_lonlat, barycenter_lonlat,
+         combine_fitsheader, create_fitsheader, fitsheader2shape,
+         get_cdelt_pa, has_wcs, mean_degrees)
 
-
-@skiptest
 def test_mean_degrees():
     assert mean_degrees([1,2]) == 1.5
     assert_almost_equal(mean_degrees([1,359.1]), 0.05, 12)
     assert_almost_equal(mean_degrees([0.1,359.1]), 359.6, 12)
 
-@skiptest
 def test_angle_lonlat1():
-    assert all_eq(angle_lonlat(30, 0, 40, 0), 10)
+    assert_eq(angle_lonlat(30, 0, 40, 0), 10)
 
-@skiptest
 def test_angle_lonlat2():
     input = (((30,0), (40,0), 10),
              ((39,0), (92, 90), 90),
@@ -31,23 +28,23 @@ def test_angle_lonlat2():
         yield func, c1, c2, angle
 
 def test_barycenter_lonlat():
-    assert all_eq(barycenter_lonlat([30,40], [0, 0]), [35,0])
-    assert all_eq(barycenter_lonlat([20,20,20], [-90,0,90]), [20,0])
-    assert all_eq(barycenter_lonlat([20,20,20], [0,45,90]), [20,45])
+    assert_eq(barycenter_lonlat([30,40], [0, 0]), (35,0))
+    assert_eq(barycenter_lonlat([20,20,20], [-90,0,90]), (20,0))
+    assert_eq(barycenter_lonlat([20,20,20], [0,45,90]), (20,45))
 
 def test_get_cdelt_pa1():
     header = create_fitsheader((10,10), cdelt=(-1.2,3))
     cdelt, pa = get_cdelt_pa(header)
-    assert all_eq(cdelt, (-1.2,3))
-    assert all_eq(pa, 0)
+    assert_eq(cdelt, (-1.2,3))
+    assert_eq(pa, 0)
 
 def test_get_cdelt_pa2():
     cdelt  = (-1.5, 3)
     pa = -25.
     header = create_fitsheader((10,10), cdelt=cdelt, pa=pa)
     cdelt_, pa_ = get_cdelt_pa(header)
-    assert all_eq(cdelt, cdelt_)
-    assert all_eq(pa, pa_)
+    assert_eq(cdelt, cdelt_)
+    assert_eq(pa, pa_)
 
 def test_combine_fitsheader():
     headers = [
@@ -102,6 +99,6 @@ def test_fitsheader2shape():
         header = create_fitsheader(naxes)
         if len(naxes) == 0:
             naxes = (1,)
-        assert all_eq(fitsheader2shape(header), naxes[::-1])
+        assert_eq(fitsheader2shape(header), naxes[::-1])
     for naxes in [(), (1,), (1,2), (2,0,3)]:
         yield func, naxes

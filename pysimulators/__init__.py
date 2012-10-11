@@ -11,6 +11,5 @@ from .observations import *
 from .pointings import *
 #from .processing import *
 from .quantities import *
-from .utils import *
 from .datautils import *
 from .wcsutils import *

@@ -4,9 +4,8 @@ import os
 import pickle
 
 from numpy.testing import assert_array_equal
-from pyoperators.utils.testing import assert_is_none
+from pyoperators.utils.testing import assert_eq, assert_is_none
 from pysimulators import Quantity, FitsArray, Map, Tod, create_fitsheader
-from pysimulators.utils import all_eq, get_attributes
 from uuid import uuid1
 
 filename = 'pysimulatorstest-'+str(uuid1())
@@ -34,7 +33,7 @@ def test_copy_false_subok_true():
             assert obj1 is obj2
         else:
             assert obj1 is not obj2
-            assert all_eq(obj1, obj2)
+            assert_eq(obj1, obj2)
     for obj in [q, f, m, t]:
         for ty in types:
             yield func, obj, ty
@@ -46,7 +45,7 @@ def test_copy_false_subok_false():
             assert obj1 is obj2
         else:
             assert obj1 is not obj2
-            assert all_eq(obj1, obj2)
+            assert_eq(obj1, obj2)
     for obj in [q, f, m, t]:
         for ty in types:
             yield func, obj, ty
@@ -55,7 +54,7 @@ def test_copy_true_subok_true():
     def func(obj1, ty):
         obj2 = ty(obj1, copy=True, subok=True)
         assert obj1 is not obj2
-        assert all_eq(obj1, obj2)
+        assert_eq(obj1, obj2)
         if isinstance(obj1, ty):
             assert type(obj2) is type(obj1)
         else:
@@ -68,7 +67,7 @@ def test_copy_true_subok_false():
     def func(obj1, ty):
         obj2 = ty(obj1, copy=True, subok=False)
         assert obj1 is not obj2
-        assert all_eq(obj1, obj2)
+        assert_eq(obj1, obj2)
         assert type(obj2) is ty
     for obj1 in [q, f, m, t]:
         for ty in types:
@@ -147,25 +146,21 @@ def test_map():
         def __init__(self, data):
             self.info = 'info'
     m = MAP(np.ones(3))
-    assert get_attributes(m) == ['_derived_units', '_header', '_unit',
-                                 'coverage', 'error', 'info', 'origin']
+    assert sorted(m.__dict__) == ['_derived_units', '_header', '_unit',
+                                  'coverage', 'error', 'info', 'origin']
 
 def test_pickling():
     objs = (q,f,m,t)
     def func1(v, o):
         o2 = pickle.loads(pickle.dumps(o,v))
-        assert all_eq(o, o2)
+        assert_eq(o, o2)
     for v in range(pickle.HIGHEST_PROTOCOL):
         for o in objs:
             yield func1, v, o
     def func2(o):
         o.save(filename+'_obj.fits')
         o2 = type(o)(filename+'_obj.fits')
-        if all_eq(o, o2):
-            return
-        print 'o', repr(o)
-        print 'o2', repr(o2)
-        assert False
+        assert_eq(o, o2)
     for o in objs[1:]:
         yield func2, o
 
@@ -183,15 +178,15 @@ def test_ndarray_funcs():
         keywords_func = {'axis':axis} if func is not np.round else {}
         result = func(array, **keywords_func)
         if cls is Tod:
-            ref = func(np.ma.MaskedArray(array.magnitude,
-                       mask=m), **keywords_func)
+            ref = func(np.ma.MaskedArray(array.magnitude, mask=m),
+                       **keywords_func)
             if not isinstance(ref, np.ndarray):
                 ref = np.ma.MaskedArray(ref)
         else:
             ref = func(array.magnitude, **keywords_func)
             if not isinstance(ref, np.ndarray):
                 ref = np.array(ref)
-        assert all_eq(result, ref)
+        assert_eq(result, ref)
         if func is np.var:
             assert result._unit == {'u':2}
         else:
@@ -200,7 +195,10 @@ def test_ndarray_funcs():
             assert_is_none(result.coverage)
             assert_is_none(result.error)
         elif cls is Tod:
-            assert all_eq(result.mask, ref.mask)
+            if result.mask is None:
+                assert ref.mask == False
+            else:
+                assert_eq(result.mask, ref.mask)
 
     for cls in (Quantity, FitsArray, Map, Tod):
         if cls is Tod:
