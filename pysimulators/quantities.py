@@ -6,6 +6,8 @@ from __future__ import division
 import numpy as np
 import re
 
+from . import _flib as flib
+
 __all__ = ['Quantity', 'UnitError', 'units']
 
 _re_unit = re.compile(
@@ -761,8 +763,8 @@ def pixel_to_pixel_reference(input):
     if not all([k in input.header for k in keywords]):
         return Quantity(1, 'pixel_reference')
 
-    scale, status = tmf.projection_scale(str(input.header).replace('\n',''),
-         input.header['NAXIS1'], input.header['NAXIS2'])
+    scale, status = flib.wcsutils.projection_scale(str(input.header).replace(
+        '\n',''), input.header['NAXIS1'], input.header['NAXIS2'])
     if status != 0:
         raise RuntimeError()
 

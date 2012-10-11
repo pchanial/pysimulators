@@ -455,7 +455,7 @@ class Instrument(object):
         result = np.empty(new_shape, float)
         for r, ra, dec, pa in zip(result, pointing['ra'].flat,
                                   pointing['dec'].flat, pointing['pa'].flat):
-            tmf.pointing.instrument2ad(coords.T, r.T, ra, dec, pa)
+            flib.wcsutils.instrument2ad(coords.T, r.T, ra, dec, pa)
         result = result.reshape(pointing.shape + shape)
         for dim in range(pointing.ndim):
             result = np.rollaxis(result, 0, -1)
@@ -478,7 +478,7 @@ class Instrument(object):
         of coordinates specified in the instrument frame.
         """
         coords = np.array(coords, float, order='c', copy=False)
-        xmin, ymin, xmax, ymax, status = tmf.pointing.instrument2xy_minmax(
+        xmin, ymin, xmax, ymax, status = flib.wcsutils.instrument2xy_minmax(
             coords.reshape((-1,2)).T, pointing['ra'].ravel(),
             pointing['dec'].ravel(), pointing['pa'].ravel(),
             str(header).replace('\n',''))
@@ -505,7 +505,7 @@ class Instrument(object):
             pmatrix = pmatrix.ravel().view(np.int64)
         header = str(header).replace('\n','')
 
-        new_npixels_per_sample, out, status = tmf.pointing. \
+        new_npixels_per_sample, out, status = flib.wcsutils. \
             instrument2pmatrix_sharp_edges(coords.T, ra, dec, pa, masked,
             header, pmatrix, npixels_per_sample)
         if status != 0: raise RuntimeError()
