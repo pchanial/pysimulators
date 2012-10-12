@@ -10,8 +10,8 @@ import pyoperators
 from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DiagonalOperator,
                          DiagonalNumexprOperator, DistributionIdentityOperator,
-                         MultiplicationOperator, NumexprOperator, PackOperator,
-                         ZeroOperator)
+                         MaskOperator, MultiplicationOperator, NumexprOperator,
+                         PackOperator, ZeroOperator)
 from pyoperators.config import LOCAL_PATH
 from pyoperators.decorators import (contiguous, linear, orthogonal, real,
                                     square, symmetric, inplace)
@@ -536,6 +536,12 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
                 raise ValueError("The mask shape '{0}' is incompatible with tha"
                     "t of the projection operator '{1}'.".format(mask.shape,
                     result.shapeout))
+            if any(isinstance(p, ProjectionOnFlyOperator)
+                   for p in result.operands):
+                blocks = result.copy()
+                result.__class__ = CompositionOperator
+                result.__init__([MaskOperator(mask), blocks])
+                return
             for p in result.operands:
                 n = p.matrix.shape[1]
                 p.apply_mask(mask[...,dest:dest+n])
