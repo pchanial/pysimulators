@@ -19,12 +19,12 @@ contains
 
         !f2py integer*8,intent(in)        :: pmatrix(npixels_per_sample*nsamples)
 
+        integer*8, intent(in)             :: nsamples
         type(PointingElement), intent(in) :: pmatrix(npixels_per_sample, nsamples)
         real(p), intent(in)               :: data(nsamples)
         real(p), intent(inout)            :: map1d(npixels)
         real(p), intent(inout)            :: weight1d(npixels)
         integer, intent(in)               :: npixels_per_sample
-        integer*8, intent(in)             :: nsamples
         integer, intent(in)               :: npixels
 
         call backprojection_weight__inner(pmatrix, data, map=map1d, weight=weight1d)
@@ -39,13 +39,13 @@ contains
 
         !f2py integer*8,intent(in)        :: pmatrix(npixels_per_sample*nsamples)
 
+        integer*8, intent(in)             :: nsamples
         type(PointingElement), intent(in) :: pmatrix(npixels_per_sample, nsamples)
         real(p), intent(in)               :: data(nsamples)
         logical*1, intent(in)             :: mask(nsamples)
         real(p), intent(inout)            :: map1d(npixels)
         real(p), intent(inout)            :: weight1d(npixels)
         integer, intent(in)               :: npixels_per_sample
-        integer*8, intent(in)             :: nsamples
         integer, intent(in)               :: npixels
 
         call backprojection_weight__inner(pmatrix, data, mask, map1d, weight1d)
@@ -60,9 +60,9 @@ contains
         !f2py threadsafe
         !f2py integer*8, dimension(npixels_per_sample*nsamples) :: matrix
 
+        integer*8, intent(in)             :: nsamples
         type(PointingElement), intent(in) :: matrix(npixels_per_sample,nsamples)
         integer, intent(in)               :: npixels_per_sample
-        integer*8, intent(in)             :: nsamples
         integer, intent(in)               :: npixels
         logical*1, intent(out)            :: isvalid
         integer :: index, ipixel, isample
@@ -87,11 +87,11 @@ contains
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
 
+        integer*8, intent(in)  :: nsamples
         type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
         real(p), intent(in)    :: map1d(npixels)
         real(p), intent(inout) :: signal(nsamples)
         integer, intent(in)    :: npixels_per_sample
-        integer*8, intent(in)  :: nsamples
         integer, intent(in)    :: npixels
 
         if (npixels_per_sample == 1) then
@@ -214,10 +214,10 @@ contains
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(in) :: pmatrix
 
+        integer*8, intent(in)             :: nsamples
         type(PointingElement), intent(in) :: pmatrix(npixels_per_sample, nsamples)
         logical*1, intent(inout)          :: mask1d(npixels)
         integer, intent(in)               :: npixels_per_sample
-        integer*8, intent(in)             :: nsamples
         integer, intent(in)               :: npixels
 
         call pmatrix_mask(pmatrix, mask1d)
@@ -232,10 +232,10 @@ contains
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
 
+        integer*8, intent(in)                :: nsamples
         type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
         logical*1, intent(in)                :: mask1d(npixels)
         integer, intent(in)                  :: npixels_per_sample
-        integer*8, intent(in)                :: nsamples
         integer, intent(in)                  :: npixels
 
         call pmatrix_pack(pmatrix, mask1d)
@@ -250,10 +250,10 @@ contains
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
 
+        integer*8, intent(in)                :: nsamples
         type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
         real(p), intent(inout)               :: array(npixels, npixels)
         integer, intent(in)                  :: npixels_per_sample
-        integer*8, intent(in)                :: nsamples
         integer, intent(in)                  :: npixels
 
         call pmatrix_ptp(pmatrix, array)
@@ -268,11 +268,11 @@ contains
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
 
+        integer*8, intent(in)  :: nsamples
         type(PointingElement), intent(inout) :: pmatrix(npixels_per_sample, nsamples)
         real(p), intent(in)    :: signal(nsamples)
         real(p), intent(inout) :: map1d(npixels)
         integer, intent(in)    :: npixels_per_sample
-        integer*8, intent(in)  :: nsamples
         integer, intent(in)    :: npixels
 
         if (npixels_per_sample == 1) then
