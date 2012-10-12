@@ -406,7 +406,8 @@ class PointingMatrix(np.ndarray):
 def ProjectionOperator(input, method=None, header=None, resolution=None,
                        npixels_per_sample=0, units=None, derived_units=None,
                        downsampling=False, packed=False, commin=MPI.COMM_WORLD,
-                       commout=MPI.COMM_WORLD, **keywords):
+                       commout=MPI.COMM_WORLD, onfly_func=None, onfly_ids=None,
+                       onfly_shapeouts=None, **keywords):
     """
     Projection operator factory, to handle operations by one or more pointing
     matrices.
@@ -438,6 +439,7 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
 
     """
     # check if there is only one pointing matrix
+    isonfly = input is None
     isobservation = hasattr(input, 'get_pointing_matrix')
     if isobservation:
         if hasattr(input, 'slice'):
@@ -445,6 +447,8 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
         else:
             nmatrices = 1
         commout = input.instrument.comm
+    elif isonfly:
+        nmatrices = len(onfly_ids)
     else:
         if isinstance(input, PointingMatrix):
             input = (input,)
@@ -463,7 +467,7 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
                 raise AttributeError("No map header has been specified and "
                     "the observation has no 'get_map_header' method.")
             header_global = input.get_map_header(resolution=resolution,
-                                downsampling=downsampling)
+                                                 downsampling=downsampling)
         else:
             if isinstance(header, str):
                 header = str2fitsheader(header)
@@ -473,15 +477,20 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
                     method=method, downsampling=downsampling, comm=commin)
         if isinstance(input, PointingMatrix):
             input = (input,)
+    elif isonfly:
+        header_global = header
     else:
         header_global = input[0].info['header']
 
     # check shapein
-    shapeins = [i.shape_input for i in input]
-    if any(s != shapeins[0] for s in shapeins):
-        raise ValueError('The pointing matrices do not have the same input '
-            "shape: {0}.".format(', '.join(str(shapeins))))
-    shapein = shapeins[0]
+    if not isonfly:
+        shapeins = [i.shape_input for i in input]
+        if any(s != shapeins[0] for s in shapeins):
+            raise ValueError('The pointing matrices do not have the same input '
+                             "shape: {0}.".format(', '.join(str(shapeins))))
+        shapein = shapeins[0]
+    else:
+        shapein = fitsheader2shape(header_global)
 
     # the output is simply a ProjectionOperator instance
     if nmatrices == 1 and not ismapdistributed and not istoddistributed \
@@ -490,6 +499,8 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
             derived_units, commin=commin, commout=commout, **keywords)
 
     if packed or ismapdistributed:
+        if isonfly:
+            raise NotImplementedError()
         # compute the map mask before this information is lost while packing
         mask_global = Map.ones(shapein, dtype=np.bool8, header=header_global)
         for i in input:
@@ -505,9 +516,16 @@ def ProjectionOperator(input, method=None, header=None, resolution=None,
         else:
             mask = mask_global
 
-    operands = [ProjectionInMemoryOperator(i, units=units, derived_units=
-                derived_units, commout=commout, **keywords)
-                for i in input]
+    if isonfly:
+        place_holder = {}
+        operands = [ProjectionOnFlyOperator(place_holder, id, onfly_func,
+                                            shapein=shapein, shapeout=shapeout,
+                                            units=units,
+                                            derived_units=derived_units)
+                    for id, shapeout in zip(onfly_ids, onfly_shapeouts)]
+    else:
+        operands = [ProjectionInMemoryOperator(i, units=units, derived_units=
+                    derived_units, commout=commout, **keywords) for i in input]
     result = BlockColumnOperator(operands, axisout=-1)
 
     if nmatrices > 1:
@@ -591,6 +609,22 @@ class ProjectionBaseOperator(Operator):
     Abstract class for projection operators.
 
     """
+    def __init__(self, units=None, derived_units=None, **keywords):
+
+        if units is None:
+            units = ('', '')
+        if derived_units is None:
+            derived_units = ({}, {})
+
+        unit = _divide_unit(Quantity(1, units[0])._unit,
+                            Quantity(1, units[1])._unit)
+
+        Operator.__init__(self, classin=Map, classout=Tod, dtype=float,
+                          attrin=self.set_attrin, attrout=self.set_attrout,
+                          **keywords)
+        self.unit = unit
+        self.duout, self.duin = derived_units
+
     def direct(self, input, output):
         matrix = self.matrix
         if matrix.size == 0:
@@ -737,26 +771,25 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
     """
     Projection operator that stores the pointing matrix in memory.
 
-    Parameters
-    ----------
-    matrix : PointingMatrix
-        The pointing matrix.
-    units : unit
-        Unit of the pointing matrix. It is used to infer the output unit
-        from that of the input.
-    derived_units : tuple (derived_units_out, derived_units_in)
-        Derived units to be added to the direct or transposed outputs.
-
     Attributes
     ----------
-    header : pyfits.Header
-        The map FITS header
     matrix : composite dtype ('value', 'f4'), ('index', 'i4')
         The pointing matrix.
 
     """
     def __init__(self, matrix, units=None, derived_units=None, **keywords):
+        """
+        Parameters
+        ----------
+        matrix : PointingMatrix
+            The pointing matrix.
+        units : unit
+            Unit of the pointing matrix. It is used to infer the output unit
+            from that of the input.
+        derived_units : tuple (derived_units_out, derived_units_in)
+            Derived units to be added to the direct or transposed outputs.
 
+        """
         if 'shapein' in keywords:
             raise TypeError("The 'shapein' keyword should not be used.")
         shapein = matrix.shape_input
@@ -770,21 +803,10 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         if derived_units is None:
             derived_units = matrix.info.get('derived_units', None)
 
-        if units is None:
-            units = ('', '')
-        if derived_units is None:
-            derived_units = ({}, {})
-
-        unit = _divide_unit(Quantity(1, units[0])._unit,
-                            Quantity(1, units[1])._unit)
-
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout,
-                          classin=Map, classout=Tod, dtype=float,
-                          attrin=self.set_attrin, attrout=self.set_attrout,
-                          **keywords)
+        ProjectionBaseOperator.__init__(self, shapein=shapein,
+            shapeout=shapeout, units=units, derived_units=derived_units,
+            **keywords)
         self.matrix = matrix
-        self.unit = unit
-        self.duout, self.duin = derived_units
 
     def apply_mask(self, mask):
         mask = np.asarray(mask, np.bool8)
@@ -793,6 +815,59 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
             raise ValueError("The mask shape '{0}' is incompatible with that of"
                 " the pointing matrix '{1}'.".format(mask.shape, matrix.shape))
         matrix.value.T[...] *= 1 - mask.T
+
+
+@real
+@linear
+class ProjectionOnFlyOperator(ProjectionBaseOperator):
+    """
+    Projection operator that recomputes the pointing matrix on the fly.
+
+    ProjectionOnFlyOperator instances are grouped (usually organised as a block
+    column operator) and they share a dictionary, which holds one pointing
+    matrix and a hashable to identify with which element of the group this
+    pointing matrix is associated. If another element requests the
+    computation of its pointing matrix, the common dict is updated accordingly,
+    and the pointing matrix is substituted.
+
+    """
+    def __init__(self, place_holder, id, func, units=None, derived_units=None,
+                 **keywords):
+        """
+        Parameters
+        ----------
+        place_holder : dict
+            dict whose keys 'matrix' contains the pointing matrix and 'id' the
+            hashable to identify with which operator it is associated.
+        id : hashable
+            The on-fly projection operator identifier.
+        func : callable
+            Function used to compute the pointing matrix on the fly:
+                 matrix = func(id)
+        units : unit
+            Unit of the pointing matrix. It is used to infer the output unit
+            from that of the input.
+        derived_units : tuple (derived_units_out, derived_units_in)
+            Derived units to be added to the direct or transposed outputs.
+
+        """
+        if 'matrix' not in place_holder:
+            place_holder['matrix'] = None
+            place_holder['id'] = None
+        self.place_holder = place_holder
+        self.id = id
+        self.func = func
+        ProjectionBaseOperator.__init__(self, units=units,
+                                        derived_units=derived_units, **keywords)
+
+    @property
+    def matrix(self):
+        if self.place_holder['id'] is self.id:
+            return self.place_holder['matrix']
+        self.place_holder['matrix'] = None
+        matrix = self.func(self.id)
+        self.place_holder['id'], self.place_holder['matrix'] = self.id, matrix
+        return matrix
 
 
 @orthogonal
