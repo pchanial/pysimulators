@@ -178,8 +178,8 @@ contains
 
     subroutine minmax_degrees(array, n, minv, maxv)
 
-        real(p), intent(in)   :: array(n)
         integer*8, intent(in) :: n
+        real(p), intent(in)   :: array(n)
         real(p), intent(out)  :: minv, maxv
 
         real(p) :: val, meanv
