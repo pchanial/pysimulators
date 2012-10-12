@@ -268,6 +268,7 @@ contains
     !-------------------------------------------------------------------------------------------------------------------------------
 
 
+#if PRECISION_REAL == 16
     subroutine ft_read_keyword_header_real16(header, keyword, value, found, status, comment)
 
         character(len=*), intent(in)                       :: header
@@ -283,7 +284,7 @@ contains
         value = real(value_, qp)
 
     end subroutine ft_read_keyword_header_real16
-
+#endif
 
     !-------------------------------------------------------------------------------------------------------------------------------
 
