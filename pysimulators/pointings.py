@@ -143,7 +143,7 @@ class Pointing(FitsArray):
         else:
             cdelt = resolution / 3600
             naxis = 2 * np.ceil(np.rad2deg(np.tan(angle_max)) / cdelt)
-        return create_fitsheader(naxis=2*[naxis], cdelt=cdelt, crval=crval,
+        return create_fitsheader(2*[naxis], cdelt=cdelt, crval=crval,
                                  crpix=2*[naxis//2+1])
 
     def plot(self, map=None, header=None, title=None, new_figure=True,
