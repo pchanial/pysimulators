@@ -5,7 +5,7 @@ import scipy.signal
 import scipy.special
 
 from matplotlib import pyplot
-from pyoperators.utils import isscalar
+from pyoperators.utils import isscalar, product
 from . import _flib as flib
 from .datatypes import Map
 
