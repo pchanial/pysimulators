@@ -934,12 +934,10 @@ class Tod(FitsArray):
                      **keywords)
 
     def __str__(self):
-        if np.rank(self) == 0:
-            if np.iscomplexobj(self):
-                return 'Tod ' + str(complex(self))
-            else:
-                return 'Tod ' + str(float(self))
-        output = 'Tod ['
+        output = FitsArray.__str__(self)
+        if self.ndim == 0:
+            return output
+        output += ' ('
         if np.rank(self) > 1:
             output += str(self.shape[-2])+' detector'
             if self.shape[-2] > 1:
@@ -948,7 +946,7 @@ class Tod(FitsArray):
         output += str(self.shape[-1]) + ' sample'
         if self.shape[-1] > 1:
             output += 's'
-        return output + ']'
+        return output + ')'
 
     def save(self, filename, comm=None):
         if comm is None:
