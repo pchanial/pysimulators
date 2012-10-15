@@ -21,7 +21,7 @@ keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
 import sys
-sys.argv += ['config_fc', "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8'"]
+sys.argv += ['config_fc', "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp'"]
 
 ext_modules = [Extension('pysimulators._flib',
                          sources=glob('pysimulators/module_*f90'),
