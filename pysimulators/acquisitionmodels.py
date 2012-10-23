@@ -1,5 +1,6 @@
 from __future__ import division
 
+import copy
 import functools
 import inspect
 import numpy as np
@@ -813,6 +814,9 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
             shapeout=shapeout, units=units, derived_units=derived_units,
             **keywords)
         self.matrix = matrix
+        self.set_rule('.T.', self._rule_ptp, CompositionOperator)
+        self.set_rule('{DiagonalOperator}.', self._rule_diagonal,
+                      CompositionOperator)
 
     def apply_mask(self, mask):
         mask = np.asarray(mask, np.bool8)
@@ -821,6 +825,23 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
             raise ValueError("The mask shape '{0}' is incompatible with that of"
                 " the pointing matrix '{1}'.".format(mask.shape, matrix.shape))
         matrix.value.T[...] *= 1 - mask.T
+
+    @staticmethod
+    def _rule_ptp(pt, p):
+        if p.matrix.shape[-1] != 1:
+            return
+        cov = np.zeros(p.shapein)
+        flib.pointingmatrix.ptp_one(p.matrix.ravel().view(np.int64),
+                                    cov.ravel(), p.matrix.size, cov.size)
+        return DiagonalOperator(cov)
+
+    @staticmethod
+    def _rule_diagonal(d, self):
+        if self.matrix.shape[-1] != 1:
+            return
+        result = ProjectionInMemoryOperator(copy.deepcopy(self.matrix))
+        result.matrix.value.T[...] *= d.get_data().T
+        return result
 
 
 @real

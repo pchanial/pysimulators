@@ -264,6 +264,27 @@ contains
     !---------------------------------------------------------------------------
 
 
+    subroutine ptp_one(pmatrix, array, nsamples, npixels)
+
+        !f2py integer*8, dimension(nsamples), intent(inout) :: pmatrix
+
+        integer*8, intent(in)                :: nsamples
+        type(PointingElement), intent(inout) :: pmatrix(nsamples)
+        real(p), intent(inout)               :: array(npixels)
+        integer, intent(in)                  :: npixels
+        integer*8 :: isample
+
+        do isample = 1, nsamples
+            array(pmatrix(isample)%index) = array(pmatrix(isample)%index) +    &
+                                            pmatrix(isample)%value**2
+        end do
+
+    end subroutine ptp_one
+
+
+    !---------------------------------------------------------------------------
+
+
     subroutine transpose(pmatrix, signal, map1d, npixels_per_sample, nsamples, npixels)
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
