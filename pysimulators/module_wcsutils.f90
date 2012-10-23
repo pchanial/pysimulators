@@ -242,8 +242,18 @@ contains
 
 
     subroutine instrument2ad(input, output, ncoords, ra, dec, pa)
-        ! Convert coordinates in the instrument frame (focal plane) into celestial coordinates,
-        ! assuming a pointing direction and a position angle.
+        ! Convert coordinates in the instrument frame (focal plane) into
+        ! celestial coordinates, assuming a pointing direction and a position
+        ! angle.
+        !
+        !         input(2) = Declination if PA=0
+        !    \    |
+        !     \PA_|
+        !      \/ |
+        !       \ |
+        !        \|_______ input(1) = -R.A. if PA=0
+        !
+        ! 
         ! The routine is not accurate at the poles.
         ! Input units are in arc seconds, output units in degrees.
 
