@@ -63,7 +63,7 @@ def configuration(parent_package='',top_path=None):
     config.add_extension('pysimulators._flib',
                          sources=glob('pysimulators/module_*f90'),
                          include_dirs=['.', np.get_include(), temp_dir],
-                         libraries=['fmod'],
+                         libraries=['fmod', 'gomp'],
                          f2py_options=['skip:', 'pmatrix_direct',
                                        'pmatrix_direct_one_pixel_per_sample',
                                        'pmatrix_transpose',
