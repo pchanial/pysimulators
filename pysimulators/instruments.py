@@ -428,7 +428,9 @@ class Instrument(object):
         elif method == 'nearest':
             coords = self.pack(self.get_centers())
             new_npixels_per_sample = 1
-            raise NotImplementedError()
+            outside = self.instrument2pmatrix_nearest_neighbour(
+                coords, pointing, header, pmatrix
+            )
         else:
             raise NotImplementedError()
 
@@ -543,7 +545,7 @@ class Instrument(object):
         coords, pointing, header, pmatrix, npixels_per_sample
     ):
         """
-        Return the dense pointing matrix whose values are intersection between
+        Return the sparse pointing matrix whose values are intersection between
         detectors and map pixels.
         """
         coords = coords.reshape((-1, 2))
@@ -569,6 +571,28 @@ class Instrument(object):
             raise RuntimeError()
 
         return new_npixels_per_sample, out
+
+    @staticmethod
+    def instrument2pmatrix_nearest_neighbour(coords, pointing, header, pmatrix):
+        """
+        Return the sparse pointing matrix whose values are intersection between
+        detector centers and map pixels.
+        """
+        coords = coords.reshape((-1, 2))
+        area = np.ones(coords.shape[0])
+        ra = pointing['ra'].ravel()
+        dec = pointing['dec'].ravel()
+        pa = pointing['pa'].ravel()
+        masked = pointing['masked'].view(np.int8).ravel()
+        pmatrix = pmatrix.ravel().view(np.int64)
+        header = str(header).replace('\n', '')
+        out, status = flib.wcsutils.instrument2pmatrix_nearest_neighbour(
+            coords.T, area, ra, dec, pa, masked, header, pmatrix
+        )
+        if status != 0:
+            raise RuntimeError()
+
+        return out
 
     @staticmethod
     def create_grid(
