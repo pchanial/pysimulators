@@ -79,7 +79,7 @@ def configuration(parent_package='', top_path=None):
         'pysimulators._flib',
         sources=glob('pysimulators/module_*f90'),
         include_dirs=['.', np.get_include(), temp_dir],
-        libraries=['fmod'],
+        libraries=['fmod', 'gomp'],
         f2py_options=[
             'skip:',
             'pmatrix_direct',
