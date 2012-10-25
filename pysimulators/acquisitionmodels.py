@@ -10,22 +10,18 @@ import pyoperators
 
 from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DiagonalOperator,
-                         DiagonalNumexprOperator, DistributionIdentityOperator,
-                         MaskOperator, MultiplicationOperator, NumexprOperator,
-                         PackOperator, ZeroOperator)
+                         DiagonalNumexprOperator, MultiplicationOperator,
+                         NumexprOperator)
 from pyoperators.config import LOCAL_PATH
-from pyoperators.decorators import (contiguous, linear, orthogonal, real,
-                                    square, symmetric, inplace)
+from pyoperators.decorators import (linear, orthogonal, real, symmetric,
+                                    inplace)
 from pyoperators.memory import empty
 from pyoperators.utils import (isscalar, openmp_num_threads,
                                operation_assignment, product, tointtuple)
-from pyoperators.utils.mpi import MPI, distribute_shape, distribute_shapes
 
 from . import _flib as flib
 from .datatypes import Map, Tod
 from .quantities import Quantity, _divide_unit, _multiply_unit
-from .wcsutils import fitsheader2shape, str2fitsheader
-from .mpiutils import gather_fitsheader_if_needed, scatter_fitsheader
 
 try:
     import fftw3
@@ -45,7 +41,8 @@ __all__ = [
     'BlackBodyOperator',
     'PointingMatrix',
     'PowerLawOperator',
-    'ProjectionOperator',
+    'ProjectionInMemoryOperator', 
+    'ProjectionOnFlyOperator',
     'RollOperator',
 ]
 
@@ -402,211 +399,6 @@ class PointingMatrix(np.ndarray):
         flib.pointingmatrix.mask(self.ravel().view(np.int64), out.view(
             np.int8).T, self.shape[-1], self.size // self.shape[-1])
         return out
-
-
-def ProjectionOperator(input, method=None, header=None, resolution=None,
-                       npixels_per_sample=0, units=None, derived_units=None,
-                       downsampling=False, packed=False, commin=MPI.COMM_WORLD,
-                       commout=MPI.COMM_WORLD, onfly_func=None, onfly_ids=None,
-                       onfly_shapeouts=None, **keywords):
-    """
-    Projection operator factory, to handle operations by one or more pointing
-    matrices.
-
-    It is assumed that each pointing matrix row has at most 'npixels_per_sample'
-    non-null elements, or in other words, an output element can only intersect
-    a fixed number of input elements.
-
-    Given an input vector x and an output vector y, y = P(x) translates into:
-        y[i] = sum(P.matrix[i,:].value * x[P.matrix[i,:].index])
-
-    If the input is not MPI-distributed unlike the output, the projection
-    operator is automatically multiplied by the operator DistributionIdentity-
-    Operator, to enable MPI reductions.
-
-    If the input is MPI-distributed, this operator is automatically packed (see
-    below) and multiplied by the operator DistributionLocalOperator, which
-    takes the local input as argument.
-
-    Arguments
-    ---------
-    input : pointing matrix (or sequence of) or observation (deprecated)
-    method : deprecated
-    header : deprecated
-    resolution : deprecated
-    npixels_per_sample : deprecated
-    downsampling : deprecated
-    packed deprecated
-
-    """
-    # check if there is only one pointing matrix
-    isonfly = input is None
-    isobservation = hasattr(input, 'get_pointing_matrix')
-    if isobservation:
-        if hasattr(input, 'slice'):
-            nmatrices = len(input.slice)
-        else:
-            nmatrices = 1
-        commout = input.instrument.comm
-    elif isonfly:
-        nmatrices = len(onfly_ids)
-    else:
-        if isinstance(input, PointingMatrix):
-            input = (input,)
-        if any(not isinstance(i, PointingMatrix) for i in input):
-            raise TypeError('The input is not a PointingMatrix, (nor a sequence'
-                            ' of).')
-        nmatrices = len(input)
-
-    ismapdistributed = commin.size > 1
-    istoddistributed = commout.size > 1
-
-    # get the pointing matrix from the input observation
-    if isobservation:
-        if header is None:
-            if not hasattr(input, 'get_map_header'):
-                raise AttributeError("No map header has been specified and "
-                    "the observation has no 'get_map_header' method.")
-            header_global = input.get_map_header(resolution=resolution,
-                                                 downsampling=downsampling)
-        else:
-            if isinstance(header, str):
-                header = str2fitsheader(header)
-            header_global = gather_fitsheader_if_needed(header, comm=commin)
-        #XXX we should hand over the local header
-        input = input.get_pointing_matrix(header_global, npixels_per_sample,
-                    method=method, downsampling=downsampling, comm=commin)
-        if isinstance(input, PointingMatrix):
-            input = (input,)
-    elif isonfly:
-        header_global = header
-    else:
-        header_global = input[0].info['header']
-
-    # check shapein
-    if not isonfly:
-        shapeins = [i.shape_input for i in input]
-        if any(s != shapeins[0] for s in shapeins):
-            raise ValueError('The pointing matrices do not have the same input '
-                             "shape: {0}.".format(', '.join(str(shapeins))))
-        shapein = shapeins[0]
-    else:
-        shapein = fitsheader2shape(header_global)
-
-    # the output is simply a ProjectionOperator instance
-    if nmatrices == 1 and not ismapdistributed and not istoddistributed \
-       and not packed:
-        return ProjectionInMemoryOperator(input[0], units=units, derived_units=
-            derived_units, commin=commin, commout=commout, **keywords)
-
-    if packed or ismapdistributed:
-        if isonfly:
-            raise NotImplementedError()
-        # compute the map mask before this information is lost while packing
-        mask_global = Map.ones(shapein, dtype=np.bool8, header=header_global)
-        for i in input:
-            i.get_mask(out=mask_global)
-        for i in input:
-            i.pack(mask_global)
-        if ismapdistributed:
-            shapes = distribute_shapes(mask_global.shape, comm=commin)
-            shape = shapes[commin.rank]
-            mask = np.empty(shape, bool)
-            commin.Reduce_scatter([mask_global, MPI.BYTE], [mask, MPI.BYTE],
-                                  [product(s) for s in shapes], op=MPI.BAND)
-        else:
-            mask = mask_global
-
-    if isonfly:
-        place_holder = {}
-        operands = [ProjectionOnFlyOperator(place_holder, id, onfly_func,
-                                            shapein=shapein, shapeout=shapeout,
-                                            units=units,
-                                            derived_units=derived_units)
-                    for id, shapeout in zip(onfly_ids, onfly_shapeouts)]
-    else:
-        operands = [ProjectionInMemoryOperator(i, units=units, derived_units=
-                    derived_units, commout=commout, **keywords) for i in input]
-    result = BlockColumnOperator(operands, axisout=-1)
-
-    if nmatrices > 1:
-        def apply_mask(mask):
-            mask = np.asarray(mask, np.bool8)
-            dest = 0
-            if mask.shape != result.shapeout:
-                raise ValueError("The mask shape '{0}' is incompatible with tha"
-                    "t of the projection operator '{1}'.".format(mask.shape,
-                    result.shapeout))
-            if any(isinstance(p, ProjectionOnFlyOperator)
-                   for p in result.operands):
-                blocks = result.copy()
-                result.__class__ = CompositionOperator
-                result.__init__([MaskOperator(mask), blocks])
-                return
-            for p in result.operands:
-                n = p.matrix.shape[1]
-                p.apply_mask(mask[...,dest:dest+n])
-                dest += n
-        def get_mask(out=None):
-            for p in result.operands:
-                out = p.get_mask(out=out)
-            return out
-        def get_pTp(out=None):
-            for p in result.operands:
-                out = p.get_pTp(out=out)
-            return out
-        def get_pTx_pT1(x, out=None, mask=None):
-            dest = 0
-            for p in result.operands:
-                n = p.matrix.shape[1]
-                out = p.get_pTx_pT1(x[...,dest:dest+n], out=out, mask=mask)
-                dest += n
-            return out
-        def intersects(out=None):
-            raise NotImplementedError('email-me')
-
-        result.apply_mask = apply_mask
-        result.get_mask = get_mask
-        result.get_pTp = get_pTp
-        result.get_pTx_pT1 = get_pTx_pT1
-        result.intersects = intersects
-
-    if not istoddistributed and not ismapdistributed and not packed:
-        return result
-
-    def not_implemented(out=None):
-        raise NotImplementedError('email-me')
-
-    if packed or ismapdistributed:
-        def get_mask(out=None):
-            if out is not None:
-                out &= mask
-            else:
-                out = mask
-            return out
-        if ismapdistributed:
-            header = scatter_fitsheader(header_global, comm=commin)
-            result *= DistributionLocalOperator(mask_global, commin=commin,
-                                                attrin={'header':header})
-        elif packed:
-            result *= PackOperator(mask)
-        result.get_mask = get_mask
-
-    if istoddistributed and not ismapdistributed:
-        get_mask_closure = result.get_mask
-        def get_mask(out=None):
-            out = get_mask_closure(out=out)
-            commout.Allreduce(MPI.IN_PLACE, [out, MPI.BYTE], op=MPI.BAND)
-            return out        
-        result *= DistributionIdentityOperator(commout=commout)
-        result.get_mask = get_mask
-
-    result.apply_mask = not_implemented
-    result.get_pTp = not_implemented
-    result.get_pTx_pT1 = not_implemented
-    result.intersects = not_implemented
-
-    return result
 
 
 @real
