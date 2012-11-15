@@ -16,26 +16,12 @@ from pyoperators.config import LOCAL_PATH
 from pyoperators.decorators import (linear, orthogonal, real, symmetric,
                                     inplace)
 from pyoperators.memory import empty
-from pyoperators.utils import (isscalar, openmp_num_threads,
-                               operation_assignment, product, tointtuple)
+from pyoperators.utils import (isscalar, operation_assignment, product,
+                               tointtuple)
 
 from . import _flib as flib
 from .datatypes import Map, Tod
 from .quantities import Quantity, _divide_unit, _multiply_unit
-
-try:
-    import fftw3
-    MAX_FFTW_NUM_THREADS = 1 if fftw3.planning.lib_threads is None \
-        else openmp_num_threads()
-    FFTW_WISDOM_FILE = os.path.join(LOCAL_PATH, 'fftw3.wisdom')
-    FFTW_WISDOM_MIN_DELAY = 0.1
-    try:
-        fftw3.import_system_wisdom()
-    except IOError:
-        pass
-    _is_fftw_wisdom_loaded = False
-except:
-    print('Warning: Library PyFFTW3 is not installed.')
 
 __all__ = [
     'BlackBodyOperator',
