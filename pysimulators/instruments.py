@@ -671,7 +671,7 @@ class Instrument(object):
         )
         return out
 
-    def plot(self, transform=None, autoscale=True):
+    def plot(self, transform=None, autoscale=True, **keywords):
         """
         Plot instrument footprint.
 
@@ -711,9 +711,15 @@ class Instrument(object):
         if self.nvertices > 0:
             patches = coords.reshape((-1,) + coords.shape[-2:])
             for p in patches:
-                a.add_patch(pyplot.Polygon(p, closed=True, fill=False))
+                a.add_patch(pyplot.Polygon(p, closed=True, fill=False, **keywords))
         else:
-            pyplot.plot(coords[..., 0], coords[..., 1], 'o')
+            if 'color' not in keywords:
+                keywords['color'] = 'black'
+            if 'marker' not in keywords:
+                keywords['marker'] = 'o'
+            if 'linestyle' not in keywords:
+                keywords['linestyle'] = ''
+            pyplot.plot(coords[..., 0], coords[..., 1], **keywords)
 
         if autoscale:
             pyplot.autoscale()
