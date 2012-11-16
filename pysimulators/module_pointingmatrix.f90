@@ -56,33 +56,6 @@ contains
     !---------------------------------------------------------------------------
 
 
-    subroutine check(matrix, npixels_per_sample, nsamples, npixels, isvalid)
-        !f2py threadsafe
-        !f2py integer*8, dimension(npixels_per_sample*nsamples) :: matrix
-
-        integer*8, intent(in)             :: nsamples
-        type(PointingElement), intent(in) :: matrix(npixels_per_sample,nsamples)
-        integer, intent(in)               :: npixels_per_sample
-        integer, intent(in)               :: npixels
-        logical*1, intent(out)            :: isvalid
-        integer :: index, ipixel, isample
-
-        isvalid = .false.
-        do isample = 1, size(matrix, 2)
-            do ipixel = 1, size(matrix, 1)
-                index = matrix(ipixel,isample)%index
-                if (index == -1) cycle
-                if (index < 0 .or. index >= npixels) return
-            end do
-        end do
-        isvalid = .true.
-
-    end subroutine check
-
-
-    !---------------------------------------------------------------------------
-
-
     subroutine direct(pmatrix, map1d, signal, npixels_per_sample, nsamples, npixels)
 
         !f2py integer*8, dimension(npixels_per_sample*nsamples), intent(inout) :: pmatrix
@@ -205,6 +178,33 @@ contains
         !$omp end parallel do
 
     end subroutine intersects_axis3
+
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine isvalid(matrix, npixels_per_sample, nsamples, npixels, output)
+        !f2py threadsafe
+        !f2py integer*8, dimension(npixels_per_sample*nsamples) :: matrix
+
+        integer*8, intent(in)             :: nsamples
+        type(PointingElement), intent(in) :: matrix(npixels_per_sample,nsamples)
+        integer, intent(in)               :: npixels_per_sample
+        integer, intent(in)               :: npixels
+        logical*1, intent(out)            :: output
+        integer :: index, ipixel, isample
+
+        output = .false.
+        do isample = 1, size(matrix, 2)
+            do ipixel = 1, size(matrix, 1)
+                index = matrix(ipixel,isample)%index
+                if (index == -1) cycle
+                if (index < 0 .or. index >= npixels) return
+            end do
+        end do
+        output = .true.
+
+    end subroutine isvalid
 
 
     !---------------------------------------------------------------------------
