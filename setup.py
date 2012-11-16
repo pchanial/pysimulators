@@ -27,29 +27,6 @@ import sys
 
 sys.argv += ['config_fc', "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp'"]
 
-ext_modules = [
-    Extension(
-        'pysimulators._flib',
-        sources=glob('pysimulators/module_*f90'),
-        include_dirs=['.', np.get_include()],
-        f2py_options=[
-            'skip:',
-            'pmatrix_direct',
-            'pmatrix_direct_one_pixel_per_sample',
-            'pmatrix_transpose',
-            'pmatrix_transpose_one_pixel_per_sample',
-            'pmatrix_ptp',
-            'pmatrix_mask',
-            'pmatrix_pack',
-            'backprojection_weight__inner',
-            'intersection_polygon_unity_square',
-            'intersection_segment_unity_square',
-            'angle_lonlat__inner',
-            ':',
-        ],
-    )
-]
-
 # write f2py's type mapping file
 with open(os.path.join(os.path.dirname(__file__), '.f2py_f2cmap'), 'w') as f:
     f.write("{'real':{'p':'double'}, 'complex':{'p':'complex_double'}}\n")
@@ -114,7 +91,6 @@ setup(
     platforms=platforms.split(','),
     keywords=keywords.split(','),
     cmdclass={'build_ext': build_ext},
-    #      ext_modules = ext_modules,
     license='CeCILL-B',
     classifiers=[
         'Programming Language :: Python',
