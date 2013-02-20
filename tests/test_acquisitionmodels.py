@@ -174,15 +174,17 @@ def test_blackbody():
 
     w = np.arange(90.,111) * 1e-6
     T = 15.
-    flux = bb(w, T) / bb(w[10], T)
-    ops = [BlackBodyOperator(wave, 100e-6, T) for wave in w]
+    flux = bb(w, T) / bb(100e-6, T)
+    ops = [BlackBodyOperator(T, wavelength=wave, wavelength0=100e-6)
+           for wave in w]
     flux2 = [op(1.) for op in ops]
     assert all_eq(flux, flux2)
 
     w, T = np.ogrid[90:111,15:20]
     w = w * 1.e-6
-    flux = bb(w, T) / bb(w[10], T)
-    ops = [BlackBodyOperator(wave, 100e-6, T.squeeze()) for wave in w]
+    flux = bb(w, T) / bb(100e-6, T)
+    ops = [BlackBodyOperator(T.squeeze(), wavelength=wave[0], wavelength0=100e-6)
+           for wave in w]
     flux2 = np.array([op(np.ones(T.size)) for op in ops])
     assert all_eq(flux, flux2)
     
