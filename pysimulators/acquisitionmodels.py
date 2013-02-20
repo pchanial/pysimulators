@@ -312,16 +312,16 @@ class PowerLawOperator(DiagonalNumexprOperator):
 
     """
     def __init__(self, alpha, x, x0, scalar=1, **keywords):
-        x = np.asarray(x)
+        x = np.asarray(x, float)
         if x.ndim != 0:
             raise TypeError('The input is not a scalar.')
-        x0 = np.asarray(x0)
+        x0 = np.asarray(x0, float)
         if x0.ndim != 0:
             raise TypeError('The reference input is not a scalar.')
-        alpha = np.asarray(alpha)
+        alpha = np.asarray(alpha, float)
         if alpha.ndim > 0:
             keywords['shapein'] = alpha.shape
-        scalar = np.array(scalar)
+        scalar = np.asarray(scalar, float)
         if scalar.ndim != 0:
             raise TypeError('The scalar coefficient is not a scalar.')
         if 'dtype' not in keywords:
