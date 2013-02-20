@@ -6,13 +6,13 @@ import inspect
 import numpy as np
 import operator
 import pyoperators
+import scipy.constants
 
 from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
                          CompositionOperator, DiagonalOperator,
                          DiagonalNumexprOperator, MultiplicationOperator,
                          NumexprOperator)
-from pyoperators.decorators import (linear, orthogonal, real, symmetric,
-                                    inplace)
+from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty
 from pyoperators.utils import (isscalar, operation_assignment, product,
                                tointtuple)
@@ -177,72 +177,108 @@ def block_diagonal(*partition_args, **keywords):
     return func
 
 
-class BlackBodyOperator(Operator):
+@real
+class BlackBodyOperator(DiagonalNumexprOperator):
     """
-    Instanceless class whose __new__ method specialises in
-    BlackBodyFixedTemperatureOperator and BlackBodyFreeTemperatureOperator.
+    Diagonal operator whose normalised diagonal values are given by the Planck
+    equation, optionally modified by a power-law emissivity of given slope.
+
+    In other words, assuming that the set of spectra fnu[i](nu) is proportional
+    to the black body law of temperature T[i], and that the flux density of the
+    spectra at the reference frequency nu0 is given by fnu_nu0[i], then the
+    flux densities fnu_nu[i] at a frequency nu can be determined by using the
+    BlackBodyOperator:
+        bb = BlackBodyOperator(T, frequency=nu, frequency0=nu0)
+        fnu_nu = bb(fnu_nu0)
+
+    Example
+    -------
+    Given T a temperature map.
+    >>> fs = np.arange(90, 111) * 1e-6
+    >>> bb = [BlackBodyOperator(T, wavelength=w, wavelength0=100e-6)
+              for f in fs]
 
     """
-    def __new__(cls, wavelength=None, wavelength0=None, temperature=None,
-                beta=0.):
-        if temperature is not None:
-            return BlackBodyFixedTemperatureOperator(temperature, wavelength,
-                                                     wavelength0, beta)
-        raise NotImplementedError()
 
-
-@symmetric
-class BlackBodyFixedTemperatureOperator(NumexprOperator):
-    """
-    Diagonal operator whose normalised values follow the Planck equation,
-    optionnally modified by a power-law emissivity of given slope.
-
-    """
-    def __new__(cls, temperature=None, wavelength=None, wavelength0=None,
-                beta=0.):
-        if not isscalar(wavelength):
-            return BlockColumnOperator([BlackBodyFixedTemperatureOperator(
-                temperature, w, wavelength0, beta) for w in wavelength],
-                new_axisout=0)
-        return NumexprOperator.__new__(cls)
-
-    def __init__(self, temperature, wavelength, wavelength0=None, beta=0.):
+    def __init__(self, temperature, frequency=None, frequency0=None,
+                 wavelength=None, wavelength0=None, beta=0., scalar=1):
         """
         Parameters
         ----------
-        temperature : float
+        temperature : array-like or scalar of float
             Black body temperature, in Kelvin.
-        wavelength : float
-            Wavelength, in meters, at which black body values will be
-            computed.
-        wavelength0 : float
-            Reference wavelength, in meters, for which the operator returns 1.
-        beta : float
+        frequency : scalar float
+            Frequency, in Hertz, at which black body values will be computed.
+        frequency0 : scalar float
+            Reference frequency, in Hertz. If the frequency keyword is equal
+            to frequency0, the operator is the identity operator.
+        wavelength : scalar float
+            Wavelength, in meters, at which black body values will be computed.
+            (alternative to the frequency keyword.)
+        wavelength0 : scalar float
+            Reference wavelength, in meters. If the wavelength keyword is equal
+            to wavelength0, the operator is the identity operator.
+            (alternative to the frequency0 keyword.)
+        beta : array-like or scalar of float
             Slope of the emissivity (the spectrum is multiplied by nu**beta)
             The default value is 0 (non-modified black body).
 
         """
-        self.temperature = np.array(temperature, float, copy=False)
-        self.wavelength = float(wavelength)
-        self.wavelength0 = float(wavelength0)
-        self.beta = float(beta)
-        c = 2.99792458e8
-        h = 6.626068e-34
-        k = 1.380658e-23
-        if self.temperature.size == 1:
-            coef = (self.wavelength0/self.wavelength)**(3+self.beta) * \
-                   (np.exp(h*c/(self.wavelength0*k*self.temperature))-1) / \
-                   (np.exp(h*c/(self.wavelength*k*self.temperature))-1)
+        temperature = np.asarray(temperature, float)
+        if frequency is None and wavelength is None:
+            raise ValueError('The operating frequency or wavelength is not spec'
+                             'ified.')
+        if frequency0 is None and wavelength0 is None:
+            raise ValueError('The reference frequency or wavelength is not spec'
+                             'ified.')
+        if frequency is not None and wavelength is not None:
+            raise ValueError('Ambiguous operating frequency / wavelength.')
+        if frequency0 is not None and wavelength0 is not None:
+            raise ValueError('Ambiguous reference frequency / wavelength.')
+
+        c = scipy.constants.c
+        h = scipy.constants.h
+        k = scipy.constants.k
+
+        if frequency is not None:
+            nu = np.asarray(frequency, float)
+        else:
+            nu = c / np.asarray(wavelength, float)
+        if nu.ndim != 0:
+            raise TypeError('The operating frequency or wavelength is not a sca'
+                            'lar.')
+        if frequency0 is not None:
+            nu0 = np.asarray(frequency0, float)
+        else:
+            nu0 = c / np.asarray(wavelength0, float)
+        if nu.ndim != 0:
+            raise TypeError('The operating frequency or wavelength is not a sca'
+                            'lar.')
+        scalar = np.asarray(scalar, float)
+        if scalar.ndim != 0:
+            raise TypeError('The scalar coefficient is not a scalar.')
+
+        beta = float(beta)
+        if temperature.ndim == 0:
+            coef = scalar * (nu / nu0)**(3 + beta) * \
+                   (np.exp(h * nu0 / (k * temperature)) - 1) / \
+                   (np.exp(h * nu  / (k * temperature)) - 1)
             expr = 'coef * input'
             global_dict = {'coef':coef}
         else:
-            coef1 = (self.wavelength0/self.wavelength)**(3+self.beta)
-            coef2 = h*c/(self.wavelength0*k)
-            coef3 = h*c/(self.wavelength*k)
+            coef1 = scalar * (nu / nu0)**(3 + beta)
+            coef2 = h * nu0 / k
+            coef3 = h * nu  / k
             expr = 'coef1 * (exp(coef2/T) - 1) / (exp(coef3/T) - 1)'
-            global_dict = {'coef1':coef1, 'coef2':coef2, 'coef3':coef3,
-                           'T':self.temperature}
-        NumexprOperator.__init__(self, expr, global_dict, dtype=float)
+            global_dict = {'coef1':coef1, 'coef2':coef2, 'coef3':coef3}
+        DiagonalNumexprOperator.__init__(self, temperature, expr, global_dict,
+                                         var='T', dtype=float)
+        self.temperature = temperature
+        self.frequency = frequency
+        self.frequency0 = frequency0
+        self.wavelength = wavelength
+        self.wavelength0 = wavelength0
+        self.scalar = scalar
 
 
 @real
