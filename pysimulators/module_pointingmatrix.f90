@@ -270,7 +270,7 @@ contains
 
         integer*8, intent(in)                :: nsamples
         type(PointingElement), intent(inout) :: pmatrix(nsamples)
-        real(p), intent(inout)               :: array(npixels)
+        real(p), intent(inout)               :: array(0:npixels-1)
         integer, intent(in)                  :: npixels
         integer*8 :: isample
 
