@@ -178,7 +178,7 @@ def block_diagonal(*partition_args, **keywords):
 
 
 @real
-class BlackBodyOperator(DiagonalNumexprOperator):
+class BlackBodyOperator(DiagonalOperator):
     """
     Diagonal operator whose normalised diagonal values are given by the Planck
     equation, optionally modified by a power-law emissivity of given slope.
@@ -193,15 +193,15 @@ class BlackBodyOperator(DiagonalNumexprOperator):
 
     Example
     -------
-    Given T a temperature map.
-    >>> fs = np.arange(90, 111) * 1e-6
+    Given T a temperature map:
+    >>> ws = np.arange(90, 111) * 1e-6
     >>> bb = [BlackBodyOperator(T, wavelength=w, wavelength0=100e-6)
-              for f in fs]
+              for w in ws]
 
     """
 
     def __init__(self, temperature, frequency=None, frequency0=None,
-                 wavelength=None, wavelength0=None, beta=0., scalar=1):
+                 wavelength=None, wavelength0=None, beta=0, **keywords):
         """
         Parameters
         ----------
@@ -254,31 +254,17 @@ class BlackBodyOperator(DiagonalNumexprOperator):
         if nu.ndim != 0:
             raise TypeError('The operating frequency or wavelength is not a sca'
                             'lar.')
-        scalar = np.asarray(scalar, float)
-        if scalar.ndim != 0:
-            raise TypeError('The scalar coefficient is not a scalar.')
-
         beta = float(beta)
-        if temperature.ndim == 0:
-            coef = scalar * (nu / nu0)**(3 + beta) * \
-                   (np.exp(h * nu0 / (k * temperature)) - 1) / \
-                   (np.exp(h * nu  / (k * temperature)) - 1)
-            expr = 'coef * input'
-            global_dict = {'coef':coef}
-        else:
-            coef1 = scalar * (nu / nu0)**(3 + beta)
-            coef2 = h * nu0 / k
-            coef3 = h * nu  / k
-            expr = 'coef1 * (exp(coef2/T) - 1) / (exp(coef3/T) - 1)'
-            global_dict = {'coef1':coef1, 'coef2':coef2, 'coef3':coef3}
-        DiagonalNumexprOperator.__init__(self, temperature, expr, global_dict,
-                                         var='T', dtype=float)
+        data = (nu / nu0)**(3 + beta) * \
+               np.expm1(h * nu0 / (k * temperature)) / \
+               np.expm1(h * nu  / (k * temperature))
+        DiagonalOperator.__init__(self, data, **keywords)
         self.temperature = temperature
+        self.beta = beta
         self.frequency = frequency
         self.frequency0 = frequency0
         self.wavelength = wavelength
         self.wavelength0 = wavelength0
-        self.scalar = scalar
 
 
 @real
