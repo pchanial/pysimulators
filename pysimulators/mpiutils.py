@@ -5,9 +5,9 @@ from __future__ import division
 
 import numpy as np
 import os
-import pyfits
 import sys
 
+from astropy.io import fits as pyfits
 from pyoperators.utils import openmp_num_threads, product, strshape
 from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine, distribute_slice
 from .wcsutils import create_fitsheader, has_wcs

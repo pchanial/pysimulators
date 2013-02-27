@@ -18,7 +18,6 @@ import matplotlib
 import matplotlib.pyplot as pyplot
 import numpy as np
 import pickle
-import pyfits
 import StringIO
 import scipy.stats
 
@@ -27,6 +26,7 @@ try:
 except:
     ds9 = None
 
+from astropy.io import fits as pyfits
 from functools import reduce
 
 try:
