@@ -4,8 +4,8 @@ from kapteyn import wcs
 from numpy.testing import assert_almost_equal
 from pyoperators.utils.testing import assert_eq
 from pysimulators.wcsutils import (angle_lonlat, barycenter_lonlat,
-         combine_fitsheader, create_fitsheader, fitsheader2shape,
-         get_cdelt_pa, has_wcs, mean_degrees)
+         combine_fitsheader, create_fitsheader, create_fitsheader_for,
+         fitsheader2shape, get_cdelt_pa, has_wcs, mean_degrees)
 
 def test_mean_degrees():
     assert mean_degrees([1,2]) == 1.5
@@ -87,7 +87,7 @@ def test_create_fitsheader1():
     arrays = [np.ones(()) for s in shapes ]
     def func(a):
         h1 = create_fitsheader(a.shape, dtype=float)
-        h2 = create_fitsheader(fromdata=a)
+        h2 = create_fitsheader_for(a)
         assert h1 == h2
         assert h1['NAXIS'] == max(a.ndim, 1)
         assert h1['NAXIS1'] == a.shape[-1] if a.ndim > 0 else 1

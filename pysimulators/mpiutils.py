@@ -10,7 +10,7 @@ import sys
 from astropy.io import fits as pyfits
 from pyoperators.utils import openmp_num_threads, product, strshape
 from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine, distribute_slice
-from .wcsutils import create_fitsheader, has_wcs
+from .wcsutils import create_fitsheader_for, has_wcs
 
 __all__ = []
 
@@ -252,7 +252,7 @@ def write_fits(filename, data, header, extension, extname, comm):
 
     # get header
     if header is None:
-        header = create_fitsheader(fromdata=data, extname=extname)
+        header = create_fitsheader_for(data, extname=extname)
     else:
         header = header.copy()
     if extname is not None:

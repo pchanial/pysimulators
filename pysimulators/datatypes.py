@@ -37,7 +37,7 @@ from pyoperators.utils.mpi import MPI
 
 from .mpiutils import read_fits, write_fits
 from .quantities import Quantity
-from .wcsutils import create_fitsheader, has_wcs
+from .wcsutils import create_fitsheader_for, has_wcs
 
 __all__ = [ 'FitsArray', 'Map', 'Tod' ]
 
@@ -225,7 +225,7 @@ class FitsArray(Quantity):
     @property
     def header(self):
         if self._header is None and not np.iscomplexobj(self):
-            self._header = create_fitsheader(fromdata=self)
+            self._header = create_fitsheader_for(self)
         return self._header
 
     @header.setter
