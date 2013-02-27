@@ -343,10 +343,7 @@ contains
         real(p), intent(in)  :: origin(2)
         real(p), intent(in)  :: resolution(2)
 
-        real(p) :: R
-
-        R = 1 / atan(resolution(1) * DEG2RAD)
-        call distance(array, origin, [1/R, 1/R])
+        call distance(array, origin, tan(resolution * DEG2RAD))
 
         !$omp parallel workshare
         array = cos(atan(array))**3
