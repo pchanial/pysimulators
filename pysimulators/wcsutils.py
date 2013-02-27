@@ -178,11 +178,6 @@ def create_fitsheader(
         Note that the dimensions in FITS and ndarrays are reversed.
     dtype : data-type, optional
         Desired data type for the data stored in the FITS file
-    fromdata : array_like, optional
-        An array from which the dimensions and typewill be extracted. Note
-        that following the FITS convention, the dimension along X is the
-        second value of the array shape and that the dimension along the
-        Y axis is the first one.
     extname : None or string
         if a string is specified ('' can be used), the returned header
         type will be an Image HDU (otherwise a Primary HDU).
@@ -208,11 +203,11 @@ def create_fitsheader(
     equinox : float, optional
         Reference equinox (for non-ICRS reference frame).
 
-    Examples
-    --------
+    Example
+    -------
     >>> map = Map.ones((10,100), unit='Jy/pixel')
-    >>> map.header = create_fitsheader(map.shape[::-1], cd=[[-1,0],[0,1]])
-    >>> map.header = create_fitsheader(fromdata=map)
+    >>> ny, nx = map.shape
+    >>> map.header = create_fitsheader((nx, ny), cd=[[-1,0],[0,1]])
 
     """
     if naxes is not None and fromdata is not None or naxes is None and fromdata is None:
@@ -229,6 +224,11 @@ def create_fitsheader(
         else:
             typename = 'float64'
     else:
+        print(
+            "The keyword 'from_data' in create_fitsheader is deprecated and w"
+            "ill be removed in an upcoming release. Use the function create_f"
+            "itsheader_for instead."
+        )
         array = np.array(fromdata, copy=False)
         naxes = tuple(reversed(array.shape))
         if dtype is not None:
@@ -321,6 +321,80 @@ def create_fitsheader(
         header.update('equinox', float(equinox))
 
     return header
+
+
+# -------------------------------------------------------------------------------
+
+
+def create_fitsheader_for(
+    data,
+    extname=None,
+    crval=(0.0, 0.0),
+    crpix=None,
+    ctype=('RA---TAN', 'DEC--TAN'),
+    cunit='deg',
+    cd=None,
+    cdelt=None,
+    pa=None,
+    radesys='ICRS',
+    equinox=None,
+):
+    """
+    Helper to create a FITS header from an ndarray.
+
+    Parameters
+    ----------
+    data : array_like
+        The array from which the dimensions and type will be extracted. Note
+        that following the FITS convention, the dimension along X is the
+        second value of the array shape and that the dimension along the
+        Y axis is the first one.
+    extname : None or string
+        if a string is specified ('' can be used), the returned header
+        type will be an Image HDU (otherwise a Primary HDU).
+    crval : 2 element array, optional
+        Reference pixel values (FITS convention).
+    crpix : 2 element array, optional
+        Reference pixel (FITS convention).
+    ctype : 2 element string array, optional
+        Projection types.
+    cunit : string or 2 element string array
+        Units of the CD matrix (default is degrees/pixel).
+    cd : 2 x 2 array
+        FITS parameters
+            CD1_1 CD1_2
+            CD2_1 CD2_2
+    cdelt : float or 2 element array
+        Physical increment at the reference pixel.
+    pa : float
+        Position angle of the Y=AXIS2 axis (=-CROTA2).
+    radesys : string
+        Coordinate reference frame for the RA and DEC axis columns. Default
+        is 'ICRS'.
+    equinox : float, optional
+        Reference equinox (for non-ICRS reference frame).
+
+    Example
+    -------
+    >>> map = Map.ones((10,100), unit='Jy/pixel')
+    >>> map.header = create_fitsheader_for(map, cd=[[-1,0], [0,1]])
+
+    """
+    data = np.asarray(data)
+    return create_fitsheader(
+        data.shape[::-1],
+        dtype=data.dtype,
+        extname=extname,
+        crval=crval,
+        crpix=crpix,
+        ctype=ctype,
+        cunit=cunit,
+        cd=cd,
+        cdelt=cdelt,
+        pa=pa,
+        radesys=radesys,
+        equinox=equinox,
+    )
 
 
 # -------------------------------------------------------------------------------
