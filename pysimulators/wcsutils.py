@@ -165,7 +165,8 @@ def create_fitsheader(
     cd=None,
     cdelt=None,
     pa=None,
-    equinox=2000.0,
+    radesys='ICRS',
+    equinox=None,
 ):
     """
     Helper to create a FITS header.
@@ -201,8 +202,11 @@ def create_fitsheader(
         Physical increment at the reference pixel.
     pa : float
         Position angle of the Y=AXIS2 axis (=-CROTA2).
-    equinox : float
-        Reference equinox
+    radesys : string
+        Coordinate reference frame for the RA and DEC axis columns. Default
+        is 'ICRS'.
+    equinox : float, optional
+        Reference equinox (for non-ICRS reference frame).
 
     Examples
     --------
@@ -309,7 +313,12 @@ def create_fitsheader(
     header.update('ctype2', ctype[1])
     header.update('cunit1', cunit[0])
     header.update('cunit2', cunit[1])
-    header.update('equinox', 2000.0)
+
+    if ctype[0][:3] == 'RA-' and ctype[1][:3] == 'DEC':
+        header.update('radesys', radesys.upper())
+
+    if equinox is not None:
+        header.update('equinox', float(equinox))
 
     return header
 

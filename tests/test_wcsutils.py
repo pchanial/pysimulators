@@ -106,7 +106,7 @@ def test_has_wcs():
     assert has_wcs(header)
 
 
-def test_create_fitsheader():
+def test_create_fitsheader1():
     shapes = [(), (1,), (1, 2), (0, 1), (1, 0), (2, 3)]
     arrays = [np.ones(()) for s in shapes]
 
@@ -119,6 +119,12 @@ def test_create_fitsheader():
 
     for a in arrays:
         yield func, a
+
+
+def test_create_fitsheader2():
+    header = create_fitsheader((10, 3), cdelt=1)
+    assert_eq(header['RADESYS'], 'ICRS')
+    assert 'EQUINOX' not in header
 
 
 def test_fitsheader2shape():
