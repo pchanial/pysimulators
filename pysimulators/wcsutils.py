@@ -5,9 +5,9 @@
 from __future__ import division
 
 import numpy as np
-import pyfits
 import scipy.interpolate as interp
 
+from astropy.io import fits as pyfits
 from kapteyn import wcs as kwcs
 from pyoperators import Operator
 from pyoperators.decorators import real, square, inplace
