@@ -13,7 +13,10 @@ They also contain specialised display methods.
 """
 from __future__ import division
 
-import kapteyn.maputils
+try:
+    import kapteyn.maputils as km
+except ImportError:
+    km = None
 import matplotlib
 import matplotlib.pyplot as pyplot
 import numpy as np
@@ -23,12 +26,11 @@ import scipy.stats
 
 try:
     import ds9
-except:
+except Import Error:
     ds9 = None
 
 from astropy.io import fits as pyfits
 from functools import reduce
-
 try:
     from pyoperators.memory import empty
 except ImportError:
@@ -40,7 +42,7 @@ from .mpiutils import read_fits, write_fits
 from .quantities import Quantity
 from .wcsutils import create_fitsheader_for, has_wcs
 
-__all__ = ['FitsArray', 'Map', 'Tod']
+__all__ = [ 'FitsArray', 'Map', 'Tod' ]
 
 
 class FitsArray(Quantity):
@@ -101,19 +103,9 @@ class FitsArray(Quantity):
 
     _header = None
 
-    def __new__(
-        cls,
-        data,
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        copy=True,
-        order='C',
-        subok=False,
-        ndmin=0,
-        comm=None,
-    ):
+    def __new__(cls, data, header=None, unit=None, derived_units=None,
+                dtype=None, copy=True, order='C', subok=False, ndmin=0,
+                comm=None):
 
         if isinstance(data, (str, unicode)):
 
@@ -133,26 +125,25 @@ class FitsArray(Quantity):
                 if 'BUNIT' in header:
                     unit = header['BUNIT']
                 elif 'QTTY____' in header:
-                    unit = header['QTTY____']  # HCSS crap
+                    unit = header['QTTY____'] # HCSS crap
                     if unit == '1':
                         unit = ''
 
         elif comm is not None:
-            raise ValueError(
-                'The MPI communicator can only be set for input FI' 'TS files.'
-            )
+            raise ValueError('The MPI communicator can only be set for input FI'
+                             'TS files.')
 
         # get a new FitsArray instance (or a subclass if subok is True)
-        result = Quantity.__new__(
-            cls, data, unit, derived_units, dtype, copy, order, True, ndmin
-        )
+        result = Quantity.__new__(cls, data, unit, derived_units, dtype, copy,
+                                  order, True, ndmin)
         if not subok and result.__class__ is not cls:
             result = result.view(cls)
 
         # copy header attribute
         if header is not None:
             result.header = header
-        elif hasattr(data, '_header') and data._header.__class__ is pyfits.Header:
+        elif hasattr(data, '_header') and \
+             data._header.__class__ is pyfits.Header:
             if copy:
                 result._header = data._header.copy()
             else:
@@ -175,7 +166,7 @@ class FitsArray(Quantity):
         if self.dtype.names and name in self.dtype.names:
             self[name] = value
         else:
-            super(FitsArray, self).__setattr__(name, value)
+            super(FitsArray,self).__setattr__(name, value)
 
     def astype(self, dtype):
         """
@@ -210,31 +201,22 @@ class FitsArray(Quantity):
         return result
 
     @staticmethod
-    def empty(
-        shape, header=None, unit=None, derived_units=None, dtype=None, order=None
-    ):
-        return FitsArray(
-            empty(shape, dtype, order), header, unit, derived_units, dtype, copy=False
-        )
+    def empty(shape, header=None, unit=None, derived_units=None, dtype=None,
+              order=None):
+        return FitsArray(empty(shape, dtype, order), header, unit,
+            derived_units, dtype, copy=False)
 
     @staticmethod
-    def ones(shape, header=None, unit=None, derived_units=None, dtype=None, order=None):
-        return FitsArray(
-            np.ones(shape, dtype, order), header, unit, derived_units, dtype, copy=False
-        )
+    def ones(shape, header=None, unit=None, derived_units=None, dtype=None,
+             order=None):
+        return FitsArray(np.ones(shape, dtype, order), header, unit,
+            derived_units, dtype, copy=False)
 
     @staticmethod
-    def zeros(
-        shape, header=None, unit=None, derived_units=None, dtype=None, order=None
-    ):
-        return FitsArray(
-            np.zeros(shape, dtype, order),
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy=False,
-        )
+    def zeros(shape, header=None, unit=None, derived_units=None, dtype=None,
+              order=None):
+        return FitsArray(np.zeros(shape, dtype, order), header, unit,
+            derived_units, dtype, copy=False)
 
     def has_wcs(self):
         """
@@ -252,9 +234,8 @@ class FitsArray(Quantity):
     @header.setter
     def header(self, header):
         if header is not None and not isinstance(header, pyfits.Header):
-            raise TypeError(
-                'Incorrect type for the input header (' + str(type(header)) + ').'
-            )
+            raise TypeError('Incorrect type for the input header (' + \
+                            str(type(header))+').')
         self._header = header
 
     def save(self, filename, comm=None):
@@ -284,7 +265,8 @@ class FitsArray(Quantity):
             buf = StringIO.StringIO()
             pickle.dump(self.derived_units, buf, pickle.HIGHEST_PROTOCOL)
             data = np.frombuffer(buf.getvalue(), np.uint8)
-            write_fits(filename, data, None, True, 'derived_units', MPI.COMM_SELF)
+            write_fits(filename, data, None, True, 'derived_units',
+                       MPI.COMM_SELF)
         comm.Barrier()
 
     def imsave(self, filename, colorbar=True, **kw):
@@ -298,8 +280,8 @@ class FitsArray(Quantity):
         """
         is_interactive = matplotlib.is_interactive()
         matplotlib.interactive(False)
-        dpi = 80.0
-        figsize = np.clip(np.max(np.array(self.shape[::-1]) / dpi), 8, 50)
+        dpi = 80.
+        figsize = np.clip(np.max(np.array(self.shape[::-1])/dpi), 8, 50)
         figsize = (figsize + (2 if colorbar else 0), figsize)
         fig = pyplot.figure(figsize=figsize, dpi=dpi)
         self.imshow(colorbar=colorbar, new_figure=False, **kw)
@@ -307,18 +289,9 @@ class FitsArray(Quantity):
         fig.savefig(filename)
         matplotlib.interactive(is_interactive)
 
-    def imshow(
-        self,
-        mask=None,
-        new_figure=True,
-        title=None,
-        xlabel='',
-        ylabel='',
-        interpolation='nearest',
-        colorbar=True,
-        percentile=0,
-        **keywords,
-    ):
+    def imshow(self, mask=None, new_figure=True, title=None, xlabel='',
+               ylabel='', interpolation='nearest', colorbar=True,
+               percentile=0, **keywords):
         """
         A graphical display method specialising matplotlib's imshow.
 
@@ -369,7 +342,7 @@ class FitsArray(Quantity):
             fig = pyplot.figure()
         else:
             fig = pyplot.gcf()
-        fontsize = 12.0 * fig.get_figheight() / 6.125
+        fontsize = 12. * fig.get_figheight() / 6.125
 
         image = pyplot.imshow(data, interpolation=interpolation, **keywords)
         image.set_clim(minval, maxval)
@@ -429,7 +402,7 @@ class FitsArray(Quantity):
         Examples
         --------
         >>> m = Map('myfits.fits')
-        >>> d=m.ds9(('zoom to fit','saveimage png myfits.png'),scale='histequ',
+        >>> d=m.ds9(('zoom to fit','saveimage png myfits.png'),scale='histequ', 
                     cmap='invert yes', height=400)
         >>> d.set('exit')
         """
@@ -450,7 +423,8 @@ class FitsArray(Quantity):
             if 'scale' not in keywords:
                 keywords['scale'] = ('scope local', 'mode 99.5')
 
-            if origin == 'upper' or 'orient' not in keywords and self.origin == 'upper':
+            if origin == 'upper' or \
+               'orient' not in keywords and self.origin == 'upper':
                 keywords['orient'] = 'y'
 
             wait = 10
@@ -463,7 +437,8 @@ class FitsArray(Quantity):
                 k = str(k)
                 if type(v) is not tuple:
                     v = (v,)
-                command += reduce(lambda x, y: str(x) + ' -' + k + ' ' + str(y), v, '')
+                command += reduce(lambda x,y: \
+                                  str(x) + ' -' + k + ' ' + str(y),v,'')
 
             os.system(command + ' &')
 
@@ -480,8 +455,7 @@ class FitsArray(Quantity):
 
             for i in range(wait):
                 list = xpa.xpaaccess(id, None, 1024)
-                if list:
-                    break
+                if list: break
                 time.sleep(1)
             if not list:
                 raise ValueError('No active ds9 running for target: %s' % list)
@@ -577,37 +551,13 @@ class Map(FitsArray):
     error = None
     origin = None
 
-    def __new__(
-        cls,
-        data,
-        header=None,
-        unit=None,
-        derived_units=None,
-        coverage=None,
-        error=None,
-        origin=None,
-        dtype=None,
-        copy=True,
-        order='C',
-        subok=False,
-        ndmin=0,
-        comm=None,
-    ):
+    def __new__(cls, data,  header=None, unit=None, derived_units=None,
+                coverage=None, error=None, origin=None, dtype=None, copy=True,
+                order='C', subok=False, ndmin=0, comm=None):
 
         # get a new Map instance (or a subclass if subok is True)
-        result = FitsArray.__new__(
-            cls,
-            data,
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy,
-            order,
-            True,
-            ndmin,
-            comm,
-        )
+        result = FitsArray.__new__(cls, data, header, unit, derived_units,
+            dtype, copy, order, True, ndmin, comm)
         if not subok and result.__class__ is not cls:
             result = result.view(cls)
 
@@ -633,10 +583,8 @@ class Map(FitsArray):
         if origin is not None:
             origin = origin.strip().lower()
             if origin not in ('lower', 'upper'):
-                raise ValueError(
-                    "Invalid origin '" + origin + "'. Expected v"
-                    "alues are 'lower' or 'upper'."
-                )
+                raise ValueError("Invalid origin '" + origin + "'. Expected v" \
+                                 "alues are 'lower' or 'upper'.")
             result.origin = origin
 
         if coverage is not None:
@@ -703,90 +651,26 @@ class Map(FitsArray):
         return result
 
     @staticmethod
-    def empty(
-        shape,
-        coverage=None,
-        error=None,
-        origin='lower',
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        order=None,
-    ):
-        return Map(
-            empty(shape, dtype, order),
-            header,
-            unit,
-            derived_units,
-            coverage,
-            error,
-            origin,
-            dtype,
-            copy=False,
-        )
+    def empty(shape, coverage=None, error=None, origin='lower', header=None,
+              unit=None, derived_units=None, dtype=None, order=None):
+        return Map(empty(shape, dtype, order), header, unit, derived_units,
+                   coverage, error, origin, dtype, copy=False)
 
     @staticmethod
-    def ones(
-        shape,
-        coverage=None,
-        error=None,
-        origin='lower',
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        order=None,
-    ):
-        return Map(
-            np.ones(shape, dtype, order),
-            header,
-            unit,
-            derived_units,
-            coverage,
-            error,
-            origin,
-            dtype,
-            copy=False,
-        )
+    def ones(shape, coverage=None, error=None, origin='lower', header=None,
+             unit=None, derived_units=None, dtype=None, order=None):
+        return Map(np.ones(shape, dtype, order), header, unit, derived_units,
+                   coverage, error, origin, dtype, copy=False)
 
     @staticmethod
-    def zeros(
-        shape,
-        coverage=None,
-        error=None,
-        origin='lower',
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        order=None,
-    ):
-        return Map(
-            np.zeros(shape, dtype, order),
-            header,
-            unit,
-            derived_units,
-            coverage,
-            error,
-            origin,
-            dtype,
-            copy=False,
-        )
+    def zeros(shape, coverage=None, error=None, origin='lower', header=None,
+              unit=None, derived_units=None, dtype=None, order=None):
+        return Map(np.zeros(shape, dtype, order), header, unit, derived_units,
+                   coverage, error, origin, dtype, copy=False)
 
-    def imshow(
-        self,
-        mask=None,
-        new_figure=True,
-        title=None,
-        xlabel='X',
-        ylabel='Y',
-        interpolation='nearest',
-        origin=None,
-        colorbar=True,
-        percentile=0,
-        **keywords,
-    ):
+    def imshow(self, mask=None, new_figure=True, title=None, xlabel='X',
+               ylabel='Y', interpolation='nearest', origin=None, colorbar=True,
+               percentile=0, **keywords):
         if mask is None and self.coverage is not None:
             mask = self.coverage <= 0
 
@@ -794,18 +678,11 @@ class Map(FitsArray):
             origin = self.origin
 
         # check if the map has no astrometry information
-        if not self.has_wcs():
-            image = super(Map, self).imshow(
-                mask=mask,
-                new_figure=new_figure,
-                title=title,
-                xlabel=xlabel,
-                ylabel=ylabel,
-                origin=origin,
-                colorbar=colorbar,
-                percentile=percentile,
-                **keywords,
-            )
+        if not self.has_wcs() or km is None:
+            image = super(Map, self).imshow(mask=mask, new_figure=new_figure,
+                          title=title, xlabel=xlabel, ylabel=ylabel,
+                          origin=origin, colorbar=colorbar,
+                          percentile=percentile, **keywords)
             return image
 
         if np.iscomplexobj(self):
@@ -826,18 +703,16 @@ class Map(FitsArray):
         data[data > maxval] = maxval
         data[mask] = np.nan
 
-        # XXX FIX ME
+        #XXX FIX ME
         colorbar = False
 
-        fitsobj = kapteyn.maputils.FITSimage(
-            externaldata=data, externalheader=self.header
-        )
+        fitsobj = km.FITSimage(externaldata=data, externalheader=self.header)
         if new_figure:
             fig = pyplot.figure()
             frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
         else:
             frame = pyplot.gca()
-        fontsize = 12.0 * fig.get_figheight() / 6.125
+        fontsize = 12. * fig.get_figheight() / 6.125
         for tick in frame.xaxis.get_major_ticks():
             tick.label1.set_fontsize(fontsize)
         for tick in frame.yaxis.get_major_ticks():
@@ -875,13 +750,14 @@ class Map(FitsArray):
     def _wrap_func(self, func, unit, *args, **kw):
         result = super(Map, self)._wrap_func(func, unit, *args, **kw)
         if not isinstance(result, np.ndarray):
-            return type(self)(result, unit=unit, derived_units=self.derived_units)
+            return type(self)(result, unit=unit, derived_units= \
+                              self.derived_units)
         result.coverage = None
         result.error = None
         return result
 
 
-# -------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 
 class Tod(FitsArray):
@@ -944,38 +820,16 @@ class Tod(FitsArray):
 
     _mask = None
 
-    def __new__(
-        cls,
-        data,
-        mask=None,
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        copy=True,
-        order='C',
-        subok=False,
-        ndmin=0,
-        comm=None,
-    ):
+    def __new__(cls, data, mask=None, header=None, unit=None,
+                derived_units=None, dtype=None, copy=True, order='C',
+                subok=False, ndmin=0, comm=None):
 
         # get a new Tod instance (or a subclass if subok is True)
-        result = FitsArray.__new__(
-            cls,
-            data,
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy,
-            order,
-            True,
-            ndmin,
-            comm,
-        )
+        result = FitsArray.__new__(cls, data, header, unit, derived_units,
+            dtype, copy, order, True, ndmin, comm)
         if not subok and result.__class__ is not cls:
             result = result.view(cls)
-
+        
         # mask attribute
         if mask is np.ma.nomask:
             mask = None
@@ -992,7 +846,8 @@ class Tod(FitsArray):
             except:
                 pass
 
-        if mask is None and hasattr(data, 'mask') and data.mask is not np.ma.nomask:
+        if mask is None and hasattr(data, 'mask') and \
+           data.mask is not np.ma.nomask:
             mask = data.mask
 
         if mask is not None:
@@ -1030,14 +885,9 @@ class Tod(FitsArray):
 
         # check shape compatibility
         if self.shape != mask.shape:
-            raise ValueError(
-                "The input mask has a shape '"
-                + str(mask.shape)
-                + "' incompatible with that of the Tod '"
-                + str(self.shape)
-                + "'."
-            )
-
+            raise ValueError("The input mask has a shape '" + str(mask.shape) +\
+                "' incompatible with that of the Tod '" + str(self.shape) +"'.")
+        
         self._mask = mask
 
     def __array_finalize__(self, array):
@@ -1060,86 +910,30 @@ class Tod(FitsArray):
         return result
 
     @staticmethod
-    def empty(
-        shape,
-        mask=None,
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        order=None,
-    ):
-        return Tod(
-            empty(shape, dtype, order),
-            mask,
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy=False,
-        )
+    def empty(shape, mask=None, header=None, unit=None, derived_units=None,
+              dtype=None, order=None):
+        return Tod(empty(shape, dtype, order), mask, header, unit,
+                   derived_units, dtype, copy=False)
 
     @staticmethod
-    def ones(
-        shape,
-        mask=None,
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        order=None,
-    ):
-        return Tod(
-            np.ones(shape, dtype, order),
-            mask,
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy=False,
-        )
+    def ones(shape, mask=None, header=None, unit=None, derived_units=None,
+             dtype=None, order=None):
+        return Tod(np.ones(shape, dtype, order), mask, header, unit,
+                   derived_units, dtype, copy=False)
 
     @staticmethod
-    def zeros(
-        shape,
-        mask=None,
-        header=None,
-        unit=None,
-        derived_units=None,
-        dtype=None,
-        order=None,
-    ):
-        return Tod(
-            np.zeros(shape, dtype, order),
-            mask,
-            header,
-            unit,
-            derived_units,
-            dtype,
-            copy=False,
-        )
+    def zeros(shape, mask=None, header=None, unit=None, derived_units=None,
+              dtype=None, order=None):
+        return Tod(np.zeros(shape, dtype, order), mask, header, unit,
+                   derived_units, dtype, copy=False)
 
-    def imshow(
-        self,
-        mask=None,
-        xlabel='Sample',
-        ylabel='Detector number',
-        aspect='auto',
-        origin='upper',
-        percentile=0,
-        **keywords,
-    ):
+    def imshow(self, mask=None, xlabel='Sample', ylabel='Detector number',
+               aspect='auto', origin='upper', percentile=0, **keywords):
         if mask is None:
             mask = self.mask
-        return super(Tod, self).imshow(
-            mask=mask,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            aspect=aspect,
-            origin=origin,
-            percentile=percentile,
-            **keywords,
-        )
+        return super(Tod, self).imshow(mask=mask, xlabel=xlabel, ylabel=ylabel,
+                     aspect=aspect, origin=origin, percentile=percentile,
+                     **keywords)
 
     def __str__(self):
         output = FitsArray.__str__(self)
@@ -1147,7 +941,7 @@ class Tod(FitsArray):
             return output
         output += ' ('
         if np.rank(self) > 1:
-            output += str(self.shape[-2]) + ' detector'
+            output += str(self.shape[-2])+' detector'
             if self.shape[-2] > 1:
                 output += 's'
             output += ', '
@@ -1166,54 +960,36 @@ class Tod(FitsArray):
             write_fits(filename, mask, None, True, 'Mask', comm)
 
     def median(self, axis=None):
-        #        result = Tod(median(self, mask=self.mask, axis=axis),
-        result = Tod(
-            np.median(self, axis=axis),
-            header=self.header.copy(),
-            unit=self.unit,
-            derived_units=self.derived_units,
-            dtype=self.dtype,
-            copy=False,
-        )
+#        result = Tod(median(self, mask=self.mask, axis=axis),
+        result = Tod(np.median(self, axis=axis),
+                     header=self.header.copy(), unit=self.unit,
+                     derived_units=self.derived_units, dtype=self.dtype, copy=False)
         result.mask = np.zeros_like(result, bool)
-        #        # median might introduce NaN from the mask, let's remove them
-        #        tmf.processing.filter_nonfinite_mask_inplace(result.ravel(),
-        #            result.mask.view(np.int8).ravel())
+#        # median might introduce NaN from the mask, let's remove them
+#        tmf.processing.filter_nonfinite_mask_inplace(result.ravel(),
+#            result.mask.view(np.int8).ravel())
         return result
-
     median.__doc__ = np.median.__doc__
 
     def ravel(self, order='c'):
         mask = self.mask.ravel() if self.mask is not None else None
-        return Tod(
-            self.magnitude.ravel(),
-            mask=mask,
-            header=self.header.copy(),
-            unit=self.unit,
-            derived_units=self.derived_units,
-            dtype=self.dtype,
-            copy=False,
-        )
-
+        return Tod(self.magnitude.ravel(), mask=mask, header=self.header.copy(),
+                   unit=self.unit, derived_units=self.derived_units,
+                   dtype=self.dtype, copy=False)
+        
     def sort(self, axis=-1, kind='quicksort', order=None):
         self.magnitude.sort(axis, kind, order)
         self.mask = None
-
+    
     def _wrap_func(self, func, unit, *args, **kw):
         self_ma = np.ma.MaskedArray(self.magnitude, mask=self.mask, copy=False)
         output = func(self_ma, *args, **kw)
         if isinstance(output, np.ma.core.MaskedConstant):
-            return type(self)(
-                np.nan,
-                mask=True,
-                unit=unit,
-                derived_units=self.derived_units,
-                dtype=self.dtype,
-            )
+            return type(self)(np.nan, mask=True, unit=unit, derived_units=
+                              self.derived_units, dtype=self.dtype)
         if not isinstance(output, np.ndarray):
-            return type(self)(
-                output, unit=unit, derived_units=self.derived_units, dtype=self.dtype
-            )
+            return type(self)(output, unit=unit, derived_units=
+                              self.derived_units, dtype=self.dtype)
         result = output.view(type(self))
         result.__array_finalize__(self)
         result.mask = output.mask if output.mask is not np.ma.nomask else None
