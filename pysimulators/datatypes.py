@@ -13,7 +13,10 @@ They also contain specialised display methods.
 """
 from __future__ import division
 
-import kapteyn.maputils
+try:
+    import kapteyn.maputils as km
+except ImportError:
+    km = None
 import matplotlib
 import matplotlib.pyplot as pyplot
 import numpy as np
@@ -23,7 +26,7 @@ import scipy.stats
 
 try:
     import ds9
-except:
+except Import Error:
     ds9 = None
 
 from astropy.io import fits as pyfits
@@ -675,7 +678,7 @@ class Map(FitsArray):
             origin = self.origin
 
         # check if the map has no astrometry information
-        if not self.has_wcs():
+        if not self.has_wcs() or km is None:
             image = super(Map, self).imshow(mask=mask, new_figure=new_figure,
                           title=title, xlabel=xlabel, ylabel=ylabel,
                           origin=origin, colorbar=colorbar,
@@ -703,8 +706,7 @@ class Map(FitsArray):
         #XXX FIX ME
         colorbar = False
 
-        fitsobj = kapteyn.maputils.FITSimage(externaldata=data,
-                                             externalheader=self.header)
+        fitsobj = km.FITSimage(externaldata=data, externalheader=self.header)
         if new_figure:
             fig = pyplot.figure()
             frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
