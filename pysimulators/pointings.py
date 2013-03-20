@@ -1,6 +1,9 @@
 from __future__ import division
 
-import kapteyn
+try:
+    import kapteyn.maputils as km
+except ImportError:
+    km = None
 import numpy as np
 from matplotlib import pyplot
 
@@ -168,6 +171,8 @@ class Pointing(FitsArray):
             percentile of the minimum and maximum values to be displayed.
         """
 
+        if km is None:
+            raise RuntimeError('The kapteyn library is required.')
         mask = ~self.masked & ~self.removed
         ra = self.ra[mask]
         dec = self.dec[mask]
@@ -187,7 +192,7 @@ class Pointing(FitsArray):
 
         if header is None:
             header = self.get_map_header(naxis=1)
-        fitsobj = kapteyn.maputils.FITSimage(externalheader=header)
+        fitsobj = km.FITSimage(externalheader=header)
         if new_figure:
             fig = pyplot.figure()
             frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
