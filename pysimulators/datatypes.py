@@ -26,7 +26,7 @@ import scipy.stats
 
 try:
     import ds9
-except Import Error:
+except ImportError:
     ds9 = None
 
 from astropy.io import fits as pyfits
