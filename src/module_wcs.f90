@@ -6,7 +6,7 @@ module module_wcs
     use iso_c_binding
     use iso_fortran_env,  only : ERROR_UNIT
     use module_fitstools, only : FLEN_VALUE, ft_read_keyword
-    use module_math,      only : DEG2RAD, RAD2DEG, distance, neq_real
+    use module_math,      only : DEG2RAD, RAD2DEG, distance_2d, neq_real
     use module_string,    only : strinteger, strlowcase, strupcase
     use module_tamasis,   only : p
     implicit none
@@ -343,7 +343,7 @@ contains
         real(p), intent(in)  :: origin(2)
         real(p), intent(in)  :: resolution(2)
 
-        call distance(array, origin, tan(resolution * DEG2RAD))
+        call distance_2d(array, origin - 1, tan(resolution * DEG2RAD))
 
         !$omp parallel workshare
         array = cos(atan(array))**3
@@ -364,7 +364,8 @@ contains
 
         cdinv = reshape([astr%cd(2,2), -astr%cd(2,1), -astr%cd(1,2), astr%cd(1,1)], [2,2]) / &
                 (astr%cd(1,1)*astr%cd(2,2) - astr%cd(2,1)*astr%cd(1,2))
-        crpix = astr%crpix
+        ! Convention is (0,0) for the bottom left pixel, unlike the FITS convention.
+        crpix = astr%crpix - 1
 
     end subroutine init_rotation
 

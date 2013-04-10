@@ -6,7 +6,7 @@ from pysimulators.datautils import (airy_disk, distance, gaussian, profile,
                                     integrated_profile, _distance_slow)
 
 def test_distance1():
-    origin = (1.,)
+    origin = (0.,)
     d0 = np.arange(5.)*0.5
     d1 = distance(5, origin=origin, resolution=0.5)
     d2 = _distance_slow((5,), origin, [0.5], None)
@@ -14,7 +14,7 @@ def test_distance1():
     assert_array_equal(d0, d2)
 
 def test_distance2():
-    origin = (1.,2.)
+    origin = (0.,1.)
     d0 = np.array([[2., np.sqrt(5), np.sqrt(8)], [0,1,2]])
     d1 = distance((2,3), origin=origin, resolution=(1.,2.))
     d2 = _distance_slow((2,3), origin, [1.,2.], None)
