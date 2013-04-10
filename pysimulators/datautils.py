@@ -22,22 +22,23 @@ __all__ = [
 ]
 
 
-def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1.0):
+def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1):
     """
     Return a two-dimensional map with an Airy pattern.
 
     Parameters
     ----------
     shape : tuple
-        The map shape
+        The map shape (ny, nx).
     fwhw : float
         The Full Width Half Maximum of the primary lobe.
     f0 : float
         The radius of the first dark ring, where the intensity is zero.
     origin : tuple of float
-        The pattern center (FITS convention)
+        The pattern center of the form (x0,y0)
     resolution : float
-        The pixel scale
+        The pixel scale.
+
     """
     if fwhm is None and r0 is None:
         raise ValueError('No scale parameter.')
@@ -56,7 +57,22 @@ def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1.0):
 # -------------------------------------------------------------------------------
 
 
-def aperture_circular(shape, diameter, origin=None, resolution=1.0):
+def aperture_circular(shape, diameter, origin=None, resolution=1):
+    """
+    Return a two-dimensional map with circular mask.
+
+    Parameters
+    ----------
+    shape : tuple
+        The map shape (ny, nx).
+    fwhw : float
+        The Full Width Half Maximum of the primary lobe.
+    origin : tuple of float
+        The pattern center of the form (x0,y0)
+    resolution : float
+        The pixel scale.
+
+    """
     array = distance(shape, origin=origin, resolution=resolution)
     m = array > diameter / 2
     array[m] = 0
@@ -77,9 +93,9 @@ def distance(shape, origin=None, resolution=1.0):
         dimensions of the output array. For a 2d array, the first integer
         is for the Y-axis and the second one for the X-axis.
     origin : array-like in the form of (x0, y0, ...), optional
-        The coordinates, according to the FITS convention (i.e. first
-        column and row is one), from which the distance is calculated.
-        Default value is the array center.
+        The coordinates of the point from which the distance is calculated,
+        assuming a zero-based coordinate indexing. Default value is the array
+        center.
     resolution : array-like in the form of (dx, dy, ...), optional
         Inter-pixel distance. Default is one. If resolution is a Quantity, its
         unit will be carried over to the returned distance array
@@ -89,8 +105,9 @@ def distance(shape, origin=None, resolution=1.0):
     nx, ny = 3, 3
     print(distance((ny,nx)))
     [[ 1.41421356  1.          1.41421356]
-    [ 1.          0.          1.        ]
-    [ 1.41421356  1.          1.41421356]]
+     [ 1.          0.          1.        ]
+     [ 1.41421356  1.          1.41421356]]
+
     """
     if isscalar(shape):
         shape = (shape,)
@@ -100,7 +117,7 @@ def distance(shape, origin=None, resolution=1.0):
     rank = len(shape)
 
     if origin is None:
-        origin = (np.array(shape[::-1], dtype=float) + 1) / 2
+        origin = (np.array(shape[::-1], dtype=float) - 1) / 2
     else:
         origin = np.ascontiguousarray(origin, dtype=float)
 
@@ -135,7 +152,7 @@ def _distance_slow(shape, origin, resolution, dtype):
     than the Fortran-based `distance` routine, but can handle any number
     of dimensions.
 
-    Refer to `tamasis.distance` for full documentation.
+    Refer to `pysimulators.distance` for full documentation.
     """
 
     if dtype is None:
@@ -144,7 +161,7 @@ def _distance_slow(shape, origin, resolution, dtype):
     for n, o, r in zip(reversed(shape), origin, resolution):
         index.append(slice(0, n))
     d = np.asarray(np.mgrid[index], dtype).T
-    d -= np.asanyarray(origin) - 1.0
+    d -= np.asanyarray(origin)
     d *= resolution
     np.square(d, d)
     d = Map(np.sqrt(np.sum(d, axis=d.shape[-1])), dtype=dtype, copy=False)
@@ -211,14 +228,36 @@ ds9 = Ds9()
 # -------------------------------------------------------------------------------
 
 
-def gaussian(shape, fwhm, origin=None, resolution=1.0, unit=None):
-    if len(shape) == 2:
+def gaussian(shape, sigma=None, fwhm=None, origin=None, resolution=1, unit=None):
+    """
+    Returns an array whose values are the distances to a given origin.
+
+    Parameters
+    ----------
+    shape : tuple of integer
+        dimensions of the output array. For a 2d array, the first integer
+        is for the Y-axis and the second one for the X-axis.
+    fwhm : float or tuple of float
+        The Full Width Half Maximum of the gaussian (fwhm_x, fwhm_y, ...).
+    sigma : float or tuple of float
+        The sigma parameter (sigma_x, sigma_y, ...).
+    origin : array-like in the form of (x0, y0, ...), optional
+        The coordinates of the point from which the distance is calculated,
+        assuming a zero-based coordinate indexing. Default value is the array
+        center.
+    resolution : array-like in the form of (dx, dy, ...), optional
+        Inter-pixel distance. Default is one.
+    unit : string or dict
+        The unit of the returned Map.
+
+    """
+    if sigma is None and fwhm is None:
+        raise ValueError('The shape of the gaussian is not specified.')
+    if sigma is None:
         sigma = fwhm / np.sqrt(8 * np.log(2))
-    else:
-        raise NotImplementedError()
-    d = distance(shape, origin=origin, resolution=resolution)
+    d = distance(shape, origin=origin, resolution=resolution / (np.sqrt(2) * sigma))
     d.unit = ''
-    d = np.exp(-(d**2) / (2 * sigma**2))
+    d = np.exp(-(d**2))
     d /= np.sum(d)
     if unit:
         d.unit = unit

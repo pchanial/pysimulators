@@ -13,7 +13,7 @@ from pysimulators.datautils import (
 
 
 def test_distance1():
-    origin = (1.0,)
+    origin = (0.0,)
     d0 = np.arange(5.0) * 0.5
     d1 = distance(5, origin=origin, resolution=0.5)
     d2 = _distance_slow((5,), origin, [0.5], None)
@@ -22,7 +22,7 @@ def test_distance1():
 
 
 def test_distance2():
-    origin = (1.0, 2.0)
+    origin = (0.0, 1.0)
     d0 = np.array([[2.0, np.sqrt(5), np.sqrt(8)], [0, 1, 2]])
     d1 = distance((2, 3), origin=origin, resolution=(1.0, 2.0))
     d2 = _distance_slow((2, 3), origin, [1.0, 2.0], None)

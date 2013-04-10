@@ -16,8 +16,7 @@ module module_math
     public :: pInf
     public :: NaN
 
-    public :: distance
-    public :: profile
+    public :: distance_1d, distance_2d, distance_3d
     public :: linspace
     public :: logspace
     public :: mad
@@ -44,14 +43,6 @@ module module_math
     public :: neq_real
     public :: shift_fast
     public :: shift_medium
-
-    interface distance
-        module procedure distance_1d, distance_2d, distance_3d
-    end interface
-
-    interface profile
-        module procedure profile_axisymmetric_2d
-    end interface
 
     interface sum_kahan
         module procedure sum_kahan_1d, sum_kahan_2d, sum_kahan_3d
@@ -80,6 +71,77 @@ module module_math
 
 
 contains
+
+
+  subroutine distance_1d(distance, origin, resolution)
+
+      real(p), intent(out) :: distance(0:)
+      real(p), intent(in)  :: origin
+      real(p), intent(in)  :: resolution
+
+      integer :: i
+      real(p) :: resolution_
+
+      resolution_ = abs(resolution)
+
+      !$omp parallel do
+      do i = 0, size(distance) - 1
+          distance(i) = resolution_ * abs(i - origin)
+      end do
+      !$omp end parallel do
+
+  end subroutine distance_1d
+
+
+  !-----------------------------------------------------------------------------
+
+
+  subroutine distance_2d(distance, origin, resolution)
+
+      real(p), intent(out) :: distance(0:,0:)
+      real(p), intent(in)  :: origin(2)
+      real(p), intent(in)  :: resolution(2)
+
+      integer :: i, j
+      real(p) :: tmpj
+
+      !$omp parallel do private(tmpj)
+      do j = 0, size(distance, 2) - 1
+          tmpj = (resolution(2) * (j - origin(2)))**2
+          do i = 0, size(distance, 1) - 1
+              distance(i,j) = sqrt((resolution(1) * (i - origin(1)))**2 + tmpj)
+          end do
+      end do
+      !$omp end parallel do
+
+  end subroutine distance_2d
+
+
+  !-----------------------------------------------------------------------------
+
+
+  subroutine distance_3d(distance, origin, resolution)
+
+      real(p), intent(out) :: distance(0:,0:,0:)
+      real(p), intent(in)  :: origin(3)
+      real(p), intent(in)  :: resolution(3)
+
+      integer :: i, j, k
+      real(p) :: tmpj, tmpk
+
+      !$omp parallel do private(tmpj, tmpk)
+      do k = 0, size(distance, 3) - 1
+          tmpk = (resolution(3) * (k - origin(3)))**2
+          do j = 0, size(distance, 2) - 1
+              tmpj = (resolution(2) * (j - origin(2)))**2
+              do i = 0, size(distance, 1) - 1
+                  distance(i,j,k) = sqrt((resolution(1) * (i - origin(1)))**2 + tmpj + tmpk)
+              end do
+          end do
+      end do
+      !$omp end parallel do
+
+  end subroutine distance_3d
 
 
     subroutine moment(input, mean, variance, skewness, kurtosis, stddev, meandev, mask)
@@ -584,128 +646,6 @@ contains
         lat0 = sign(lat0, z)
         
     end subroutine barycenter_lonlat
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    subroutine distance_1d(distance, origin, resolution)
-
-        real(p), intent(out) :: distance(:)
-        real(p), intent(in)  :: origin
-        real(p), intent(in)  :: resolution
-
-        integer :: i
-        real(p) :: resolution_
-
-        resolution_ = abs(resolution)
-
-        !$omp parallel do
-        do i = 1, size(distance,1)
-            distance(i) = resolution_ * abs(i - origin)
-        end do
-        !$omp end parallel do
-
-    end subroutine distance_1d
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    subroutine distance_2d(distance, origin, resolution)
-
-        real(p), intent(out) :: distance(:,:)
-        real(p), intent(in)  :: origin(2)
-        real(p), intent(in)  :: resolution(2)
-
-        integer :: i, j
-        real(p) :: tmpj
-
-        !$omp parallel do private(tmpj)
-        do j = 1, size(distance,2)
-            tmpj = (resolution(2) * (j - origin(2)))**2
-            do i = 1, size(distance,1)
-                distance(i,j) = sqrt((resolution(1) * (i - origin(1)))**2 + tmpj)
-            end do
-        end do
-        !$omp end parallel do
-
-    end subroutine distance_2d
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    subroutine distance_3d(distance, origin, resolution)
-
-        real(p), intent(out) :: distance(:,:,:)
-        real(p), intent(in)  :: origin(3)
-        real(p), intent(in)  :: resolution(3)
-
-        integer :: i, j, k
-        real(p) :: tmpj, tmpk
-
-        !$omp parallel do private(tmpj, tmpk)
-        do k = 1, size(distance,3)
-            tmpk = (resolution(3) * (k - origin(3)))**2
-            do j = 1, size(distance,2)
-                tmpj = (resolution(2) * (j - origin(2)))**2
-                do i = 1, size(distance,1)
-                    distance(i,j,k) = sqrt((resolution(1) * (i - origin(1)))**2 + tmpj + tmpk)
-                end do
-            end do
-        end do
-        !$omp end parallel do
-
-    end subroutine distance_3d
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    subroutine profile_axisymmetric_2d(array, origin, bin, nbins, x, y, n)
-
-        real(p), intent(in)  :: array(:,:)
-        real(p), intent(in)  :: origin(2)
-        real(p), intent(in)  :: bin
-        integer, intent(in)  :: nbins
-        real(p), intent(out) :: x(nbins)
-        real(p), intent(out) :: y(nbins)
-        integer, intent(out) :: n(nbins)
-
-        integer :: i, j, ibin
-        real(p) :: distance, value, tmpj
-
-        x = 0
-        y = 0
-        n = 0
-        !$omp parallel do private(distance, ibin, tmpj, value) reduction(+:x,y,n)
-        do j = 1, size(array,2)
-            tmpj = (j - origin(2))**2
-            do i = 1, size(array,1)
-                value = array(i,j)
-                if (value /= value) cycle
-                distance = sqrt((i - origin(1))**2 + tmpj)
-                ibin = int(distance / bin) + 1
-                if (ibin > nbins) cycle
-                x(ibin) = x(ibin) + distance
-                y(ibin) = y(ibin) + value
-                n(ibin) = n(ibin) + 1
-            end do
-        end do
-        !$omp end parallel do
-
-        do i = 1, nbins
-            if (n(i) /= 0) then
-                x(i) = x(i) / n(i)
-                y(i) = y(i) / n(i)
-            else
-                x(i) = bin * (i - 0.5_p)
-                y(i) = NaN
-            end if
-        end do
-
-    end subroutine profile_axisymmetric_2d
 
 
     !-------------------------------------------------------------------------------------------------------------------------------
