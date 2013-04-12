@@ -23,6 +23,7 @@ __all__ = [
     'angle_lonlat',
     'barycenter_lonlat',
     'create_fitsheader',
+    'create_fitsheader_for',
     'fitsheader2shape',
     'str2fitsheader',
     'DistortionOperator',
