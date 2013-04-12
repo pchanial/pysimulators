@@ -31,6 +31,10 @@ __all__ = [
     'WCSToWorldOperator',
 ]
 
+# Currently, astropy wcs transform only handle input of ndim equal to 2
+# See https://github.com/astropy/astropy/issues/976
+ASTROPY_WCS_NDIM_IS_2 = True
+
 def angle_lonlat(lon1, lat1, lon2=None, lat2=None):
     """
     Returns the angle between vectors on the celestial sphere in degrees.
@@ -622,8 +626,9 @@ class WCSToPixelOperator(_WCSOperator):
     __init__.__doc__ = _WCSOperator.__init__.__doc__
 
     def direct(self, input, output, operation=operation_assignment):
-        if input.ndim == 1:
-            input = input.reshape((1,-1))
+        if ASTROPY_WCS_NDIM_IS_2:
+            input = input.reshape((-1,2))
+            output = output.reshape((-1,2))
         operation(output, self.wcs.wcs_world2pix(input, self.origin))
 
 
@@ -644,7 +649,8 @@ class WCSToWorldOperator(_WCSOperator):
     __init__.__doc__ = _WCSOperator.__init__.__doc__
 
     def direct(self, input, output, operation=operation_assignment):
-        if input.ndim == 1:
-            input = input.reshape((1,-1))
+        if ASTROPY_WCS_NDIM_IS_2:
+            input = input.reshape((-1,2))
+            output = output.reshape((-1,2))
         operation(output, self.wcs.wcs_pix2world(input, self.origin))
 

@@ -13,10 +13,9 @@ from . import _flib as flib
 from .acquisitionmodels import PointingMatrix
 from .datatypes import Map
 from .mpiutils import gather_fitsheader_if_needed
-from .wcsutils import barycenter_lonlat, combine_fitsheader, create_fitsheader
+from .wcsutils import barycenter_lonlat, combine_fitsheader, create_fitsheader, ASTROPY_WCS_NDIM_IS_2
 
 __all__ = ['Instrument']
-
 
 class Instrument(object):
     """
@@ -468,8 +467,14 @@ class Instrument(object):
         assuming a pointing direction and a position angle.
         """
         coords = np.array(coords, float, order='c', copy=False)
+        if ASTROPY_WCS_NDIM_IS_2:
+            s = coords.shape
+            coords = coords.reshape((-1,2))
         proj = WCS(header)
-        return proj.wcs_world2pix(self.instrument2ad(coords, pointing), 0)
+        xy = proj.wcs_world2pix(self.instrument2ad(coords, pointing), 0)
+        if ASTROPY_WCS_NDIM_IS_2:
+            xy = xy.reshape(s)
+        return xy
         
 
     @staticmethod
