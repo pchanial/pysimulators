@@ -3,7 +3,7 @@ from __future__ import division
 import gc
 import numpy as np
 
-from kapteyn import wcs
+from astropy.wcs import WCS
 from matplotlib import pyplot
 from pyoperators import I, asoperator
 from pyoperators.utils import product, strenum, strshape
@@ -519,8 +519,8 @@ class Instrument(object):
         assuming a pointing direction and a position angle.
         """
         coords = np.array(coords, float, order='c', copy=False)
-        proj = wcs.Projection(header)
-        return proj.topixel(self.instrument2ad(coords, pointing))
+        proj = WCS(header)
+        return proj.wcs_world2pix(self.instrument2ad(coords, pointing), 0)
 
     @staticmethod
     def instrument2xy_minmax(coords, pointing, header):

@@ -1,6 +1,8 @@
 import numpy as np
+import os
 
-from kapteyn import wcs
+from astropy.io import fits as pyfits
+from astropy.wcs import WCS
 from numpy.testing import assert_almost_equal
 from pyoperators.utils.testing import assert_eq
 from pysimulators.wcsutils import (
@@ -73,7 +75,7 @@ def test_combine_fitsheader():
         create_fitsheader((2, 2), cdelt=1.0, crval=(5, 5)),
     ]
     header0 = combine_fitsheader(headers)
-    proj0 = wcs.Projection(header0)
+    proj0 = WCS(header0)
     epsilon = 1.0e-10
 
     def func(iheader, header):
@@ -85,8 +87,8 @@ def test_combine_fitsheader():
             np.array(3 * (0.5, x, nx + 0.5)),
             np.array((0.5, 0.5, 0.5, y, y, y, ny + 0.5, ny + 0.5, ny + 0.5)),
         )
-        a, d = wcs.Projection(header).toworld(edges)
-        x0, y0 = proj0.topixel((a, d))
+        a, d = WCS(header).wcs_pix2world(edges[0], edges[1], 1)
+        x0, y0 = proj0.wcs_world2pix(a, d, 1)
         assert np.all(x0 > 0.5 - epsilon)
         assert np.all(y0 > 0.5 - epsilon)
         assert np.all(x0 < header0['NAXIS1'] + 0.5 + epsilon)
@@ -137,3 +139,35 @@ def test_fitsheader2shape():
 
     for naxes in [(), (1,), (1, 2), (2, 0, 3)]:
         yield func, naxes
+
+
+def test_wcsoperator_kapteyn():
+    try:
+        from pysimulators.wcsutils import WCSKapteynToWorldOperator
+    except ImportError:
+        return
+    path = os.path.join(os.path.dirname(__file__), 'data/header_gnomonic.fits')
+    header = pyfits.open(path)[0].header
+
+    toworld_kapteyn = WCSKapteynToWorldOperator(header)
+    crpix = (header['CRPIX1'], header['CRPIX2'])
+    crval = (header['CRVAL1'], header['CRVAL2'])
+    assert_eq(toworld_kapteyn(crpix), crval)
+    assert_eq(toworld_kapteyn.I(crval), crpix)
+
+
+def test_wcsoperator():
+    from pysimulators.wcsutils import WCSToWorldOperator
+
+    path = os.path.join(os.path.dirname(__file__), 'data/header_gnomonic.fits')
+    header = pyfits.open(path)[0].header
+
+    def func(origin):
+        crval = (header['CRVAL1'], header['CRVAL2'])
+        crpix = np.array((header['CRPIX1'], header['CRPIX2'])) - 1 + origin
+        toworld = WCSToWorldOperator(header, origin)
+        assert_eq(toworld(crpix), crval)
+        assert_eq(toworld.I(crval), crpix)
+
+    for origin in (0, 1):
+        yield func, origin
