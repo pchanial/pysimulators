@@ -303,10 +303,10 @@ contains
         npixels_per_sample = size(pmatrix,1)
         ndetectors = size(pmatrix,3)
 
-        roi(1,1) = minval(modulo(pmatrix(:,itime,:)%pixel,nx), pmatrix(:,itime,:)%pixel /= -1) + 1 ! xmin
-        roi(1,2) = maxval(modulo(pmatrix(:,itime,:)%pixel,nx), pmatrix(:,itime,:)%pixel /= -1) + 1 ! xmax
-        roi(2,1) = minval(pmatrix(:,itime,:)%pixel / nx, pmatrix(:,itime,:)%pixel /= -1) + 1       ! ymin
-        roi(2,2) = maxval(pmatrix(:,itime,:)%pixel / nx, pmatrix(:,itime,:)%pixel /= -1) + 1       ! ymax
+        roi(1,1) = minval(modulo(pmatrix(:,itime,:)%pixel,nx), pmatrix(:,itime,:)%pixel /= -1) ! xmin
+        roi(1,2) = maxval(modulo(pmatrix(:,itime,:)%pixel,nx), pmatrix(:,itime,:)%pixel /= -1) ! xmax
+        roi(2,1) = minval(pmatrix(:,itime,:)%pixel / nx, pmatrix(:,itime,:)%pixel /= -1)       ! ymin
+        roi(2,2) = maxval(pmatrix(:,itime,:)%pixel / nx, pmatrix(:,itime,:)%pixel /= -1)       ! ymax
 
         nxmap = roi(1,2) - roi(1,1) + 1
 
@@ -321,8 +321,8 @@ contains
 
                 if (pmatrix(ipixel,itime,idetector)%pixel == -1) exit
 
-                xmap = mod(pmatrix(ipixel,itime,idetector)%pixel, nx) - roi(1,1) + 1
-                ymap = pmatrix(ipixel,itime,idetector)%pixel / nx     - roi(2,1) + 1
+                xmap = mod(pmatrix(ipixel,itime,idetector)%pixel, nx) - roi(1,1)
+                ymap = pmatrix(ipixel,itime,idetector)%pixel / nx     - roi(2,1)
                 imap = xmap + ymap * nxmap
                 map(imap) = map(imap) + timeline(itime,idetector) * pmatrix(ipixel,itime,idetector)%weight
                 weight(imap) = weight(imap) + pmatrix(ipixel,itime,idetector)%weight
@@ -377,14 +377,14 @@ contains
 
             ix = nint_up(x(idetector))
             iy = nint_up(y(idetector))
-            if (ix < 1 .or. ix > nx .or. iy < 1 .or. iy > ny) then
+            if (ix < 0 .or. ix > nx - 1 .or. iy < 0 .or. iy > ny - 1) then
                out = .true.
                pmatrix(idetector)%pixel  = -1
                pmatrix(idetector)%weight = 0
                cycle
             end if
 
-            pmatrix(idetector)%pixel  = ix - 1 + (iy - 1) * nx
+            pmatrix(idetector)%pixel  = ix + iy * nx
             pmatrix(idetector)%weight = 1.
 
         end do
@@ -412,21 +412,22 @@ contains
         npixels_per_sample = size(pmatrix, 1)
         do idetector = 1, size(pmatrix, 2)
 
-            if (roi(2,1,idetector) < 1 .or. roi(2,2,idetector) > ny .or. roi(1,1,idetector) < 1 .or. roi(1,2,idetector) > nx) then
+            if (roi(2,1,idetector) < 0 .or. roi(2,2,idetector) > ny - 1 .or.   &
+                roi(1,1,idetector) < 0 .or. roi(1,2,idetector) > nx - 1) then
                out = .true.
             end if
 
             iroi = 1
-            do iy = max(roi(2,1,idetector),1), min(roi(2,2,idetector),ny)
+            do iy = max(roi(2,1,idetector), 0), min(roi(2,2,idetector), ny - 1)
 
-                do ix = max(roi(1,1,idetector),1), min(roi(1,2,idetector),nx)
+                do ix = max(roi(1,1,idetector), 0), min(roi(1,2,idetector), nx - 1)
 
-                    polygon(1,:) = coords(1,(idetector-1)*nvertices+1:idetector*nvertices) - (ix-0.5_p)
-                    polygon(2,:) = coords(2,(idetector-1)*nvertices+1:idetector*nvertices) - (iy-0.5_p)
+                    polygon(1,:) = coords(1,(idetector-1)*nvertices+1:idetector*nvertices) - (ix + 0.5_p)
+                    polygon(2,:) = coords(2,(idetector-1)*nvertices+1:idetector*nvertices) - (iy + 0.5_p)
                     weight = real(abs(intersection_polygon_unity_square(polygon, nvertices)), kind=sp)
                     if (weight == 0) cycle
                     if (iroi <= npixels_per_sample) then
-                        pmatrix(iroi,idetector)%pixel  = ix - 1 + (iy - 1) * nx
+                        pmatrix(iroi,idetector)%pixel  = ix + iy * nx
                         pmatrix(iroi,idetector)%weight = weight
                     end if
                     iroi = iroi + 1
