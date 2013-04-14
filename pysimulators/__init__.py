@@ -1,5 +1,12 @@
 from pyoperators.utils.mpi import MPI
 
+# force gfortran's read statement to always use the dot sign as fraction
+# separator (PR47007)
+import locale
+
+locale.setlocale(locale.LC_NUMERIC, 'POSIX')
+del locale
+
 from . import _flib
 from . import geometry
 from .config import VERSION as __version__
