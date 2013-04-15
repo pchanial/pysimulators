@@ -10,7 +10,7 @@ module module_pointingmatrix
     implicit none
     private
 
-    public :: pointingelement
+    public :: PointingElement
     public :: pmatrix_direct
     public :: pmatrix_direct_one_pixel_per_sample
     public :: pmatrix_transpose
@@ -20,14 +20,14 @@ module module_pointingmatrix
     public :: pmatrix_pack
     public :: xy2roi
     public :: xy2pmatrix
-    public :: roi2pmatrix
+    public :: roi2pmatrix_cartesian
     public :: backprojection_weight
     public :: backprojection_weighted_roi
 
-    type pointingelement
-        real(sp)  :: weight
-        integer*4 :: pixel
-    end type pointingelement
+    type PointingElement
+        real(sp)  :: value
+        integer*4 :: index
+    end type PointingElement
 
 contains
 
@@ -44,11 +44,11 @@ contains
 
         !$omp parallel do
         do isample = 1, nsamples
-!!$            timeline(isample) = sum(map(pmatrix(:,isample)%pixel) * pmatrix(:,isample)%weight)
+!!$            timeline(isample) = sum(map(pmatrix(:,isample)%index) * pmatrix(:,isample)%value)
             timeline(isample) = 0
             do ipixel = 1, npixels_per_sample
-                if (pmatrix(ipixel,isample)%pixel == -1) exit
-                timeline(isample) = timeline(isample) + map(pmatrix(ipixel,isample)%pixel) * pmatrix(ipixel,isample)%weight
+                if (pmatrix(ipixel,isample)%index == -1) exit
+                timeline(isample) = timeline(isample) + map(pmatrix(ipixel,isample)%index) * pmatrix(ipixel,isample)%value
             end do
         end do
         !$omp end parallel do
@@ -70,8 +70,8 @@ contains
 
         !$omp parallel do
         do isample = 1, nsamples
-            if (pmatrix(isample)%pixel >= 0) then
-                timeline(isample) = map(pmatrix(isample)%pixel) * pmatrix(isample)%weight
+            if (pmatrix(isample)%index >= 0) then
+                timeline(isample) = map(pmatrix(isample)%index) * pmatrix(isample)%value
             end if
         end do
         !$omp end parallel do
@@ -98,12 +98,12 @@ contains
 #endif
         do isample = 1, nsamples
             do ipixel = 1, npixels
-                if (pmatrix(ipixel,isample)%pixel == -1) exit
+                if (pmatrix(ipixel,isample)%index == -1) exit
 #ifndef GFORTRAN
                 !$omp atomic
 #endif
-                map(pmatrix(ipixel,isample)%pixel) = map(pmatrix(ipixel,isample)%pixel) +                                          &
-                    pmatrix(ipixel,isample)%weight * timeline(isample)
+                map(pmatrix(ipixel,isample)%index) = map(pmatrix(ipixel,isample)%index) +                                          &
+                    pmatrix(ipixel,isample)%value * timeline(isample)
             end do
         end do
         !$omp end parallel do
@@ -123,8 +123,8 @@ contains
         nsamples = size(pmatrix, 1)
 
         do isample = 1, nsamples
-            if (pmatrix(isample)%pixel >= 0) then
-                map(pmatrix(isample)%pixel) = map(pmatrix(isample)%pixel) + pmatrix(isample)%weight * timeline(isample)
+            if (pmatrix(isample)%index >= 0) then
+                map(pmatrix(isample)%index) = map(pmatrix(isample)%index) + pmatrix(isample)%value * timeline(isample)
             end if
         end do
 
@@ -140,7 +140,7 @@ contains
         integer                           :: isample
         integer                           :: ipixel, jpixel, i, j
         integer                           :: npixels, nsamples
-        real(kind(pmatrix%weight))        :: pi, pj
+        real(kind(pmatrix%value))         :: pi, pj
        
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
@@ -148,13 +148,13 @@ contains
         !$omp parallel do reduction(+:ptp) private(isample, ipixel, jpixel, i, j, pi, pj)
         do isample = 1, nsamples
             do ipixel = 1, npixels
-                if (pmatrix(ipixel,isample)%pixel == -1) exit
-                i  = pmatrix(ipixel,isample)%pixel
-                pi = pmatrix(ipixel,isample)%weight
+                if (pmatrix(ipixel,isample)%index == -1) exit
+                i  = pmatrix(ipixel,isample)%index
+                pi = pmatrix(ipixel,isample)%value
                 do jpixel = 1, npixels
-                    if (pmatrix(jpixel,isample)%pixel == -1) exit
-                    j  = pmatrix(jpixel,isample)%pixel
-                    pj = pmatrix(jpixel,isample)%weight
+                    if (pmatrix(jpixel,isample)%index == -1) exit
+                    j  = pmatrix(jpixel,isample)%index
+                    pj = pmatrix(jpixel,isample)%value
                     ptp(i,j) = ptp(i,j) + pi * pj
                 end do
             end do
@@ -181,9 +181,9 @@ contains
         !$omp parallel do private(pixel)
         do isample = 1, nsamples
             do ipixel = 1, npixels
-                pixel = pmatrix(ipixel,isample)%pixel
+                pixel = pmatrix(ipixel,isample)%index
                 if (pixel == -1) exit
-                if (pmatrix(ipixel,isample)%weight == 0) cycle
+                if (pmatrix(ipixel,isample)%value == 0) cycle
                 mask(pixel) = .false.
             end do
         end do
@@ -220,15 +220,15 @@ contains
         do isample = 1, nsamples
             ipixel = 1
             do while (ipixel <= npixels)
-                pixel = pmatrix(ipixel,isample)%pixel
+                pixel = pmatrix(ipixel,isample)%index
                 if (pixel == -1) exit
-                if (pmatrix(ipixel,isample)%weight == 0 .or. mask(pixel)) then
+                if (pmatrix(ipixel,isample)%value == 0 .or. mask(pixel)) then
                     pmatrix(ipixel:npixels-1,isample) = pmatrix(ipixel+1:npixels,isample)
-                    pmatrix(npixels,isample)%pixel = -1
-                    pmatrix(npixels,isample)%weight = 0
+                    pmatrix(npixels,isample)%index = -1
+                    pmatrix(npixels,isample)%value = 0
                     cycle
                 end if
-                pmatrix(ipixel,isample)%pixel = table(pixel)
+                pmatrix(ipixel,isample)%index = table(pixel)
                 ipixel = ipixel + 1
             end do
         end do
@@ -241,7 +241,7 @@ contains
 
 
     subroutine backprojection_weight(pmatrix, timeline, mask, map, weight)
-        type(pointingelement), intent(in)     :: pmatrix(:,:)
+        type(PointingElement), intent(in)     :: pmatrix(:,:)
         real(kind=p), intent(in)              :: timeline(:)
         logical(kind=1), intent(in), optional :: mask(:)
         real(kind=p), intent(inout)           :: map(0:)
@@ -265,16 +265,16 @@ contains
                 if (mask(isample)) cycle
             end if
             do ipixel = 1, npixels
-                imap = pmatrix(ipixel,isample)%pixel
+                imap = pmatrix(ipixel,isample)%index
                 if (imap == -1) exit
 #ifndef GFORTRAN
                 !$omp atomic
 #endif
-                map   (imap) = map   (imap) + pmatrix(ipixel,isample)%weight * timeline(isample)
+                map   (imap) = map   (imap) + pmatrix(ipixel,isample)%value * timeline(isample)
 #ifndef GFORTRAN
                 !$omp atomic
 #endif
-                weight(imap) = weight(imap) + pmatrix(ipixel,isample)%weight
+                weight(imap) = weight(imap) + pmatrix(ipixel,isample)%value
             end do
         end do
         !$omp end parallel do
@@ -303,10 +303,10 @@ contains
         npixels_per_sample = size(pmatrix,1)
         ndetectors = size(pmatrix,3)
 
-        roi(1,1) = minval(modulo(pmatrix(:,itime,:)%pixel,nx), pmatrix(:,itime,:)%pixel /= -1) ! xmin
-        roi(1,2) = maxval(modulo(pmatrix(:,itime,:)%pixel,nx), pmatrix(:,itime,:)%pixel /= -1) ! xmax
-        roi(2,1) = minval(pmatrix(:,itime,:)%pixel / nx, pmatrix(:,itime,:)%pixel /= -1)       ! ymin
-        roi(2,2) = maxval(pmatrix(:,itime,:)%pixel / nx, pmatrix(:,itime,:)%pixel /= -1)       ! ymax
+        roi(1,1) = minval(modulo(pmatrix(:,itime,:)%index,nx), pmatrix(:,itime,:)%index /= -1) ! xmin
+        roi(1,2) = maxval(modulo(pmatrix(:,itime,:)%index,nx), pmatrix(:,itime,:)%index /= -1) ! xmax
+        roi(2,1) = minval(pmatrix(:,itime,:)%index / nx, pmatrix(:,itime,:)%index /= -1)       ! ymin
+        roi(2,2) = maxval(pmatrix(:,itime,:)%index / nx, pmatrix(:,itime,:)%index /= -1)       ! ymax
 
         nxmap = roi(1,2) - roi(1,1) + 1
 
@@ -319,13 +319,13 @@ contains
 
             do ipixel = 1, npixels_per_sample
 
-                if (pmatrix(ipixel,itime,idetector)%pixel == -1) exit
+                if (pmatrix(ipixel,itime,idetector)%index == -1) exit
 
-                xmap = mod(pmatrix(ipixel,itime,idetector)%pixel, nx) - roi(1,1)
-                ymap = pmatrix(ipixel,itime,idetector)%pixel / nx     - roi(2,1)
+                xmap = mod(pmatrix(ipixel,itime,idetector)%index, nx) - roi(1,1)
+                ymap = pmatrix(ipixel,itime,idetector)%index / nx     - roi(2,1)
                 imap = xmap + ymap * nxmap
-                map(imap) = map(imap) + timeline(itime,idetector) * pmatrix(ipixel,itime,idetector)%weight
-                weight(imap) = weight(imap) + pmatrix(ipixel,itime,idetector)%weight
+                map(imap) = map(imap) + timeline(itime,idetector) * pmatrix(ipixel,itime,idetector)%value
+                weight(imap) = weight(imap) + pmatrix(ipixel,itime,idetector)%value
 
             end do
 
@@ -343,19 +343,18 @@ contains
 
 
     ! roi is a 3-dimensional array: [1=x|2=y,1=min|2=max,idetector]
-    function xy2roi(xy, nvertices) result(roi)
+    function xy2roi(xy) result(roi)
 
-        real(p), intent(in) :: xy(:,:)
-        integer, intent(in) :: nvertices
+        real(p), intent(in) :: xy(:,:,:)
 
-        integer             :: roi(size(xy,1),2,size(xy,2)/nvertices)
-        integer             :: idetector
+        integer             :: roi(size(xy,1),2,size(xy,3))
+        integer             :: i
 
-        do idetector = 1, size(xy,2) / nvertices
-            roi(1,1,idetector) = nint_up  (minval(xy(1,nvertices * (idetector-1)+1:nvertices*idetector)))
-            roi(1,2,idetector) = nint_down(maxval(xy(1,nvertices * (idetector-1)+1:nvertices*idetector)))
-            roi(2,1,idetector) = nint_up  (minval(xy(2,nvertices * (idetector-1)+1:nvertices*idetector)))
-            roi(2,2,idetector) = nint_down(maxval(xy(2,nvertices * (idetector-1)+1:nvertices*idetector)))
+        do i = 1, size(xy,3)
+            roi(1,1,i) = nint_up  (minval(xy(1,:,i)))
+            roi(1,2,i) = nint_down(maxval(xy(1,:,i)))
+            roi(2,1,i) = nint_up  (minval(xy(2,:,i)))
+            roi(2,2,i) = nint_down(maxval(xy(2,:,i)))
         end do
 
     end function xy2roi
@@ -379,13 +378,13 @@ contains
             iy = nint_up(y(idetector))
             if (ix < 0 .or. ix > nx - 1 .or. iy < 0 .or. iy > ny - 1) then
                out = .true.
-               pmatrix(idetector)%pixel  = -1
-               pmatrix(idetector)%weight = 0
+               pmatrix(idetector)%index  = -1
+               pmatrix(idetector)%value = 0
                cycle
             end if
 
-            pmatrix(idetector)%pixel  = ix + iy * nx
-            pmatrix(idetector)%weight = 1.
+            pmatrix(idetector)%index  = ix + iy * nx
+            pmatrix(idetector)%value = 1.
 
         end do
 
@@ -395,55 +394,57 @@ contains
     !-------------------------------------------------------------------------------------------------------------------------------
 
 
-    subroutine roi2pmatrix(roi, nvertices, coords, nx, ny, nroi, out, pmatrix)
+    subroutine roi2pmatrix_cartesian(roi, coords, nx, ny, new_npixels_per_sample, out, pmatrix)
 
         integer, intent(in)                :: roi(:,:,:)
-        integer, intent(in)                :: nvertices
-        real(p), intent(in)                :: coords(:,:)
+        real(p), intent(in)                :: coords(:,:,:)
         integer, intent(in)                :: nx, ny
-        integer, intent(inout)             :: nroi
+        integer, intent(inout)             :: new_npixels_per_sample
         logical, intent(inout)             :: out
         type(pointingelement), intent(out) :: pmatrix(:,:)
 
-        real(p)  :: polygon(size(roi,1),nvertices)
-        integer  :: npixels_per_sample, idetector, ix, iy, iroi
-        real(sp) :: weight
+        integer  :: ncoords, nvertices
+        real(p)  :: polygon(size(roi,1),size(coords,2))
+        integer  :: npixels_per_sample, icoord, ix, iy, npixels
+        real(kind(pmatrix%value)) :: val
 
+        ncoords = size(roi, 3)
+        nvertices = size(coords, 2)
         npixels_per_sample = size(pmatrix, 1)
-        do idetector = 1, size(pmatrix, 2)
+        do icoord = 1, ncoords
 
-            if (roi(2,1,idetector) < 0 .or. roi(2,2,idetector) > ny - 1 .or.   &
-                roi(1,1,idetector) < 0 .or. roi(1,2,idetector) > nx - 1) then
+            if (roi(2,1,icoord) < 0 .or. roi(2,2,icoord) > ny - 1 .or.   &
+                roi(1,1,icoord) < 0 .or. roi(1,2,icoord) > nx - 1) then
                out = .true.
             end if
 
-            iroi = 1
-            do iy = max(roi(2,1,idetector), 0), min(roi(2,2,idetector), ny - 1)
+            npixels = 1
+            do iy = max(roi(2,1,icoord), 0), min(roi(2,2,icoord), ny - 1)
 
-                do ix = max(roi(1,1,idetector), 0), min(roi(1,2,idetector), nx - 1)
+                do ix = max(roi(1,1,icoord), 0), min(roi(1,2,icoord), nx - 1)
 
-                    polygon(1,:) = coords(1,(idetector-1)*nvertices+1:idetector*nvertices) - (ix + 0.5_p)
-                    polygon(2,:) = coords(2,(idetector-1)*nvertices+1:idetector*nvertices) - (iy + 0.5_p)
-                    weight = real(abs(intersection_polygon_unity_square(polygon, nvertices)), kind=sp)
-                    if (weight == 0) cycle
-                    if (iroi <= npixels_per_sample) then
-                        pmatrix(iroi,idetector)%pixel  = ix + iy * nx
-                        pmatrix(iroi,idetector)%weight = weight
+                    polygon(1,:) = coords(1,:,icoord) - (ix - 0.5_p)
+                    polygon(2,:) = coords(2,:,icoord) - (iy - 0.5_p)
+                    val = abs(intersection_polygon_unity_square(polygon, nvertices))
+                    if (val == 0) cycle
+                    if (npixels <= npixels_per_sample) then
+                        pmatrix(npixels,icoord)%index  = ix + iy * nx
+                        pmatrix(npixels,icoord)%value = val
                     end if
-                    iroi = iroi + 1
+                    npixels = npixels + 1
 
                 end do
 
             end do
 
             ! fill the rest of the pointing matrix
-            pmatrix(iroi:,idetector)%pixel  = -1
-            pmatrix(iroi:,idetector)%weight = 0
-            nroi = max(nroi, iroi-1)
+            pmatrix(npixels:,icoord)%index  = -1
+            pmatrix(npixels:,icoord)%value = 0
+            new_npixels_per_sample = max(new_npixels_per_sample, npixels-1)
 
         end do
 
-    end subroutine roi2pmatrix
+    end subroutine roi2pmatrix_cartesian
 
 
 end module module_pointingmatrix

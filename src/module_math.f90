@@ -17,14 +17,9 @@ module module_math
     public :: NaN
 
     public :: distance_1d, distance_2d, distance_3d
-    public :: linspace
-    public :: logspace
     public :: mad
     public :: mean
-    public :: mean_degrees
-    public :: minmax_degrees
     public :: angle_lonlat
-    public :: barycenter_lonlat
     public :: median_copy
     public :: median_nocopy
     public :: moment
@@ -511,93 +506,6 @@ contains
     !-------------------------------------------------------------------------------------------------------------------------------
 
 
-    function mean_degrees(array, mask)
-
-        real(p), intent(in)           :: array(:)
-        logical, optional, intent(in) :: mask(:)
-        real(p)                       :: mean_degrees
-
-        real(p) :: value
-        integer :: isample, n180, nvalids
-        logical :: zero_minus, zero_plus
-
-        mean_degrees = 0
-        zero_minus = .false.
-        zero_plus  = .false.
-        n180 = 0
-        nvalids = 0
-
-        !$omp parallel do default(shared) reduction(+:n180, nvalids,mean_degrees)           &
-        !$omp reduction(.or.:zero_minus,zero_plus) private(isample, value)
-        do isample=1, size(array)
-            if (present(mask)) then
-                if (mask(isample)) cycle
-            end if
-            value = modulo(array(isample), 360._p)
-            if (value /= value) cycle
-            zero_minus = zero_minus .or. value > 270._p
-            zero_plus  = zero_plus  .or. value <= 90._p
-            if (value >= 180._p) n180 = n180 + 1
-            mean_degrees = mean_degrees + value
-            nvalids = nvalids + 1
-        end do
-        !$omp end parallel do
-
-        if (zero_minus .and. zero_plus) mean_degrees = mean_degrees - 360._p * n180
-
-        if (nvalids > 0) then
-            mean_degrees = modulo(mean_degrees / nvalids, 360._p)
-        else
-            mean_degrees = NaN
-        end if
-
-    end function mean_degrees
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    subroutine minmax_degrees(array, minv, maxv)
-
-        real(p), intent(in)  :: array(:)
-        real(p), intent(out) :: minv, maxv
-
-        real(p) :: value, meanv
-        integer :: isample
-
-        meanv = mean_degrees(array)
-        if (meanv /= meanv) then
-            minv = NaN
-            maxv = NaN
-            return
-        end if
-
-        minv = pInf
-        maxv = mInf
-        !$omp parallel do default(shared) reduction(min:minv) reduction(max:maxv) private(value)
-        do isample=1, size(array)
-            value = array(isample)
-            if (value /= value) cycle
-            value = modulo(value, 360._p)
-            if (value > meanv) then
-                if (abs(value-360._p-meanv) < abs(value-meanv)) value = value - 360._p
-            else
-                if (abs(value+360._p-meanv) < abs(value-meanv)) value = value + 360._p
-            end if
-            minv = min(minv, value)
-            maxv = max(maxv, value)
-        end do
-        !$omp end parallel do
-
-        minv = modulo(minv, 360._p)
-        maxv = modulo(maxv, 360._p)
-
-    end subroutine minmax_degrees
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
     pure elemental subroutine angle_lonlat(lon1, lat1, lon2, lat2, angle)
 
         real(p), intent(in)  :: lon1, lat1, lon2, lat2
@@ -607,75 +515,6 @@ contains
                 RAD2DEG
 
     end subroutine angle_lonlat
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    subroutine barycenter_lonlat(lon, lat, lon0, lat0)
-
-        real(p), intent(in)  :: lon(:), lat(:)
-        real(p), intent(out) :: lon0, lat0
-
-        real(p) :: x, y, z, phi, cotheta, cocotheta
-        integer :: i
-
-        if (size(lon) == 0) then
-            lon0 = NaN
-            lat0 = NaN
-            return
-        end if
-
-        x = 0
-        y = 0
-        z = 0
-        !$omp parallel do reduction(+:x,y,z) private(phi,cotheta,cocotheta)
-        do i = 1, size(lon)
-            phi = lon(i) * DEG2RAD
-            cotheta = lat(i) * DEG2RAD
-            if (cotheta /= cotheta .or. phi /= phi) cycle
-            cocotheta = cos(cotheta)
-            x = x + cocotheta * cos(phi)
-            y = y + cocotheta * sin(phi)
-            z = z + sin(cotheta)
-        end do
-        !$omp end parallel do
-        
-        lon0 = modulo(atan2(y,x) * RAD2DEG + 360._p, 360._p)
-        lat0 = acos(sqrt((x**2 + y**2)/(x**2 + y**2 + z**2))) * RAD2DEG
-        lat0 = sign(lat0, z)
-        
-    end subroutine barycenter_lonlat
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    function linspace(min, max, n)
-
-        real(p)             :: linspace(n)
-        real(p), intent(in) :: min, max
-        integer, intent(in) :: n
-
-        integer             :: i
-
-        linspace = min + (max - min) / (n-1) * [(i, i=0, n-1)]
-
-    end function linspace
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    function logspace(min, max, n)
-        real(p)             :: logspace(n)
-        real(p), intent(in) :: min, max
-        integer, intent(in) :: n
-        integer             :: i
-
-        logspace = exp(log(min)+(log(max)-log(min)) / (n-1) * [(i, i=0,n-1)])
-
-    end function logspace
 
 
     !-------------------------------------------------------------------------------------------------------------------------------
