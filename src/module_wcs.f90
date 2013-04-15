@@ -25,9 +25,6 @@ module module_wcs
     public :: projection_scale
     public :: init_gnomonic
     public :: ad2xy_gnomonic
-    public :: ad2xy_gnomonic_vect
-    public :: ad2xy_gnomonic_inplace
-    public :: ad2xy_gnomonic_explicit
     public :: ad2xys_gnomonic
     public :: init_rotation
     public :: xy2xy_rotation
@@ -225,59 +222,7 @@ contains
     !-------------------------------------------------------------------------------------------------------------------------------
 
 
-    pure function ad2xy_gnomonic(ad) result(xy)
-
-        real(p), intent(in) :: ad(:,:)          ! R.A. and declination in degrees
-        real(p)             :: xy(size(ad,1), size(ad,2))
-
-        real(p)             :: lambda, phi, invcosc, xsi, eta
-        integer             :: i
-        real(p)             :: lambda0          ! crval[0] in rad
-        real(p)             :: cosphi1, sinphi1 ! cos and sin of crval[1]
-        common /gnomonic/ lambda0, cosphi1, sinphi1
-
-        do i = 1, size(ad, 2)
-            lambda = ad(1,i) * DEG2RAD
-            phi = ad(2,i) * DEG2RAD
-            invcosc = RAD2DEG / (sinphi1*sin(phi)+cosphi1*cos(phi)*cos(lambda-lambda0))
-            xsi = invcosc * cos(phi)*sin(lambda-lambda0)
-            eta = invcosc * (cosphi1*sin(phi)-sinphi1*cos(phi)*cos(lambda-lambda0))
-            call xy2xy_rotation(xsi, eta, xy(1,i), xy(2,i))
-        end do
-
-    end function ad2xy_gnomonic
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    pure subroutine ad2xy_gnomonic_explicit(ad, ncoords)
-
-        real(p), intent(inout) :: ad(2,ncoords)          ! R.A. and declination in degrees
-        integer, intent(in) :: ncoords
-
-        real(p)             :: lambda, phi, invcosc, xsi, eta
-        integer             :: i
-        real(p)             :: lambda0          ! crval[0] in rad
-        real(p)             :: cosphi1, sinphi1 ! cos and sin of crval[1]
-        common /gnomonic/ lambda0, cosphi1, sinphi1
-
-        do i = 1, ncoords
-            lambda = ad(1,i) * DEG2RAD
-            phi = ad(2,i) * DEG2RAD
-            invcosc = RAD2DEG / (sinphi1*sin(phi)+cosphi1*cos(phi)*cos(lambda-lambda0))
-            xsi = invcosc * cos(phi)*sin(lambda-lambda0)
-            eta = invcosc * (cosphi1*sin(phi)-sinphi1*cos(phi)*cos(lambda-lambda0))
-            call xy2xy_rotation(xsi, eta, ad(1,i), ad(2,i))
-        end do
-
-    end subroutine ad2xy_gnomonic_explicit
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    elemental subroutine ad2xy_gnomonic_inplace(a, b)
+    elemental subroutine ad2xy_gnomonic(a, b)
 
         real(p), intent(inout) :: a, b
 
@@ -293,7 +238,7 @@ contains
         eta = invcosc * (cosphi1*sin(phi)-sinphi1*cos(phi)*cos(lambda-lambda0))
         call xy2xy_rotation(xsi, eta, a, b)
 
-    end subroutine ad2xy_gnomonic_inplace
+    end subroutine ad2xy_gnomonic
 
 
     !-------------------------------------------------------------------------------------------------------------------------------
