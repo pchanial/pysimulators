@@ -519,58 +519,6 @@ class Instrument(object):
         return new_npixels_per_sample, out
 
     @staticmethod
-    def instrument2pmatrix_sharp_edges_explicit(coords, pointing, header, pmatrix,
-                                       npixels_per_sample):
-        """
-        Return the sparse pointing matrix whose values are intersection between
-        detectors and map pixels.
-        """
-        coords = coords.reshape((-1,Instrument.nvertices,2))
-        ra = pointing['ra'].ravel()
-        dec = pointing['dec'].ravel()
-        pa = pointing['pa'].ravel()
-        masked = pointing['masked'].view(np.int8).ravel()
-        if pmatrix.size == 0:
-            # f2py doesn't accept zero-sized opaque arguments
-            pmatrix = np.empty(1, np.int64)
-        else:
-            pmatrix = pmatrix.ravel().view(np.int64)
-        header = str(header).replace('\n','')
-
-        new_npixels_per_sample, out, status = flib.wcsutils. \
-            instrument2pmatrix_sharp_edges_explicit(coords.T, ra, dec, pa, masked,
-            header, pmatrix, npixels_per_sample)
-        if status != 0: raise RuntimeError()
-
-        return new_npixels_per_sample, out
-
-    @staticmethod
-    def instrument2pmatrix_sharp_edges_vect(coords, pointing, header, pmatrix,
-                                       npixels_per_sample):
-        """
-        Return the sparse pointing matrix whose values are intersection between
-        detectors and map pixels.
-        """
-        coords = coords.reshape((-1,Instrument.nvertices,2))
-        ra = pointing['ra'].ravel()
-        dec = pointing['dec'].ravel()
-        pa = pointing['pa'].ravel()
-        masked = pointing['masked'].view(np.int8).ravel()
-        if pmatrix.size == 0:
-            # f2py doesn't accept zero-sized opaque arguments
-            pmatrix = np.empty(1, np.int64)
-        else:
-            pmatrix = pmatrix.ravel().view(np.int64)
-        header = str(header).replace('\n','')
-
-        new_npixels_per_sample, out, status = flib.wcsutils. \
-            instrument2pmatrix_sharp_edges_vect(coords.T, ra, dec, pa, masked,
-            header, pmatrix, npixels_per_sample)
-        if status != 0: raise RuntimeError()
-
-        return new_npixels_per_sample, out
-
-    @staticmethod
     def instrument2pmatrix_nearest_neighbour(coords, pointing, header, pmatrix):
         """
         Return the sparse pointing matrix whose values are intersection between

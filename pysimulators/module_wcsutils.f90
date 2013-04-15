@@ -5,8 +5,7 @@ module wcsutils
     use module_fitstools,      only : ft_read_keyword
     use module_pointingmatrix, only : PointingElement, xy2pmatrix, xy2roi, roi2pmatrix_cartesian
     use module_projection,     only : convex_hull
-    use module_wcs,            only : ad2xy_gnomonic, ad2xy_gnomonic_inplace, ad2xy_gnomonic_explicit, ad2xy_gnomonic_vect, &
-         ad2xys_gnomonic, init_astrometry
+    use module_wcs,            only : ad2xy_gnomonic, ad2xys_gnomonic, init_astrometry
     implicit none
 
     integer, parameter :: NEAREST_NEIGHBOUR = 0
@@ -314,7 +313,7 @@ contains
         do ipointing = 1, npointings
 
             call instrument2ad(hull_instrument, hull, size(ihull), ra(ipointing), dec(ipointing), pa(ipointing))
-            hull = ad2xy_gnomonic(hull)
+            call ad2xy_gnomonic(hull(1,:), hull(2,:))
             xmin = min(xmin, minval(hull(1,:)))
             ymin = min(ymin, minval(hull(2,:)))
             xmax = max(xmax, maxval(hull(1,:)))
@@ -427,7 +426,7 @@ contains
             end if
 
             call instrument2ad(coords, coords2, int(ncoords*nvertices), ra(isample), dec(isample), pa(isample))
-            call ad2xy_gnomonic_inplace(coords2(1,:,:), coords2(2,:,:))
+            call ad2xy_gnomonic(coords2(1,:,:), coords2(2,:,:))
             roi = xy2roi(coords2)
             call roi2pmatrix_cartesian(roi, coords2, nx, ny, new_npixels_per_sample, out, pmatrix(:,isample,:))
 
@@ -435,103 +434,6 @@ contains
         !$omp end parallel do
 
     end subroutine instrument2pmatrix_sharp_edges
-
-    subroutine instrument2pmatrix_sharp_edges_explicit(coords, nvertices, ncoords, ra, dec, pa, masked, npointings, header,pmatrix,&
-                                              npixels_per_sample, new_npixels_per_sample, out, status)
-        !f2py integer*8, depend(npixels_per_sample,npointings,ncoords) :: pmatrix(npixels_per_sample*npointings*ncoords)
-        integer*8, intent(in)                        :: nvertices, ncoords, npointings ! #vertices, #coordinates, #pointings
-        real(p), intent(in)                          :: coords(2,nvertices,ncoords)   ! instrument frame coordinates
-        real(p), intent(in), dimension(npointings)   :: ra, dec, pa         ! input pointings in celestial coordinates
-        logical*1, intent(in), dimension(npointings) :: masked              ! pointing flags: true if masked, removed
-        character(len=*), intent(in)                 :: header              ! sky map FITS header
-        type(PointingElement), intent(inout)         :: pmatrix(npixels_per_sample,npointings,ncoords) ! the pointing matrix
-        integer, intent(in)  :: npixels_per_sample     ! input maximum number of sky pixels intersected by a detector
-        integer, intent(out) :: new_npixels_per_sample ! actual maximum number of sky pixels intersected by a detector
-        logical, intent(out) :: out                    ! true if some coordinates fall outside of the map
-        integer, intent(out) :: status
-
-        real(p)   :: coords2(2,nvertices,ncoords)
-        integer   :: roi(2,2,ncoords)
-        integer*8 :: isample
-        integer   :: nx, ny
-
-        new_npixels_per_sample = 0
-        out = .false.
-        call init_astrometry(header, status=status)
-        if (status /= 0) return
-        ! get the size of the map
-        call ft_read_keyword(header, 'naxis1', nx, status=status)
-        if (status /= 0) return
-        call ft_read_keyword(header, 'naxis2', ny, status=status)
-        if (status /= 0) return
-
-        !$omp parallel do private(isample, coords2, roi) &
-        !$omp reduction(max : npixels_per_sample) reduction(.or. : out)
-        do isample = 1, npointings
-
-            if (masked(isample)) then
-                pmatrix(:,isample,:)%index = -1
-                pmatrix(:,isample,:)%value = 0
-                cycle
-            end if
-
-            call instrument2ad(coords, coords2, int(ncoords*nvertices), ra(isample), dec(isample), pa(isample))
-            call ad2xy_gnomonic_explicit(coords2, int(ncoords*nvertices))
-            !roi = xy2roi(coords2)
-            !call roi2pmatrix_cartesian(roi, coords2, nx, ny, new_npixels_per_sample, out, pmatrix(:,isample,:))
-
-        end do
-        !$omp end parallel do
-
-    end subroutine instrument2pmatrix_sharp_edges_explicit
-    subroutine instrument2pmatrix_sharp_edges_vect(coords, nvertices, ncoords, ra, dec, pa, masked, npointings, header, pmatrix,  &
-                                              npixels_per_sample, new_npixels_per_sample, out, status)
-        !f2py integer*8, depend(npixels_per_sample,npointings,ncoords) :: pmatrix(npixels_per_sample*npointings*ncoords)
-        integer*8, intent(in)                        :: nvertices, ncoords, npointings ! #vertices, #coordinates, #pointings
-        real(p), intent(in)                          :: coords(2,nvertices,ncoords)   ! instrument frame coordinates
-        real(p), intent(in), dimension(npointings)   :: ra, dec, pa         ! input pointings in celestial coordinates
-        logical*1, intent(in), dimension(npointings) :: masked              ! pointing flags: true if masked, removed
-        character(len=*), intent(in)                 :: header              ! sky map FITS header
-        type(PointingElement), intent(inout)         :: pmatrix(npixels_per_sample,npointings,ncoords) ! the pointing matrix
-        integer, intent(in)  :: npixels_per_sample     ! input maximum number of sky pixels intersected by a detector
-        integer, intent(out) :: new_npixels_per_sample ! actual maximum number of sky pixels intersected by a detector
-        logical, intent(out) :: out                    ! true if some coordinates fall outside of the map
-        integer, intent(out) :: status
-
-        real(p)   :: coords2(2,nvertices,ncoords)
-        integer   :: roi(2,2,ncoords)
-        integer*8 :: isample
-        integer   :: nx, ny
-
-        new_npixels_per_sample = 0
-        out = .false.
-        call init_astrometry(header, status=status)
-        if (status /= 0) return
-        ! get the size of the map
-        call ft_read_keyword(header, 'naxis1', nx, status=status)
-        if (status /= 0) return
-        call ft_read_keyword(header, 'naxis2', ny, status=status)
-        if (status /= 0) return
-
-        !$omp parallel do private(isample, coords2, roi) &
-        !$omp reduction(max : npixels_per_sample) reduction(.or. : out)
-        do isample = 1, npointings
-
-            if (masked(isample)) then
-                pmatrix(:,isample,:)%index = -1
-                pmatrix(:,isample,:)%value = 0
-                cycle
-            end if
-
-            call instrument2ad(coords, coords2, int(ncoords*nvertices), ra(isample), dec(isample), pa(isample))
-            call ad2xy_gnomonic_vect(coords2(1,:,:), coords2(2,:,:))
-            !roi = xy2roi(coords2)
-            !call roi2pmatrix_cartesian(roi, coords2, nx, ny, new_npixels_per_sample, out, pmatrix(:,isample,:))
-
-        end do
-        !$omp end parallel do
-
-    end subroutine instrument2pmatrix_sharp_edges_vect
 
 
 end module wcsutils
