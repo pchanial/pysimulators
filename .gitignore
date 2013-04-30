@@ -2,3 +2,5 @@
 build
 dist
 _site
+MANIFEST
+.f2py_f2cmap
