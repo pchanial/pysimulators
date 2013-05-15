@@ -4,7 +4,7 @@ import os
 
 # from distutils.extension import Extension
 from distutils.util import get_platform
-from numpy.distutils.core import setup, Extension
+from numpy.distutils.core import setup
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import Configuration
 from glob import glob
