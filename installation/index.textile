@@ -22,8 +22,8 @@ h2. The Git way
 
 You can also clone the Github repository, using the version control system "Git":http://git-scm.com/:
 
-bc. $ git clone git://github.com/pchanial/pysimulators.git
-$ cd pysimulators.git
+bc. $ git clone git://github.com/pchanial/pysimulators
+$ cd pysimulators
 $ sudo python setup.py install
 
 This method is convenient to test pysimulators' development branch. The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
