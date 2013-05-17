@@ -366,6 +366,8 @@ def create_fitsheader_for(data, extname=None, crval=(0.,0.), crpix=None,
 
     """
     data = np.asarray(data)
+    if data.dtype.itemsize == 1:
+        data = data.view('uint8')
     return create_fitsheader(data.shape[::-1], dtype=data.dtype,
                              extname=extname, crval=crval, crpix=crpix,
                              ctype=ctype, cunit=cunit, cd=cd, cdelt=cdelt,
