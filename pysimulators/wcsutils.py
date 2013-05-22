@@ -241,23 +241,23 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
 
     numaxis = len(naxes)
 
+    header = pyfits.Header()
     if extname is None:
-        card = pyfits.create_card('simple', True)
+        header['simple'] = True # primary header
     else:
-        card = pyfits.create_card('xtension', 'IMAGE', 'Image extension')
-    header = pyfits.Header([card])
+        header['xtension'] = ('IMAGE', 'Image extension')
     if typename is not None:
-        header.update('bitpix', pyfits.PrimaryHDU.ImgCode[typename],
-                      'array data type')
-    header.update('naxis', numaxis, 'number of array dimensions')
+        header['bitpix'] = (pyfits.PrimaryHDU.ImgCode[typename],
+                            'Array data type')
+    header['naxis'] = (numaxis, 'Number of array dimensions')
     for dim in range(numaxis):
-        header.update('naxis'+str(dim+1), naxes[dim])
+        header['naxis' + str(dim+1)] = naxes[dim]
     if extname is None:
-        header.update('extend', True)
+        header['extend'] = True
     else:
-        header.update('pcount', 0, 'number of parameters')
-        header.update('gcount', 1, 'number of groups')
-        header.update('extname', extname)
+        header['pcount'] = (0, 'Number of parameters')
+        header['gcount'] = (1, 'Number of groups')
+        header['extname'] = extname
 
     if cd is not None:
         cd = np.asarray(cd, dtype=float)
@@ -296,24 +296,24 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
     if cunit.size != 2:
         raise ValueError('CUNIT does not have two elements.')
 
-    header.update('crval1', crval[0])
-    header.update('crval2', crval[1])
-    header.update('crpix1', crpix[0])
-    header.update('crpix2', crpix[1])
-    header.update('cd1_1' , cd[0,0])
-    header.update('cd2_1' , cd[1,0])
-    header.update('cd1_2' , cd[0,1])
-    header.update('cd2_2' , cd[1,1])
-    header.update('ctype1', ctype[0])
-    header.update('ctype2', ctype[1])
-    header.update('cunit1', cunit[0])
-    header.update('cunit2', cunit[1])
+    header['crval1'] = crval[0]
+    header['crval2'] = crval[1]
+    header['crpix1'] = crpix[0]
+    header['crpix2'] = crpix[1]
+    header['cd1_1' ] = cd[0,0]
+    header['cd2_1' ] = cd[1,0]
+    header['cd1_2' ] = cd[0,1]
+    header['cd2_2' ] = cd[1,1]
+    header['ctype1'] = ctype[0]
+    header['ctype2'] = ctype[1]
+    header['cunit1'] = cunit[0]
+    header['cunit2'] = cunit[1]
 
     if ctype[0][:3] == 'RA-' and ctype[1][:3] == 'DEC':
-        header.update('radesys', radesys.upper())
+        header['radesys'] = radesys.upper()
 
     if equinox is not None:
-        header.update('equinox',  float(equinox))
+        header['equinox'] =  float(equinox)
 
     return header
 
