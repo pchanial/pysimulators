@@ -250,10 +250,6 @@ def create_fitsheader(
         else:
             typename = array.dtype.name
 
-    # FITS format does not handle scalar values
-    if len(naxes) == 0:
-        naxes = (1,)
-
     numaxis = len(naxes)
 
     header = pyfits.Header()
@@ -354,7 +350,7 @@ def create_fitsheader_for(
 
     Parameters
     ----------
-    data : array_like
+    data : array_like or None
         The array from which the dimensions and type will be extracted. Note
         that following the FITS convention, the dimension along X is the
         second value of the array shape and that the dimension along the
@@ -389,13 +385,22 @@ def create_fitsheader_for(
     >>> map = Map.ones((10,100), unit='Jy/pixel')
     >>> map.header = create_fitsheader_for(map, cd=[[-1,0], [0,1]])
 
+    >>> primary_header = create_fitsheader_for(None)
+    >>> secondary_header = create_fitsheader_for(None, extname='secondary')
+
     """
-    data = np.asarray(data)
-    if data.dtype.itemsize == 1:
-        data = data.view('uint8')
+    if data is None:
+        naxes = ()
+        dtype = np.int32
+    else:
+        data = np.asarray(data)
+        naxes = data.shape[::-1]
+        if data.dtype.itemsize == 1:
+            data = data.view('uint8')
+        dtype = data.dtype
     return create_fitsheader(
-        data.shape[::-1],
-        dtype=data.dtype,
+        naxes,
+        dtype=dtype,
         extname=extname,
         crval=crval,
         crpix=crpix,
