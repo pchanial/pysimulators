@@ -209,7 +209,7 @@ class FitsArray(Quantity):
         if self._header is not None:
             typename = np.dtype(dtype).name
             result._header = self._header.copy()
-            result._header.update('BITPIX', pyfits.PrimaryHDU.ImgCode[typename])
+            result._header['BITPIX'] = pyfits.PrimaryHDU.ImgCode[typename]
         return result
 
     @staticmethod
@@ -278,7 +278,7 @@ class FitsArray(Quantity):
             comm = MPI.COMM_WORLD
 
         if len(self._unit) != 0:
-            header.update('BUNIT', self.unit)
+            header['BUNIT'] = self.unit
 
         write_fits(filename, self, header, False, None, comm)
         if not self.derived_units:
@@ -866,7 +866,7 @@ class Map(FitsArray):
         if comm is None:
             comm = MPI.COMM_WORLD
 
-        self.header.update('DISPORIG', self.origin, 'Map display convention')
+        self.header['DISPORIG'] = self.origin, 'Map display convention'
         FitsArray.save(self, filename, comm=comm)
         if self.coverage is not None:
             write_fits(filename, self.coverage, None, True, 'Coverage', comm)
