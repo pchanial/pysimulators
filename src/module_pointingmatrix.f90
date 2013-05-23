@@ -1,4 +1,4 @@
-! Copyright 2010-2011 Pierre Chanial
+! Copyright 2010-2013 Pierre Chanial
 ! All rights reserved
 !
 module module_pointingmatrix
@@ -85,23 +85,17 @@ contains
     subroutine pmatrix_transpose(pmatrix, timeline, map)
         type(pointingelement), intent(in) :: pmatrix(:,:)
         real(kind=p), intent(in)          :: timeline(:)
-        real(kind=p), intent(out)         :: map(0:)
+        real(kind=p), intent(inout)       :: map(0:)
         integer                           :: isample, ipixel, npixels, nsamples
 
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
 
-#ifdef GFORTRAN
-        !$omp parallel do reduction(+:map)
-#else
         !$omp parallel do
-#endif
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%index == -1) exit
-#ifndef GFORTRAN
-                !$omp atomic
-#endif
+                !$omp atomic update
                 map(pmatrix(ipixel,isample)%index) = map(pmatrix(ipixel,isample)%index) +                                          &
                     pmatrix(ipixel,isample)%value * timeline(isample)
             end do
@@ -117,16 +111,19 @@ contains
     subroutine pmatrix_transpose_one_pixel_per_sample(pmatrix, timeline, map)
         type(pointingelement), intent(in) :: pmatrix(:)
         real(kind=p), intent(in)          :: timeline(:)
-        real(kind=p), intent(out)         :: map(0:)
+        real(kind=p), intent(inout)       :: map(0:)
         integer                           :: isample, nsamples
 
         nsamples = size(pmatrix, 1)
 
+        !$omp parallel do
         do isample = 1, nsamples
             if (pmatrix(isample)%index >= 0) then
+                !$omp atomic update
                 map(pmatrix(isample)%index) = map(pmatrix(isample)%index) + pmatrix(isample)%value * timeline(isample)
             end if
         end do
+        !$omp end parallel do
 
     end subroutine pmatrix_transpose_one_pixel_per_sample
 
@@ -145,7 +142,7 @@ contains
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
        
-        !$omp parallel do reduction(+:ptp) private(isample, ipixel, jpixel, i, j, pi, pj)
+        !$omp parallel do private(isample, ipixel, jpixel, i, j, pi, pj)
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%index == -1) exit
@@ -155,6 +152,7 @@ contains
                     if (pmatrix(jpixel,isample)%index == -1) exit
                     j  = pmatrix(jpixel,isample)%index
                     pj = pmatrix(jpixel,isample)%value
+                    !$omp atomic update
                     ptp(i,j) = ptp(i,j) + pi * pj
                 end do
             end do
@@ -255,11 +253,7 @@ contains
         nsamples = size(pmatrix, 2)
         domask   = present(mask)
 
-        !$omp parallel do &
-#ifdef GFORTRAN
-        !$omp reduction(+:map,weight) &
-#endif
-        !$omp private(isample,ipixel,imap)
+        !$omp parallel do private(isample,ipixel,imap)
         do isample = 1, nsamples
             if (domask) then
                 if (mask(isample)) cycle
@@ -267,13 +261,9 @@ contains
             do ipixel = 1, npixels
                 imap = pmatrix(ipixel,isample)%index
                 if (imap == -1) exit
-#ifndef GFORTRAN
-                !$omp atomic
-#endif
-                map   (imap) = map   (imap) + pmatrix(ipixel,isample)%value * timeline(isample)
-#ifndef GFORTRAN
-                !$omp atomic
-#endif
+                !$omp atomic update
+                map(imap) = map(imap) + pmatrix(ipixel,isample)%value * timeline(isample)
+                !$omp atomic update
                 weight(imap) = weight(imap) + pmatrix(ipixel,isample)%value
             end do
         end do
