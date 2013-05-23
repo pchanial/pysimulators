@@ -85,28 +85,33 @@ contains
     subroutine pmatrix_transpose(pmatrix, timeline, map)
         type(pointingelement), intent(in) :: pmatrix(:,:)
         real(kind=p), intent(in)          :: timeline(:)
-        real(kind=p), intent(out)         :: map(0:)
+        real(kind=p), intent(inout)       :: map(0:)
         integer                           :: isample, ipixel, npixels, nsamples
 
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
 
-#ifdef GFORTRAN
-        !$omp parallel do reduction(+:map)
-#else
-        !$omp parallel do
-#endif
+        print *, 'Size timeline:', size(timeline)
+
+!#ifdef GFORTRAN
+!        !$omp parallel do reduction(+:map)
+!#else
+!        !$omp parallel do
+!#endif
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%pixel == -1) exit
-#ifndef GFORTRAN
-                !$omp atomic
-#endif
+!#ifndef GFORTRAN
+!                !$omp atomic
+!#endif
+                if (pmatrix(ipixel,isample)%pixel >= size(map) .or. pmatrix(ipixel,isample)%pixel < 0) then
+                    print *, 'Fucker:', pmatrix(ipixel,isample)%pixel, ipixel, isample
+                end if
                 map(pmatrix(ipixel,isample)%pixel) = map(pmatrix(ipixel,isample)%pixel) +                                          &
                     pmatrix(ipixel,isample)%weight * timeline(isample)
             end do
         end do
-        !$omp end parallel do
+!        !$omp end parallel do
 
     end subroutine pmatrix_transpose
 

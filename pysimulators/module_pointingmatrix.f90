@@ -556,23 +556,17 @@ contains
     subroutine pmatrix_transpose(pmatrix, timeline, map)
         type(pointingelement), intent(in) :: pmatrix(:,:)
         real(p), intent(in)          :: timeline(:)
-        real(p), intent(out)         :: map(0:)
-        integer                           :: isample, ipixel, npixels, nsamples
+        real(p), intent(inout)       :: map(0:)
+        integer                      :: isample, ipixel, npixels, nsamples
 
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
 
-#ifdef GFORTRAN
-        !$omp parallel do reduction(+:map)
-#else
         !$omp parallel do
-#endif
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%index == -1) exit
-#ifndef GFORTRAN
-                !$omp atomic
-#endif
+                !$omp atomic update
                 map(pmatrix(ipixel,isample)%index) = map(pmatrix(ipixel,isample)%index) +                                          &
                     pmatrix(ipixel,isample)%value * timeline(isample)
             end do
