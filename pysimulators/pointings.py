@@ -2,7 +2,10 @@ from __future__ import division
 
 import kapteyn
 import numpy as np
-from matplotlib import pyplot
+try:
+    from matplotlib import pyplot
+except ImportError:
+    pass
 
 from .datatypes import FitsArray, Map
 from .quantities import Quantity

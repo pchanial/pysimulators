@@ -4,7 +4,10 @@ import numpy as  np
 import scipy.signal
 import scipy.special
 
-from matplotlib import pyplot
+try:
+    from matplotlib import pyplot
+except ImportError:
+    pass
 from pyoperators.utils import isscalar, product
 from . import _flib as flib
 from .datatypes import Map

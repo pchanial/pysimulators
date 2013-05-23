@@ -14,8 +14,11 @@ They also contain specialised display methods.
 from __future__ import division
 
 import kapteyn.maputils
-import matplotlib
-import matplotlib.pyplot as pyplot
+try:
+    import matplotlib
+    import matplotlib.pyplot as pyplot
+except ImportError:
+    pass
 import numpy as np
 import pickle
 import pyfits

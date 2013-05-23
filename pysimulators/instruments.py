@@ -4,7 +4,10 @@ import gc
 import numpy as np
 
 from kapteyn import wcs
-from matplotlib import pyplot
+try:
+    from matplotlib import pyplot
+except ImportError:
+    pass
 from pyoperators import I, asoperator
 from pyoperators.utils import product, strenum, strshape
 from pyoperators.utils.mpi import MPI
