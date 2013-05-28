@@ -262,7 +262,7 @@ def integrated_profile(input, origin=None, bin=1., nbins=None):
 
 
 def phasemask_fourquadrant(shape, phase=-1):
-    array = Map.ones(shape, complex)
+    array = Map.ones(shape, dtype=complex)
     array[0:shape[0]//2,shape[1]//2:] = phase
     array[shape[0]//2:,0:shape[1]//2] = phase
     return array
