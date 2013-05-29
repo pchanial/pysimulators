@@ -73,10 +73,6 @@ a:hover {
   color: #666;
 }
 
-a img {
-  vertical-align: middle;
-}
-
 em {
   font-style: italic;
 }
@@ -119,12 +115,11 @@ table {
 }
 
 img {
-  -moz-border-radius: 5px;
-  -moz-box-shadow: 0 1px 0 #fff;
-  -webkit-border-radius: 5px;
-  -webkit-box-shadow: 0 1px 0 #fff;
-  border: 5px #333 solid;
-  width: 440px;
+  display: block;
+  vertical-align: middle;
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 p {
@@ -132,11 +127,13 @@ p {
   margin: 0;
 }
 
-pre {
+div.highlight > pre {
   -moz-border-radius: 5px;
   -moz-box-shadow: 0 -1px 0 #333;
   -webkit-border-radius: 5px;
   -webkit-box-shadow: 0 -1px 0 #333;
+  border-radius: 5px;
+  box-shadow: 0 -1px 0 #333;
   background-color: #333;
   color: #fff;
   text-shadow: 0 1px 0 #000;
@@ -271,6 +268,10 @@ div.definition p {
   
 div.definition + hr {
   margin:0;
+}
+
+div.centered {
+  text-align: center;
 }
 
 #footnote {
