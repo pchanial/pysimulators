@@ -91,17 +91,11 @@ contains
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
 
-#ifdef GFORTRAN
-        !$omp parallel do reduction(+:map)
-#else
         !$omp parallel do
-#endif
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%index == -1) exit
-#ifndef GFORTRAN
                 !$omp atomic
-#endif
                 map(pmatrix(ipixel,isample)%index) = map(pmatrix(ipixel,isample)%index) +                                          &
                     pmatrix(ipixel,isample)%value * timeline(isample)
             end do
@@ -145,7 +139,7 @@ contains
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
        
-        !$omp parallel do reduction(+:ptp) private(isample, ipixel, jpixel, i, j, pi, pj)
+        !$omp parallel do private(isample, ipixel, jpixel, i, j, pi, pj)
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%index == -1) exit
@@ -155,6 +149,7 @@ contains
                     if (pmatrix(jpixel,isample)%index == -1) exit
                     j  = pmatrix(jpixel,isample)%index
                     pj = pmatrix(jpixel,isample)%value
+                    !$omp atomic
                     ptp(i,j) = ptp(i,j) + pi * pj
                 end do
             end do
@@ -256,9 +251,6 @@ contains
         domask   = present(mask)
 
         !$omp parallel do &
-#ifdef GFORTRAN
-        !$omp reduction(+:map,weight) &
-#endif
         !$omp private(isample,ipixel,imap)
         do isample = 1, nsamples
             if (domask) then
@@ -267,13 +259,9 @@ contains
             do ipixel = 1, npixels
                 imap = pmatrix(ipixel,isample)%index
                 if (imap == -1) exit
-#ifndef GFORTRAN
                 !$omp atomic
-#endif
                 map   (imap) = map   (imap) + pmatrix(ipixel,isample)%value * timeline(isample)
-#ifndef GFORTRAN
                 !$omp atomic
-#endif
                 weight(imap) = weight(imap) + pmatrix(ipixel,isample)%value
             end do
         end do
