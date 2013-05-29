@@ -111,20 +111,26 @@ def test_has_wcs():
 
 def test_create_fitsheader1():
     shapes = [(), (1,), (1, 2), (0, 1), (1, 0), (2, 3)]
-    arrays = [np.ones(()) for s in shapes]
+    arrays = [np.ones(s) for s in shapes]
 
     def func(a):
-        h1 = create_fitsheader(a.shape, dtype=float)
-        h2 = create_fitsheader_for(a)
+        h1 = create_fitsheader(a.shape[::-1], dtype=float if a.ndim > 0 else np.int32)
+        h2 = create_fitsheader_for(a if a.ndim > 0 else None)
         assert h1 == h2
-        assert h1['NAXIS'] == max(a.ndim, 1)
-        assert h1['NAXIS1'] == a.shape[-1] if a.ndim > 0 else 1
+        assert h1['NAXIS'] == a.ndim
+        for i, s in enumerate(a.shape[::-1]):
+            assert h1['NAXIS' + str(i + 1)] == s
 
     for a in arrays:
         yield func, a
 
 
 def test_create_fitsheader2():
+    header = create_fitsheader_for(None)
+    assert header['NAXIS'] == 0
+
+
+def test_create_fitsheader3():
     header = create_fitsheader((10, 3), cdelt=1)
     assert_eq(header['RADESYS'], 'ICRS')
     assert 'EQUINOX' not in header
@@ -133,8 +139,6 @@ def test_create_fitsheader2():
 def test_fitsheader2shape():
     def func(naxes):
         header = create_fitsheader(naxes)
-        if len(naxes) == 0:
-            naxes = (1,)
         assert_eq(fitsheader2shape(header), naxes[::-1])
 
     for naxes in [(), (1,), (1, 2), (2, 0, 3)]:
