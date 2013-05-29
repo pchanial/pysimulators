@@ -49,14 +49,14 @@ Some number-crunching parts are written in modern Fortran. Currently gfortran >=
 * on Linux/Ubuntu:
 
 {% highlight bash %}
-sudo apt-get install gfortran
+$ sudo apt-get install gfortran
 {% endhighlight %}
 
 * on MacOS X:
 
 {% highlight bash %}
-sudo port install gcc_select gcc47
-sudo port select --set gcc mp-gcc47
+$ sudo port install gcc_select gcc47
+$ sudo port select --set gcc mp-gcc47
 {% endhighlight %}
 
 
