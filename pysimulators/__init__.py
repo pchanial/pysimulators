@@ -8,7 +8,8 @@ del locale
 
 from . import _flib
 from . import geometry
-from .config import VERSION as __version__
+from .version import VERSION as __version__
+del version
 from .acquisitionmodels import *
 from .datatypes import *
 from .instruments import *
