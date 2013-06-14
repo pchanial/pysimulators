@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyoperators.utils.testing import assert_eq, assert_raises
-from pysimulators.observations import MaskPolicy
+from pysimulators.configurations import MaskPolicy
 
 flags = ['bad', 'u1', 'u2']
 
