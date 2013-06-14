@@ -72,7 +72,7 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
-    install_requires=['pyoperators>=0.7', 'astropy>=0.2'],
+    install_requires=['pyoperators>=0.7.3', 'astropy>=0.2'],
     packages=['pysimulators'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
