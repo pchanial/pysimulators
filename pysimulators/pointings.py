@@ -192,7 +192,7 @@ class Pointing(FitsArray):
 
         if header is None:
             header = self.get_map_header(naxis=1)
-        fitsobj = km.FITSimage(externalheader=header)
+        fitsobj = km.FITSimage(externalheader=dict(header))
         if new_figure:
             fig = pyplot.figure()
             frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
