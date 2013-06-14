@@ -4,7 +4,7 @@ import os
 from astropy.io import fits as pyfits
 from astropy.wcs import WCS
 from numpy.testing import assert_almost_equal
-from pyoperators.utils.testing import assert_eq
+from pyoperators.utils.testing import assert_eq, skiptest_unless_module
 from pysimulators.wcsutils import (angle_lonlat, barycenter_lonlat,
          combine_fitsheader, create_fitsheader, create_fitsheader_for,
          fitsheader2shape, get_cdelt_pa, has_wcs, mean_degrees)
@@ -114,11 +114,9 @@ def test_fitsheader2shape():
     for naxes in [(), (1,), (1,2), (2,0,3)]:
         yield func, naxes
 
+@skiptest_unless_module('kapteyn')
 def test_wcsoperator_kapteyn():
-    try:
-        from pysimulators.wcsutils import WCSKapteynToWorldOperator
-    except ImportError:
-        return
+    from pysimulators.wcsutils import WCSKapteynToWorldOperator
     path = os.path.join(os.path.dirname(__file__), 'data/header_gnomonic.fits')
     header = pyfits.open(path)[0].header
 
