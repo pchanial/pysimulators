@@ -1,27 +1,89 @@
-# Copyrights 2010-2011 Pierre Chanial
+# Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
-#
 
 from __future__ import division
 
 import numpy as np
 import time
-from pyoperators.utils import isscalar, strelapsed, strenum, strnbytes
+import types
+from pyoperators.utils import isscalar, strelapsed, strenum, strnbytes, strplural
 from pyoperators.utils.mpi import MPI
 
 from .instruments import Instrument
 from .pointings import POINTING_DTYPE, Pointing
 from .wcsutils import create_fitsheader
 
-__all__ = ['Observation', 'MaskPolicy']
+__all__ = ['Configuration', 'MaskPolicy']
 
 
-class Observation(object):
-    def __init__(self):
-        self.instrument = None
-        self.pointing = None
-        self.policy = None
-        self.slice = None
+class Configuration(object):
+    """
+    The QubicConfiguration class, which represents the instrument and
+    pointing setups.
+
+    """
+
+    def __init__(self, instrument, pointing, block_id=None, selection=None):
+        """
+        Parameters
+        ----------
+        instrument : str or Instrument
+            Instrument name, or an Instrument instance.
+        pointing : array-like of shape (n,3) or structured array of shape (n,),
+                   or sequence of
+            The pointing directions.
+        block_id : string or sequence of, optional
+           The pointing block identifier.
+        selection : integer or sequence of, optional
+           The indices of the pointing sequence to be selected to construct
+           the pointing configuration.
+
+        """
+        if not isinstance(instrument, Instrument):
+            raise TypeError(
+                "The instrument has an invalid type '{}'.".format(
+                    type(instrument).__name__
+                )
+            )
+        if not isinstance(pointing, (list, tuple)):
+            pointing = (pointing,)
+        elif isinstance(pointing, types.GeneratorType):
+            pointing = tuple(pointing)
+        pointing = [np.asanyarray(p) for p in pointing]
+        if any(type(p) is not type(pointing[0]) for p in pointing):
+            raise TypeError('The input pointings have different types.')
+        if any(p.dtype.kind != pointing[0].dtype.kind for p in pointing):
+            raise TypeError('The input pointings have different dtype kinds.')
+        if pointing[0].dtype.kind == 'V':
+            pointing = [np.array(p, copy=False, ndmin=1, subok=True) for p in pointing]
+        else:
+            if len(pointing) == 3 and all(p.ndim == 0 for p in pointing):
+                pointing = [np.hstack(pointing)]
+            if any(p.ndim not in (1, 2) or p.shape[-1] != 3 for p in pointing):
+                raise ValueError('Invalid pointing dimensions.')
+            if len(pointing) > 1 and all(p.ndim == 1 for p in pointing):
+                pointing = [np.vstack(pointing)]
+            pointing = [np.array(p, copy=False, ndmin=2, subok=True) for p in pointing]
+        if selection is None:
+            selection = tuple(range(len(pointing)))
+        pointing = [pointing[i] for i in selection]
+        if block_id is not None:
+            block_id = [block_id[i] for i in selection]
+        if not isinstance(block_id, (list, tuple, types.NoneType)):
+            block_id = (block_id,)
+            if any(not isinstance(i, str) for i in block_id):
+                raise TypeError('The block id is not a string.')
+
+        self.instrument = instrument
+        self.pointing = np.concatenate(pointing).view(type(pointing[0]))
+        self.block = self._get_block(pointing, block_id)
+
+    def __str__(self):
+        return 'Pointings:\n    {} in {}\n\n'.format(
+            self.get_nsamples(), strplural(len(self.block), 'block')
+        ) + str(self.instrument)
+
+    __repr__ = __str__
 
     def get_ndetectors(self):
         return self.instrument.get_ndetectors()
@@ -62,9 +124,9 @@ class Observation(object):
         **keywords,
     ):
         """
-        Return the pointing matrix for the observation.
+        Return the pointing matrix for the configuration.
 
-        If the observation has several slices, as many pointing matrices
+        If the configuration has several blocks, as many pointing matrices
         are returned in a list.
 
         Parameters
@@ -87,7 +149,7 @@ class Observation(object):
             If True, return a pointing matrix downsampled by the instrument
             fine sampling factor. Otherwise return a pointing matrix sampled
             at the instrument fine sampling factor.
-        section : PacsObservation.slice
+        section : slice
             If specified, return the pointing matrix for a specific slice.
         comm : mpi4py.MPI.Comm
             Map communicator, only used if the input FITS header is local.
@@ -95,7 +157,7 @@ class Observation(object):
         """
         # if section is None, return as many pointing matrices as slices
         if section is None:
-            if self.slice is not None:
+            if self.block is not None:
                 time0 = time.time()
                 pmatrix = [
                     self.get_pointing_matrix(
@@ -107,7 +169,7 @@ class Observation(object):
                         comm=comm,
                         **keywords,
                     )
-                    for s in self.slice
+                    for s in self.block
                 ]
                 info = [strnbytes(sum(p.nbytes for p in pmatrix))]
                 if all(p.shape[-1] == 0 for p in pmatrix):
@@ -151,32 +213,20 @@ class Observation(object):
 
     def get_nsamples(self):
         """
-        Return the number of valid pointings for each slice
+        Return the number of valid pointings for each block
         They are those for which self.pointing.removed is False
         """
         return tuple(
-            [int(np.sum(~self.pointing[s.start : s.stop].removed)) for s in self.slice]
+            [int(np.sum(~self.pointing[s.start : s.stop].removed)) for s in self.block]
         )
 
-    def get_tod(self, unit=None, flatfielding=False, subtraction_mean=False):
-        """
-        Return the Tod from this observation
-        """
-        raise NotImplementedError()
-
-    def save(self, filename, tod):
-        """
-        Save this observation and tod as a FITS file.
-        """
-        raise NotImplementedError()
-
-    def pack(self, input, masked=False):
-        return self.instrument.pack(input, masked=masked)
+    def pack(self, x, masked=False):
+        return self.instrument.pack(x, masked=masked)
 
     pack.__doc__ = Instrument.pack.__doc__
 
-    def unpack(self, input, masked=False):
-        return self.instrument.unpack(input, masked=masked)
+    def unpack(self, x, masked=False):
+        return self.instrument.unpack(x, masked=masked)
 
     unpack.__doc__ = Instrument.unpack.__doc__
 
@@ -198,7 +248,7 @@ class Observation(object):
         """
         Return a sky scan.
 
-        The output is a Pointing instance that can be handed to the Observation
+        The output is a Pointing instance that can be handed to the Configuration
         constructor.
 
         Parameters
@@ -298,7 +348,7 @@ class Observation(object):
             header = getattr(map, 'header', None)
             if header is None:
                 header = self.pointing.get_map_header(naxis=1)
-        annim = self.pointing[self.slice[0].start : self.slice[0].stop].plot(
+        annim = self.pointing[self.block[0].start : self.block[0].stop].plot(
             map=map,
             header=header,
             new_figure=new_figure,
@@ -310,7 +360,7 @@ class Observation(object):
         if np.max(mask) == 0:
             return
 
-        for s in self.slice[1:]:
+        for s in self.block[1:]:
             self.pointing[s.start : s.stop].plot(
                 header=header, new_figure=False, **keywords
             )
@@ -325,12 +375,20 @@ class Observation(object):
 
         return annim
 
-    def plot_scan(self, *args, **keywords):
-        print(
-            "Warning: the 'plot_scan' method has been renamed to 'plot'. Plea"
-            "se update your scripts."
+    @staticmethod
+    def _get_block(pointing, block_id):
+        npointings = [p.shape[0] for p in pointing]
+        start = np.concatenate([[0], np.cumsum(npointings)[:-1]])
+        stop = np.cumsum(npointings)
+        block = np.recarray(
+            len(pointing),
+            dtype=[('start', int), ('stop', int), ('n', int), ('id', 'S29')],
         )
-        self.plot(*args, **keywords)
+        block.n = npointings
+        block.start = start
+        block.stop = stop
+        block.identifier = block_id if block_id is not None else ''
+        return block
 
 
 def _create_scan(

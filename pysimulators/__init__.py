@@ -17,7 +17,7 @@ from .datatypes import *
 from .instruments import *
 
 # from .mpiutils import *
-from .observations import *
+from .configurations import *
 from .pointings import *
 
 # from .processing import *
