@@ -13,7 +13,7 @@ from glob import glob
 def version():
     import os, re
 
-    f = open(os.path.join('pysimulators', 'config.py')).read()
+    f = open(os.path.join('pysimulators', 'version.py')).read()
     m = re.search(r"VERSION = '(.*)'", f)
     return m.groups()[0]
 
