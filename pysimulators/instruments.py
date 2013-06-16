@@ -39,9 +39,8 @@ class Instrument(object):
     image_plane (toworld, topixel, topixel1d)
     toobject
     toimage
-    """
 
-    nvertices = 4  # default number of detector vertices (square)
+    """
 
     def __init__(
         self,
@@ -49,6 +48,7 @@ class Instrument(object):
         shape,
         removed=None,
         masked=None,
+        nvertices=4,
         detector_center=None,
         detector_corner=None,
         default_resolution=None,
@@ -58,10 +58,11 @@ class Instrument(object):
     ):
 
         self.name = str(name)
-        shape = tuple(shape)
+        self.nvertices = nvertices
         self.default_resolution = default_resolution
         self.comm = comm
 
+        shape = tuple(shape)
         dtype_default = [('masked', np.bool8), ('removed', np.bool8)]
 
         if removed is not None:
@@ -465,7 +466,7 @@ class Instrument(object):
         Return the coordinates of the detector centers in the image plane.
 
         """
-        if self.vertices == 0:
+        if self.nvertices == 0:
             raise NotImplementedError('The instrument geometry is not defined.')
         vertices = self.get_vertices()
         return np.mean(vertices, axis=-2)
@@ -559,7 +560,7 @@ class Instrument(object):
         Return the sparse pointing matrix whose values are intersection between
         detectors and map pixels.
         """
-        coords = coords.reshape((-1, Instrument.nvertices, 2))
+        coords = coords.reshape((-1,) + coords[-2:])
         ra = pointing['ra'].ravel()
         dec = pointing['dec'].ravel()
         pa = pointing['pa'].ravel()
