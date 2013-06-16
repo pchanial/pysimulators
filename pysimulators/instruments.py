@@ -4,7 +4,7 @@ import gc
 import numpy as np
 
 from astropy.wcs import WCS
-from matplotlib import pyplot
+from matplotlib import pyplot as mp
 from pyoperators import I, asoperator
 from pyoperators.utils import product, strenum, strshape
 from pyoperators.utils.mpi import MPI
@@ -707,7 +707,7 @@ class Instrument(object):
         obs.instrument.plot(transform, autoscale=False)
 
         """
-        a = pyplot.gca()
+        a = mp.gca()
 
         if transform is None:
             transform = I
@@ -724,7 +724,7 @@ class Instrument(object):
         if self.nvertices > 0:
             patches = coords.reshape((-1,) + coords.shape[-2:])
             for p in patches:
-                a.add_patch(pyplot.Polygon(p, closed=True, fill=False, **keywords))
+                a.add_patch(mp.Polygon(p, closed=True, fill=False, **keywords))
         else:
             if 'color' not in keywords:
                 keywords['color'] = 'black'
@@ -732,9 +732,9 @@ class Instrument(object):
                 keywords['marker'] = 'o'
             if 'linestyle' not in keywords:
                 keywords['linestyle'] = ''
-            pyplot.plot(coords[..., 0], coords[..., 1], **keywords)
+            mp.plot(coords[..., 0], coords[..., 1], **keywords)
 
         if autoscale:
-            pyplot.autoscale()
+            mp.autoscale()
 
-        pyplot.show()
+        mp.show()
