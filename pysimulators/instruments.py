@@ -474,7 +474,6 @@ class Instrument(object):
         if ASTROPY_WCS_NDIM_IS_2:
             xy = xy.reshape(s)
         return xy
-        
 
     @staticmethod
     def instrument2xy_minmax(coords, pointing, header):
@@ -495,8 +494,9 @@ class Instrument(object):
     def instrument2pmatrix_sharp_edges(coords, pointing, header, pmatrix,
                                        npixels_per_sample):
         """
-        Return the sparse pointing matrix whose values are intersection between
+        Return the sparse pointing matrix whose values are intersections between
         detectors and map pixels.
+
         """
         coords = coords.reshape((-1,) + coords[-2:])
         ra = pointing['ra'].ravel()
@@ -508,7 +508,7 @@ class Instrument(object):
             pmatrix = np.empty(1, np.int64)
         else:
             pmatrix = pmatrix.ravel().view(np.int64)
-        header = str(header).replace('\n','')
+        header = str(header).replace('\n', '')
 
         new_npixels_per_sample, out, status = flib.wcsutils. \
             instrument2pmatrix_sharp_edges(coords.T, ra, dec, pa, masked,
