@@ -5,7 +5,7 @@ try:
 except ImportError:
     km = None
 import numpy as np
-from matplotlib import pyplot
+import matplotlib.pyplot as mp
 
 from .datatypes import FitsArray, Map
 from .quantities import Quantity
@@ -194,10 +194,10 @@ class Pointing(FitsArray):
             header = self.get_map_header(naxis=1)
         fitsobj = km.FITSimage(externalheader=dict(header))
         if new_figure:
-            fig = pyplot.figure()
+            fig = mp.figure()
             frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
         else:
-            frame = pyplot.gca()
+            frame = mp.gca()
         if title is not None:
             frame.set_title(title)
         image = fitsobj.Annotatedimage(frame, blankcolor='w')
@@ -205,14 +205,14 @@ class Pointing(FitsArray):
         image.plot()
         image.interact_toolbarinfo()
         image.interact_writepos()
-        pyplot.show()
+        mp.show()
         _plot_scan(image, ra, dec, linewidth=linewidth, **kw)
         return image
 
 def _plot_scan(image, ra, dec, linewidth=None, **kw):
     x, y = image.topixel(ra, dec)
-    p = pyplot.plot(x, y, linewidth=linewidth, **kw)
+    p = mp.plot(x, y, linewidth=linewidth, **kw)
     for i in xrange(ra.size):
         if np.isfinite(x[i]) and np.isfinite(y[i]):
-            pyplot.plot(x[i], y[i], 'o', color=p[0]._color)
+            mp.plot(x[i], y[i], 'o', color=p[0]._color)
             break

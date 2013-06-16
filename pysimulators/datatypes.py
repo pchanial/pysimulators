@@ -18,7 +18,7 @@ try:
 except ImportError:
     km = None
 import matplotlib
-import matplotlib.pyplot as pyplot
+import matplotlib.pyplot as mp
 import numpy as np
 import pickle
 import StringIO
@@ -283,9 +283,9 @@ class FitsArray(Quantity):
         dpi = 80.
         figsize = np.clip(np.max(np.array(self.shape[::-1])/dpi), 8, 50)
         figsize = (figsize + (2 if colorbar else 0), figsize)
-        fig = pyplot.figure(figsize=figsize, dpi=dpi)
+        fig = mp.figure(figsize=figsize, dpi=dpi)
         self.imshow(colorbar=colorbar, new_figure=False, **kw)
-        fig = pyplot.gcf()
+        fig = mp.gcf()
         fig.savefig(filename)
         matplotlib.interactive(is_interactive)
 
@@ -339,15 +339,15 @@ class FitsArray(Quantity):
         data[mask] = np.nan
 
         if new_figure:
-            fig = pyplot.figure()
+            fig = mp.figure()
         else:
-            fig = pyplot.gcf()
+            fig = mp.gcf()
         fontsize = 12. * fig.get_figheight() / 6.125
 
-        image = pyplot.imshow(data, interpolation=interpolation, **keywords)
+        image = mp.imshow(data, interpolation=interpolation, **keywords)
         image.set_clim(minval, maxval)
 
-        ax = pyplot.gca()
+        ax = mp.gca()
         ax.set_xlabel(xlabel, fontsize=fontsize)
         ax.set_ylabel(ylabel, fontsize=fontsize)
         for tick in ax.xaxis.get_major_ticks():
@@ -356,13 +356,13 @@ class FitsArray(Quantity):
             tick.label1.set_fontsize(fontsize)
 
         if title is not None:
-            pyplot.title(title, fontsize=fontsize)
+            mp.title(title, fontsize=fontsize)
         if colorbar:
-            colorbar = pyplot.colorbar()
+            colorbar = mp.colorbar()
             for tick in colorbar.ax.get_yticklabels():
                 tick.set_fontsize(fontsize)
 
-        pyplot.draw()
+        mp.draw()
         return image
 
     def ds9(self, xpamsg=None, origin=None, new=True, **keywords):
@@ -709,10 +709,10 @@ class Map(FitsArray):
         fitsobj = km.FITSimage(externaldata=data,
                                externalheader=dict(self.header))
         if new_figure:
-            fig = pyplot.figure()
+            fig = mp.figure()
             frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
         else:
-            frame = pyplot.gca()
+            frame = mp.gca()
         fontsize = 12. * fig.get_figheight() / 6.125
         for tick in frame.xaxis.get_major_ticks():
             tick.label1.set_fontsize(fontsize)
@@ -721,7 +721,7 @@ class Map(FitsArray):
         if title is not None:
             frame.set_title(title)
         if colorbar:
-            colorbar = pyplot.colorbar()
+            colorbar = mp.colorbar()
             for tick in colorbar.ax.get_yticklabels():
                 tick.set_fontsize(fontsize)
         annim = fitsobj.Annotatedimage(frame, blankcolor='w')
@@ -734,7 +734,7 @@ class Map(FitsArray):
         annim.interact_writepos()
         if colorbar:
             annim.Colorbar()
-        pyplot.show()
+        mp.show()
         return annim
 
     def save(self, filename, comm=None):

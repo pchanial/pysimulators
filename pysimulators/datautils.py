@@ -4,7 +4,7 @@ import numpy as  np
 import scipy.signal
 import scipy.special
 
-from matplotlib import pyplot
+from matplotlib import pyplot as mp
 from pyoperators.utils import isscalar, product
 from . import _flib as flib
 from .datatypes import Map
@@ -328,17 +328,17 @@ def plot_tod(tod, mask=None, **kw):
             return
 
     for idetector in range(ndetectors):
-        pyplot.plot(tod[idetector], **kw)
+        mp.plot(tod[idetector], **kw)
         if mask is not None:
             index=np.where(mask[idetector])
-            pyplot.plot(index, tod[idetector,index],'ro')
+            mp.plot(index, tod[idetector,index],'ro')
 
     unit = getattr(tod, 'unit', '')
     if unit:
-        pyplot.ylabel('Signal [' + unit + ']')
+        mp.ylabel('Signal [' + unit + ']')
     else:
-        pyplot.ylabel('Signal')
-    pyplot.xlabel('Time sample')
+        mp.ylabel('Signal')
+    mp.xlabel('Time sample')
 
 
 #-------------------------------------------------------------------------------
