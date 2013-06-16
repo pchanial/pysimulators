@@ -557,8 +557,9 @@ class Instrument(object):
         coords, pointing, header, pmatrix, npixels_per_sample
     ):
         """
-        Return the sparse pointing matrix whose values are intersection between
+        Return the sparse pointing matrix whose values are intersections between
         detectors and map pixels.
+
         """
         coords = coords.reshape((-1,) + coords[-2:])
         ra = pointing['ra'].ravel()
