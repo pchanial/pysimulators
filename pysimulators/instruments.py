@@ -275,7 +275,7 @@ class Instrument(object):
                                    crval=(ra0,dec0), crpix=(1,1))
 
         # compute the coordinate boundaries according to the header's astrometry
-        xmin, ymin, xmax, ymax = self.instrument2xy_minmax(
+        xmin, ymin, xmax, ymax = self._instrument2xy_minmax(
             coords, pointing, str(header).replace('\n',''))
         ixmin = int(np.round(xmin))
         ixmax = int(np.round(xmax))
@@ -380,12 +380,12 @@ class Instrument(object):
         if method == 'sharp':
             coords = self.pack(self.get_vertices())
             new_npixels_per_sample, outside = self. \
-                instrument2pmatrix_sharp_edges(coords, pointing, header,
-                                               pmatrix, npixels_per_sample)
+                _instrument2pmatrix_sharp_edges(coords, pointing, header,
+                                                pmatrix, npixels_per_sample)
         elif method == 'nearest':
             coords = self.pack(self.get_centers())
             new_npixels_per_sample = 1
-            outside = self.instrument2pmatrix_nearest_neighbour(coords,
+            outside = self._instrument2pmatrix_nearest_neighbour(coords,
                 pointing, header, pmatrix)
         else:
             raise NotImplementedError()
@@ -423,7 +423,7 @@ class Instrument(object):
         raise NotImplementedError('The instrument geometry is not defined.')
 
     @staticmethod
-    def instrument2ad(coords, pointing):
+    def _instrument2ad(coords, pointing):
         """
         Convert coordinates in the instrument frame into celestial coordinates,
         assuming a pointing direction and a position angle.
@@ -460,7 +460,7 @@ class Instrument(object):
             result = np.rollaxis(result, 0, -1)
         return result
 
-    def instrument2xy(self, coords, pointing, header):
+    def _instrument2xy(self, coords, pointing, header):
         """
         Convert coordinates in the instrument frame into sky pixel coordinates,
         assuming a pointing direction and a position angle.
@@ -470,13 +470,13 @@ class Instrument(object):
             s = coords.shape
             coords = coords.reshape((-1,2))
         proj = WCS(header)
-        xy = proj.wcs_world2pix(self.instrument2ad(coords, pointing), 0)
+        xy = proj.wcs_world2pix(self._instrument2ad(coords, pointing), 0)
         if ASTROPY_WCS_NDIM_IS_2:
             xy = xy.reshape(s)
         return xy
 
     @staticmethod
-    def instrument2xy_minmax(coords, pointing, header):
+    def _instrument2xy_minmax(coords, pointing, header):
         """
         Return the minimum and maximum sky pixel coordinate values given a set
         of coordinates specified in the instrument frame.
@@ -491,8 +491,8 @@ class Instrument(object):
         return xmin, ymin, xmax, ymax
 
     @staticmethod
-    def instrument2pmatrix_sharp_edges(coords, pointing, header, pmatrix,
-                                       npixels_per_sample):
+    def _instrument2pmatrix_sharp_edges(coords, pointing, header, pmatrix,
+                                        npixels_per_sample):
         """
         Return the sparse pointing matrix whose values are intersections between
         detectors and map pixels.
@@ -518,7 +518,8 @@ class Instrument(object):
         return new_npixels_per_sample, out
 
     @staticmethod
-    def instrument2pmatrix_nearest_neighbour(coords, pointing, header, pmatrix):
+    def _instrument2pmatrix_nearest_neighbour(coords, pointing, header,
+                                              pmatrix):
         """
         Return the sparse pointing matrix whose values are intersection between
         detector centers and map pixels.
@@ -615,7 +616,7 @@ class Instrument(object):
         # overlay the detector grid on the observation pointings
         obs = MyObservation(...)
         annim = obs.pointing.plot()
-        transform = lambda x: obs.instrument.instrument2xy(x, obs.pointing[0],
+        transform = lambda x: obs.instrument._instrument2xy(x, obs.pointing[0],
                               annim.hdr)
         obs.instrument.plot(transform, autoscale=False)
 
