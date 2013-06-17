@@ -252,7 +252,7 @@ class Configuration(object):
         speed,
         acceleration,
         nlegs=3,
-        angle=0.0,
+        angle=0,
         instrument_angle=45,
         cross_scan=True,
         dtype=POINTING_DTYPE,
