@@ -91,6 +91,7 @@ class Configuration(object):
     def get_filter_uncorrelated(self):
         """
         Return the invNtt for uncorrelated detectors.
+
         """
         raise NotImplementedError()
 
@@ -190,7 +191,8 @@ class Configuration(object):
     def get_nsamples(self):
         """
         Return the number of valid pointings for each block
-        They are those for which self.pointing.removed is False
+        They are those for which self.pointing.removed is False.
+
         """
         return tuple([int(np.sum(~self.pointing[s.start:s.stop].removed))
                       for s in self.block])
@@ -236,8 +238,8 @@ class Configuration(object):
             If true, a cross-scan is appended to the pointings.
         dtype : flexible dtype
             Pointing data type.
-        """
 
+        """
         scan = _create_scan(center, length, step, sampling_period, speed,
                             acceleration, nlegs, angle, dtype)
         if cross_scan:
@@ -453,6 +455,7 @@ def _change_coord(ra0, dec0, pa0, lon, lat):
     native coordinate system attached to a map into right ascension and
     declination.
     Author: R. Gastaud
+
     """
     from numpy import arcsin, arctan2, cos, deg2rad, mod, sin, rad2deg
 
