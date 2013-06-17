@@ -196,11 +196,14 @@ class Pointing(FitsArray):
 
         if km is None:
             raise RuntimeError('The kapteyn library is required.')
-        mask = ~self.masked & ~self.removed
-        ra = self.ra[mask]
-        dec = self.dec[mask]
-        if ra.size == 0 and new_figure:
-            raise ValueError('There is no valid coordinates.')
+        invalid = self.masked | self.removed
+        ra, dec = self.ra.copy(), self.dec.copy()
+        ra[invalid] = np.nan
+        dec[invalid] = np.nan
+        if np.all(invalid):
+            if new_figure:
+                raise ValueError('There is no valid coordinates.')
+            return
 
         if header is None:
             header = getattr(map, 'header', None)
