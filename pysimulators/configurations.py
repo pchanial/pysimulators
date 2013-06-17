@@ -6,7 +6,14 @@ from __future__ import division
 import numpy as np
 import time
 import types
-from pyoperators.utils import isscalar, strelapsed, strenum, strnbytes, strplural
+from pyoperators.utils import (
+    ifirst,
+    isscalar,
+    strelapsed,
+    strenum,
+    strnbytes,
+    strplural,
+)
 from pyoperators.utils.mpi import MPI
 
 from .instruments import Instrument
@@ -356,8 +363,8 @@ class Configuration(object):
             **keywords,
         )
 
-        mask = ~self.pointing.removed & ~self.pointing.masked
-        if np.max(mask) == 0:
+        valid = ~self.pointing.removed & ~self.pointing.masked
+        if np.max(valid) == 0:
             return
 
         for s in self.block[1:]:
@@ -365,13 +372,10 @@ class Configuration(object):
                 header=header, new_figure=False, **keywords
             )
         if instrument:
-            first = 0
-            while not mask[first]:
-                first += 1
-            transform = lambda x: self.instrument.instrument2xy(
-                x, self.pointing[first], header
-            )
-            self.instrument.plot(transform, autoscale=map is None)
+            p = self.pointing[ifirst(valid, True)]
+            t = self.instrument.toobject
+            f = lambda x: self.instrument._instrument2xy(t(x), p, header) + 1
+            self.instrument.plot(f, autoscale=False)
 
         return annim
 
