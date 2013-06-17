@@ -436,14 +436,12 @@ class Quantity(np.ndarray):
         Return the item described by the key.
 
         """
-        item = np.ndarray.__getitem__(self, key)
-        if not isinstance(item, Quantity):
-            item = Quantity(item, self._unit, self._derived_units, copy=False)
         if key is Ellipsis:
-            return item
+            return self
 
-        if isinstance(key, np.ndarray):
-            return item
+        item = np.ndarray.__getitem__(self, key)
+        if not isinstance(item, np.ndarray):
+            item = Quantity(item, self._unit, self._derived_units, copy=False)
 
         if isinstance(key, list):
             key = tuple(key)
