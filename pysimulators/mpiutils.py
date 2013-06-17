@@ -48,8 +48,8 @@ def gather_fitsheader_if_needed(header, comm=MPI.COMM_WORLD):
     if comm.size == 1:
         return header
     if not has_wcs(header):
-        raise ValueError('The input FITS header does not define a world coordin'
-                         'ate system.')
+        raise ValueError('The input FITS header does not define a world coordi'
+                         'nate system.')
     naxis = header['NAXIS']
     required_same = ['CRVAL1', 'CRVAL2', 'CRTYPE1', 'CRTYPE2',
                      'CDELT1', 'CDELT2']
@@ -61,9 +61,9 @@ def gather_fitsheader_if_needed(header, comm=MPI.COMM_WORLD):
             continue
         values = [h[keyword] for h in headers]
         if any(v != headers[0][keyword] for v in values):
-            raise ValueError("The FITS keyword '{0}' has different values acros"
-                             "s MPI processes: {1}".format(keyword, values))
-    
+            raise ValueError("The FITS keyword '{0}' has different values acro"
+                             "ss MPI processes: {1}".format(keyword, values))
+
     keyword = 'CRPIX' + str(naxis)
     if all(h[keyword] == headers[0][keyword] for h in headers):
         return header
@@ -83,15 +83,14 @@ def scatter_fitsheader(header, comm=MPI.COMM_WORLD):
     s = distribute_slice(nglobal, comm=comm)
     header = header.copy()
     header['NAXIS' + axis] = s.stop - s.start
-    if 'CRPIX' + axis  in header:
+    if 'CRPIX' + axis in header:
         header['CRPIX' + axis] -= s.start
     return header
 
 
 def distribute_observation(detectors, observations, rank=None,
                            comm=MPI.COMM_WORLD):
-    
-    size  = comm.Get_size()
+    size = comm.size
     if size == 1:
         return detectors.copy(), list(observations)
 
@@ -128,14 +127,14 @@ def distribute_observation(detectors, observations, rank=None,
         blocksize += 1
 
     ix = rank // ny_block
-    iy = rank %  ny_block
+    iy = rank % ny_block
 
     # check that the processor has something to do
     if ix >= nx_block:
-        idetector = slice(0,0)
-        iobservation = slice(0,0)
+        idetector = slice(0, 0)
+        iobservation = slice(0, 0)
     else:
-        idetector    = slice(iy * yblocksize * nthreads, (iy+1) * yblocksize * \
+        idetector    = slice(iy * yblocksize * nthreads, (iy+1) * yblocksize *
                              nthreads)
         iobservation = slice(ix * xblocksize, (ix+1) * xblocksize)
 
@@ -146,9 +145,6 @@ def distribute_observation(detectors, observations, rank=None,
     observations_ = observations[iobservation]
 
     return detectors_, observations_
-
-
-#-------------------------------------------------------------------------------
 
 
 def read_fits(filename, extname, comm):
@@ -208,9 +204,6 @@ def read_fits(filename, extname, comm):
     return output, header
 
 
-#-------------------------------------------------------------------------------
-
-
 def write_fits(filename, data, header, extension, extname, comm):
     """
     Collectively write local arrays into a single FITS file.
@@ -231,10 +224,10 @@ def write_fits(filename, data, header, extension, extname, comm):
         The FITS extension name. Use None to write the primary HDU.
     comm : mpi4py.Comm
         The MPI communicator of the local arrays. Use MPI.COMM_SELF if the data
-        are not meant to be combined into a global array. Make sure that the MPI
-        processes are not executing this routine with the same file name.
-    """
+        are not meant to be combined into a global array. Make sure that the
+        MPI processes are not executing this routine with the same file name.
 
+    """
     # check if the file name is the same for all MPI jobs
     files = comm.allgather(filename+str(extname))
     all_equal = all(f == files[0] for f in files)
@@ -242,8 +235,8 @@ def write_fits(filename, data, header, extension, extname, comm):
         raise ValueError('The file name is not the same for all MPI jobs.')
     ndims = comm.allgather(data.ndim)
     if any(n != ndims[0] for n in ndims):
-        raise ValueError("The arrays have an incompatible number of dimensions:"
-                         " '{0}'.".format(', '.join(str(n) for n in ndims)))
+        raise ValueError("The arrays have an incompatible number of dimensions"
+                         ": '{0}'.".format(', '.join(str(n) for n in ndims)))
     ndim = ndims[0]
     shapes = comm.allgather(data.shape)
     if any(s[1:] != shapes[0][1:] for s in shapes):
@@ -280,11 +273,12 @@ def write_fits(filename, data, header, extension, extname, comm):
     s = distribute_slice(nglobal)
     nlocal = s.stop - s.start
     if data.shape[0] != nlocal:
-        raise ValueError("On rank {}, the local array shape '{}' is invalid. Th"
-            "e first dimension does not match the expected local number '{}' gi"
-            "ven the global number '{}'.{}".format(comm.rank, data.shape,
-            nlocal, nglobal, '' if comm.rank > 0 else ' Shapes are: {}.'.format(
-            shapes)))
+        raise ValueError("On rank {}, the local array shape '{}' is invalid. T"
+                         "he first dimension does not match the expected local"
+                         " number '{}' given the global number '{}'.{}".format(
+                         comm.rank, data.shape, nlocal, nglobal, ''
+                         if comm.rank > 0 else ' Shapes are: {}.'.format(
+                         shapes)))
 
     # write FITS header
     if comm.rank == 0:
@@ -334,4 +328,3 @@ def write_fits(filename, data, header, extension, extname, comm):
             f.write(padding * '\0')
 
     comm.Barrier()
-

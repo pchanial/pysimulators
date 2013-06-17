@@ -6,8 +6,8 @@ from __future__ import division
 import numpy as np
 import time
 import types
-from pyoperators.utils import (ifirst, isscalar, strelapsed, strenum, strnbytes,
-                               strplural)
+from pyoperators.utils import (ifirst, isscalar, strelapsed, strenum,
+                               strnbytes, strplural)
 from pyoperators.utils.mpi import MPI
 
 from .instruments import Instrument
@@ -15,6 +15,7 @@ from .pointings import POINTING_DTYPE, Pointing
 from .wcsutils import create_fitsheader
 
 __all__ = ['Configuration', 'MaskPolicy']
+
 
 class Configuration(object):
     """
@@ -77,8 +78,9 @@ class Configuration(object):
         self.block = self._get_block(pointing, block_id)
 
     def __str__(self):
-        return 'Pointings:\n    {} in {}\n\n'.format(self.get_nsamples(),
-               strplural(len(self.block), 'block')) +  str(self.instrument)
+        return 'Pointings:\n    {} in {}\n\n'.format(
+            self.get_nsamples(), strplural(len(self.block), 'block')) + \
+            str(self.instrument)
 
     __repr__ = __str__
 
@@ -100,18 +102,21 @@ class Configuration(object):
         Parameters
         ----------
         resolution : float
-            Sky pixel increment, in arc seconds. Default is .default_resolution.
+            Sky pixel increment, in arc seconds. The default value is set
+            in Configuration's __init__ method through the default_resolution
+            keyword.
 
         Returns
         -------
         header : pyfits.Header
             The resulting FITS header.
+
         """
         return self.instrument.get_map_header(self.pointing,
                                               resolution=resolution)
 
     def get_pointing_matrix(self, header, npixels_per_sample=0, method=None,
-                            downsampling=False, section=None, 
+                            downsampling=False, section=None,
                             comm=MPI.COMM_WORLD, **keywords):
         """
         Return the pointing matrix for the configuration.
@@ -158,12 +163,13 @@ class Configuration(object):
                 else:
                     n = max(p.info['npixels_per_sample_min'] for p in pmatrix)
                     if npixels_per_sample == 0 or npixels_per_sample != n:
-                        info += ["set keyword 'npixels_per_sample' to {0} for b"
-                                 "etter performances".format(n)]
+                        info += ["set keyword 'npixels_per_sample' to {0} for "
+                                 "better performances".format(n)]
                     outside = any(p.info['outside'] for p in pmatrix
                                   if 'outside' in p.info)
                     if outside:
-                        info += ['warning, some detectors fall outside the map']
+                        info += ['warning, some detectors fall outside the '
+                                 'map']
                 print(strelapsed(time0, 'Computing the projector') + ' ({0})'.
                       format(', '.join(info)))
                 if len(pmatrix) == 1:
@@ -175,9 +181,9 @@ class Configuration(object):
             if not isinstance(section, slice):
                 section = slice(section.start, section.stop)
             pointing = self.pointing[section]
-        result = self.instrument.get_pointing_matrix(pointing, header,
-                     npixels_per_sample, method, downsampling, comm=comm,
-                     **keywords)
+        result = self.instrument.get_pointing_matrix(
+            pointing, header, npixels_per_sample, method, downsampling,
+            comm=comm, **keywords)
         result.info.update(keywords)
         return result
 
@@ -186,7 +192,7 @@ class Configuration(object):
         Return the number of valid pointings for each block
         They are those for which self.pointing.removed is False
         """
-        return tuple([int(np.sum(~self.pointing[s.start:s.stop].removed)) \
+        return tuple([int(np.sum(~self.pointing[s.start:s.stop].removed))
                       for s in self.block])
 
     def pack(self, x, masked=False):
@@ -202,10 +208,7 @@ class Configuration(object):
                     acceleration, nlegs=3, angle=0., instrument_angle=45,
                     cross_scan=True, dtype=POINTING_DTYPE):
         """
-        Return a sky scan.
-
-        The output is a Pointing instance that can be handed to the Configuration
-        constructor.
+        Return a sky scan as a Pointing array.
 
         Parameters
         ----------
@@ -241,11 +244,11 @@ class Configuration(object):
             cross = _create_scan(center, length, step, sampling_period, speed,
                                  acceleration, nlegs, angle + 90, dtype)
             cross.time += scan.time[-1] + sampling_period
-            scan, scan.header = Pointing((np.hstack([scan.ra, cross.ra]),
-                                          np.hstack([scan.dec, cross.dec]), 0.),
-                                         np.hstack([scan.time, cross.time]),
-                                         info=np.hstack([scan.info,cross.info]),
-                                         dtype=dtype), scan.header
+            scan = Pointing((np.hstack([scan.ra, cross.ra]),
+                             np.hstack([scan.dec, cross.dec]), 0),
+                            np.hstack([scan.time, cross.time]),
+                            info=np.hstack([scan.info, cross.info]),
+                            dtype=dtype, header=scan.header)
 
         scan.pa = angle + instrument_angle
         scan.header.update('HIERARCH instrument_angle', instrument_angle)
@@ -278,7 +281,7 @@ class Configuration(object):
         valid = ~self.pointing.removed & ~self.pointing.masked
         if np.max(valid) == 0:
             return
-        
+
         for s in self.block[1:]:
             self.pointing[s.start:s.stop].plot(header=header, new_figure=False,
                                                **keywords)
@@ -295,13 +298,15 @@ class Configuration(object):
         npointings = [p.shape[0] for p in pointing]
         start = np.concatenate([[0], np.cumsum(npointings)[:-1]])
         stop = np.cumsum(npointings)
-        block = np.recarray(len(pointing), dtype=[('start', int), ('stop', int),
-                                                  ('n', int), ('id', 'S29')])
+        block = np.recarray(len(pointing),
+                            dtype=[('start', int), ('stop', int),
+                                   ('n', int), ('id', 'S29')])
         block.n = npointings
         block.start = start
         block.stop = stop
         block.identifier = block_id if block_id is not None else ''
         return block
+
 
 def _create_scan(center, length, step, sampling_period, speed, acceleration,
                  nlegs, angle, dtype):
@@ -309,8 +314,8 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
     compute the pointing timeline of the instrument reference point
     from the description of a scan map
     Authors: R. Gastaud, P. Chanial
+
     """
-    
     ra0, dec0 = center
 
     length = float(length)
@@ -318,13 +323,13 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
         raise ValueError('Input length must be strictly positive.')
 
     step = float(step)
-    if step <= 0: 
+    if step <= 0:
         raise ValueError('Input step must be strictly positive.')
 
     sampling_period = float(sampling_period)
     if sampling_period <= 0:
         raise ValueError('Input sampling_period must be strictly positive.')
-    
+
     speed = float(speed)
     if speed <= 0:
         raise ValueError('Input speed must be strictly positive.')
@@ -336,22 +341,21 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
     nlegs = int(nlegs)
     if nlegs <= 0:
         raise ValueError('Input nlegs must be strictly positive.')
-    
+
     # compute the different times and the total number of points
     # acceleration time at the beginning of a leg, and deceleration time
     # at the end
     # The time needed to turn around is 2 * (extra_time1 + extra_time2)
     extra_time1 = speed / acceleration
-    # corresponding length 
+    # corresponding length
     extralength = 0.5 * acceleration * extra_time1 * extra_time1
-    # Time needed to go from a scan line to the next 
+    # Time needed to go from a scan line to the next
     extra_time2 = np.sqrt(step / acceleration)
 
     # Time needed to go along the scanline at constant speed
     line_time = length / speed
     # Total time for a scanline
-    full_line_time = extra_time1 + line_time + extra_time1 + extra_time2 + \
-                     extra_time2
+    full_line_time = extra_time1 + line_time + extra_time1 + 2 * extra_time2
     # Total duration of the observation
     total_time = full_line_time * nlegs - 2 * extra_time2
 
@@ -367,7 +371,7 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
 
     # Start of computations, alpha and delta are the longitude and
     # latitide in arc seconds in the referential of the map.
-    signe = 1
+    sign = 1
     delta = -extralength - length/2
     alpha = -step * (nlegs-1)/2
     alpha0 = alpha
@@ -376,50 +380,50 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
 
     for i in range(nsamples):
         info = 0
-   
+
         # check if new line
         if working_time > full_line_time:
             working_time = working_time - full_line_time
-            signe = -signe
+            sign = -sign
             line_counter = line_counter + 1
             alpha = -step * (nlegs-1) / 2 + line_counter * step
             alpha0 = alpha
-   
+
         # acceleration at the beginning of a scan line to go from 0 to the
-        # speed. 
+        # speed.
         if working_time < extra_time1:
-            delta = -signe * (extralength + length / 2) + signe * 0.5 * \
+            delta = -sign * (extralength + length / 2) + sign * 0.5 * \
                     acceleration * working_time * working_time
-            info  = Pointing.TURNAROUND
-   
+            info = Pointing.TURNAROUND
+
         # constant speed
-        if working_time >=  extra_time1 and \
+        if working_time >= extra_time1 and \
            working_time < extra_time1 + line_time:
-            delta = signe * (-length / 2 + (working_time - extra_time1) * speed)
-            info  = Pointing.INSCAN
- 
+            delta = sign * (-length / 2 + (working_time - extra_time1) * speed)
+            info = Pointing.INSCAN
+
         # Deceleration at then end of the scanline to stop
         if working_time >= extra_time1 + line_time and \
            working_time < extra_time1 + line_time + extra_time1:
             dt = working_time - extra_time1 - line_time
-            delta = signe * (length / 2 + speed * dt - \
-                    0.5 * acceleration * dt * dt)
-            info  = Pointing.TURNAROUND
-  
+            delta = sign * (length / 2 + speed * dt -
+                    0.5 * acceleration * dt**2)
+            info = Pointing.TURNAROUND
+
         # Acceleration to go toward the next scan line
         if working_time >= 2 * extra_time1 + line_time and \
            working_time < 2 * extra_time1 + line_time + extra_time2:
             dt = working_time - 2 * extra_time1 - line_time
-            alpha = alpha0 + 0.5 * acceleration * dt * dt
-            info  = Pointing.TURNAROUND
-   
+            alpha = alpha0 + 0.5 * acceleration * dt**2
+            info = Pointing.TURNAROUND
+
         # Deceleration to stop at the next scan line
         if working_time >= 2 * extra_time1 + line_time + extra_time2 and \
            working_time < full_line_time:
             dt = working_time - 2 * extra_time1 - line_time - extra_time2
             alpha = (alpha0 + step / 2) + acceleration * extra_time2 * dt - \
-                    0.5 * acceleration * dt * dt
-            info  = Pointing.TURNAROUND
+                    0.5 * acceleration * dt**2
+            info = Pointing.TURNAROUND
 
         time[i] = i * sampling_period
         infos[i] = info
@@ -445,6 +449,7 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
     scan.header = header
     return scan
 
+
 def _change_coord(ra0, dec0, pa0, lon, lat):
     """
     Transforms the longitude and latitude coordinates expressed in the
@@ -456,7 +461,7 @@ def _change_coord(ra0, dec0, pa0, lon, lat):
 
     # Arguments in radian
     lambd = deg2rad(lon)
-    beta  = deg2rad(lat) 
+    beta  = deg2rad(lat)
     alpha = deg2rad(ra0)
     delta = deg2rad(dec0)
     eps   = deg2rad(pa0)
@@ -466,11 +471,11 @@ def _change_coord(ra0, dec0, pa0, lon, lat):
     y4 = sin(lambd)*cos(beta)
     x4 = cos(lambd)*cos(beta)
 
-    # rotation about the x4 axe of -eps 
+    # rotation about the x4 axe of -eps
     x3 =  x4
     y3 =  y4*cos(eps) + z4*sin(eps)
     z3 = -y4*sin(eps) + z4*cos(eps)
-    
+
     # rotation about the axis Oy2, angle delta
     x2 = x3*cos(delta) - z3*sin(delta)
     y2 = y3
@@ -488,10 +493,12 @@ def _change_coord(ra0, dec0, pa0, lon, lat):
 
     return ra, dec
 
+
 class MaskPolicy(object):
     KEEP   = 0
     MASK   = 1
     REMOVE = 2
+
     def __init__(self, flags, values, description=None):
         self._description = description
         if isscalar(flags):
@@ -505,28 +512,28 @@ class MaskPolicy(object):
             else:
                 values = (values,)
         if len(flags) != len(values):
-            raise ValueError('The number of policy flags is different from th' \
-                             'e number of policies.')
+            raise ValueError('The number of policy flags is different from the'
+                             ' number of policies.')
 
         self._policy = []
         for flag, value in zip(flags, values):
             if flag[0] == '_':
-                raise ValueError('A policy flag should not start with an unde' \
-                                 'rscore.')
+                raise ValueError('A policy flag should not start with an under'
+                                 'score.')
             value = value.strip().lower()
             choices = ('keep', 'mask', 'remove')
             if value not in choices:
-                raise KeyError('Invalid policy ' + flag + "='" + value + \
-                    "'. Expected policies are " + strenum(choices) + '.')
-            self._policy.append({flag:value})
+                raise KeyError('Invalid policy ' + flag + "='" + value + "'. E"
+                               "xpected ones are " + strenum(choices) + '.')
+            self._policy.append({flag: value})
             setattr(self, flag, value)
         self._policy = tuple(self._policy)
 
     def __array__(self, dtype=int):
-        conversion = { 'keep' : self.KEEP,
-                       'mask' : self.MASK,
-                       'remove' : self.REMOVE }
-        return np.array([conversion[policy.values()[0]] \
+        conversion = {'keep': self.KEEP,
+                      'mask': self.MASK,
+                      'remove': self.REMOVE}
+        return np.array([conversion[policy.values()[0]]
                          for policy in self._policy], dtype=dtype)
 
     def __str__(self):

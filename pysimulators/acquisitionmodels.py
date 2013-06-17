@@ -8,10 +8,9 @@ import operator
 import pyoperators
 import scipy.constants
 
-from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
-                         CompositionOperator, DiagonalOperator,
-                         DiagonalNumexprOperator, MultiplicationOperator,
-                         NumexprOperator)
+from pyoperators import (Operator, BlockDiagonalOperator, CompositionOperator,
+                         DiagonalOperator, DiagonalNumexprOperator,
+                         MultiplicationOperator)
 from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty
 from pyoperators.utils import (isscalar, operation_assignment, product,
@@ -26,10 +25,11 @@ __all__ = [
     'BlackBodyOperator',
     'PointingMatrix',
     'PowerLawOperator',
-    'ProjectionInMemoryOperator', 
+    'ProjectionInMemoryOperator',
     'ProjectionOnFlyOperator',
     'RollOperator',
 ]
+
 
 def block_diagonal(*partition_args, **keywords):
     """
@@ -38,7 +38,7 @@ def block_diagonal(*partition_args, **keywords):
 
     Subclasses can also benefit from a decorated class, as long as they do not
     define an __init__ method.
-    
+
     Parameters
     ----------
     axisin : int
@@ -60,7 +60,7 @@ def block_diagonal(*partition_args, **keywords):
     >>>         Operator.__init__(self, lambda i,o: np.multiply(i,value,o),
     >>>                           shapein=shapein)
     >>>
-    >>> op = MyOp([1,2,3], shapein=3, partitionin=(1,1,1))
+    >>> op = MyOp([1, 2, 3], shapein=3, partitionin=(1, 1, 1))
     >>> op.todense()
     array([[ 1.,  0.,  0.],
            [ 0.,  2.,  0.],
@@ -68,10 +68,10 @@ def block_diagonal(*partition_args, **keywords):
 
     >>> [o.value for o in op.operands]
     [1, 2, 3]
-        
+
     """
-    # the following way to extract keywords is unnecessary in Python3 (PEP 3102)
-    if 'axisin' not in keywords and 'new_axisin' not in keywords: 
+    # the following way to extract keywords is unnecessary in Python3 (PEP3102)
+    if 'axisin' not in keywords and 'new_axisin' not in keywords:
         raise TypeError("Missing 'axisin' or 'new_axisin' keyword.")
 
     if 'axisin' in keywords:
@@ -105,15 +105,15 @@ def block_diagonal(*partition_args, **keywords):
             class_args.pop(0)
 
             # get number of blocks through the arguments
-            ns = [0 if isscalar(a) else len(a) for i,a in enumerate(args) \
+            ns = [0 if isscalar(a) else len(a) for i, a in enumerate(args)
                   if class_args[i] in partition_args] + \
-                 [0 if isscalar(v) else len(v) for k,v in keywords.items() \
+                 [0 if isscalar(v) else len(v) for k, v in keywords.items()
                   if k in partition_args]
 
             n2 = 0 if len(ns) == 0 else max(ns)
             if any(n not in (0, n2) for n in ns):
-                raise ValueError('The partition variables do not have the same '
-                                 'number of elements.')
+                raise ValueError('The partition variables do not have the same'
+                                 ' number of elements.')
 
             # bail if no partitioning is found
             n = max(n1, n2)
@@ -123,8 +123,9 @@ def block_diagonal(*partition_args, **keywords):
 
             # check the two methods are compatible
             if n1 != 0 and n2 != 0 and n1 != n2:
-                raise ValueError('The specified partitioning is incompatible wi'
-                    'th the number of elements in the partition variables.')
+                raise ValueError('The specified partitioning is incompatible w'
+                                 'ith the number of elements in the partition '
+                                 'variables.')
 
             # Implicit partition
             if partitionin is None:
@@ -135,15 +136,15 @@ def block_diagonal(*partition_args, **keywords):
 
             # dispatch arguments
             n = len(partitionin)
-            argss = tuple(tuple(a[i] if class_args[j] in partition_args and \
-                not isscalar(a) else a for j,a in enumerate(args)) \
-                for i in range(n))
-            keyss = tuple(dict((k, v[i]) if k in partition_args and \
-                not isscalar(v) else (k,v) for k,v in keywords.items()) \
-                for i in range(n))
-            
+            argss = tuple(tuple(a[i] if class_args[j] in partition_args and
+                          not isscalar(a) else a for j, a in enumerate(args))
+                          for i in range(n))
+            keyss = tuple(dict((k, v[i]) if k in partition_args and not
+                          isscalar(v) else (k, v) for k, v in keywords.items())
+                          for i in range(n))
+
             # the input shapein/out describe the BlockDiagonalOperator
-            def _reshape(s, p, a, na):
+            def reshape(s, p, a, na):
                 s = list(tointtuple(s))
                 if a is not None:
                     s[a] = p
@@ -154,14 +155,15 @@ def block_diagonal(*partition_args, **keywords):
             if 'shapein' in keywords:
                 shapein = keywords['shapein']
                 for keys, p in zip(keyss, partitionin):
-                    keys['shapein'] = _reshape(shapein, p, axisin, new_axisin)
+                    keys['shapein'] = reshape(shapein, p, axisin, new_axisin)
             if 'shapeout' in keywords:
                 shapeout = keywords['shapeout']
                 for keys, p in zip(keyss, partitionin):
-                    keys['shapeout'] = _reshape(shapeout, p, axisin, new_axisin)
+                    keys['shapeout'] = reshape(shapeout, p, axisin, new_axisin)
 
             # instantiate the partitioned operators
-            ops = [cls.__new__(type(self), *a, **k) for a,k in zip(argss,keyss)]
+            ops = [cls.__new__(type(self), *a, **k) for a, k in
+                   zip(argss, keyss)]
             for o, a, k in zip(ops, argss, keyss):
                 if isinstance(o, cls):
                     cls.__init_original__(o, *a, **k)
@@ -193,7 +195,8 @@ class BlackBodyOperator(DiagonalOperator):
 
     Example
     -------
-    Given T a temperature map:
+    >>> from pysimulators import gaussian
+    >>> T = gaussian((128, 128), sigma=32)  # Temperature map
     >>> ws = np.arange(90, 111) * 1e-6
     >>> bb = [BlackBodyOperator(T, wavelength=w, wavelength0=100e-6)
               for w in ws]
@@ -226,11 +229,11 @@ class BlackBodyOperator(DiagonalOperator):
         """
         temperature = np.asarray(temperature, float)
         if frequency is None and wavelength is None:
-            raise ValueError('The operating frequency or wavelength is not spec'
-                             'ified.')
+            raise ValueError('The operating frequency or wavelength is not spe'
+                             'cified.')
         if frequency0 is None and wavelength0 is None:
-            raise ValueError('The reference frequency or wavelength is not spec'
-                             'ified.')
+            raise ValueError('The reference frequency or wavelength is not spe'
+                             'cified.')
         if frequency is not None and wavelength is not None:
             raise ValueError('Ambiguous operating frequency / wavelength.')
         if frequency0 is not None and wavelength0 is not None:
@@ -245,19 +248,19 @@ class BlackBodyOperator(DiagonalOperator):
         else:
             nu = c / np.asarray(wavelength, float)
         if nu.ndim != 0:
-            raise TypeError('The operating frequency or wavelength is not a sca'
-                            'lar.')
+            raise TypeError('The operating frequency or wavelength is not a sc'
+                            'alar.')
         if frequency0 is not None:
             nu0 = np.asarray(frequency0, float)
         else:
             nu0 = c / np.asarray(wavelength0, float)
         if nu.ndim != 0:
-            raise TypeError('The operating frequency or wavelength is not a sca'
-                            'lar.')
+            raise TypeError('The operating frequency or wavelength is not a sc'
+                            'alar.')
         beta = float(beta)
         data = (nu / nu0)**(3 + beta) * \
-               np.expm1(h * nu0 / (k * temperature)) / \
-               np.expm1(h * nu  / (k * temperature))
+            np.expm1(h * nu0 / (k * temperature)) / \
+            np.expm1(h * nu / (k * temperature))
         DiagonalOperator.__init__(self, data, **keywords)
         self.temperature = temperature
         self.beta = beta
@@ -312,7 +315,7 @@ class PowerLawOperator(DiagonalNumexprOperator):
             raise TypeError('The scalar coefficient is not a scalar.')
         if 'dtype' not in keywords:
             keywords['dtype'] = float
-        global_dict = {'x':x, 'x0':x0, 's':scalar}
+        global_dict = {'x': x, 'x0': x0, 's': scalar}
         DiagonalNumexprOperator.__init__(self, alpha, 's * (x / x0) ** alpha',
                                          global_dict, var='alpha', **keywords)
         self.x = x
@@ -325,14 +328,16 @@ class PowerLawOperator(DiagonalNumexprOperator):
                       'scalar' else None, MultiplicationOperator)
 
     @staticmethod
-    def _rule_block(self, op, shape, partition, axis, new_axis, func_operation):
-        return DiagonalOperator._rule_block(self, op, shape, partition, axis,
-                   new_axis, func_operation, self.x, self.x0, scalar=
-                   self.scalar)
+    def _rule_block(self, op, shape, partition, axis, new_axis,
+                    func_operation):
+        return DiagonalOperator._rule_block(
+            self, op, shape, partition, axis, new_axis, func_operation,
+            self.x, self.x0, scalar=self.scalar)
 
 
 class PointingMatrix(np.ndarray):
     DTYPE = np.dtype([('value', np.float32), ('index', np.int32)])
+
     def __new__(cls, array, shape_input, info=None, copy=True, ndmin=0):
         result = np.array(array, copy=copy, ndmin=ndmin).view(cls)
         result.info = info
@@ -374,8 +379,9 @@ class PointingMatrix(np.ndarray):
             npixels = product(fitsheader2shape(self.info['header']))
         elif npixels is None:
             raise ValueError('The number of map pixels is not specified.')
-        result = flib.pointingmatrix.isvalid(self.ravel().view(np.int64),
-                     self.shape[-1], product(self.shape[:-1]), npixels)
+        result = flib.pointingmatrix.isvalid(
+            self.ravel().view(np.int64), self.shape[-1],
+            product(self.shape[:-1]), npixels)
         return bool(result)
 
     def pack(self, mask):
@@ -399,8 +405,8 @@ class PointingMatrix(np.ndarray):
         elif out.dtype != bool:
             raise TypeError('The output mask argument has an invalid type.')
         elif out.shape != self.shape_input:
-            raise ValueError('The output mask argument has an incompatible shap'
-                             'e.')
+            raise ValueError('The output mask argument has an incompatible sha'
+                             'pe.')
         if self.size == 0:
             return out
         flib.pointingmatrix.mask(self.ravel().view(np.int64), out.view(
@@ -498,24 +504,25 @@ class ProjectionBaseOperator(Operator):
         matrix = self.matrix
         npixels = product(matrix.shape_input)
         if out is None:
-            out = empty((npixels,npixels), bool, description='for pTp array')
+            out = empty((npixels, npixels), bool, description='for pTp array')
             out[...] = 0
         elif out.dtype != np.bool8:
             raise TypeError('The output ptp argument has an invalid type.')
         elif out.shape != (npixels, npixels):
-            raise ValueError('The output ptp argument has an incompatible shape'
-                             '.')
+            raise ValueError('The output ptp argument has an incompatible shap'
+                             'e.')
         if matrix.size == 0:
             return out
         flib.pointingmatrix.ptp(matrix.ravel().view(np.int64), out.T,
-            matrix.shape[-1], matrix.size // matrix.shape[-1], npixels)
+                                matrix.shape[-1],
+                                matrix.size // matrix.shape[-1], npixels)
         return out
 
     def get_pTx_pT1(self, x, out=None, mask=None):
         """
         Return a tuple of two arrays: the transpose of the projection
-        applied over the input and over one. In other words, it returns the back
-        projection of the input and its coverage.
+        applied over the input and over one. In other words, it returns
+        the back projection of the input and its coverage.
 
         """
         matrix = self.matrix
@@ -553,14 +560,14 @@ class ProjectionBaseOperator(Operator):
         if f is not None:
             out = f(matrix_, index, shape[-1], shape[-2], shape[-3])
         elif axis is None:
-            out = flib.pointingmatrix.intersects(matrix_, index, shape[-1],
-                      shape[-2], shape[-3])
+            out = flib.pointingmatrix.intersects(
+                matrix_, index, shape[-1], shape[-2], shape[-3])
         elif axis == 0 or axis == -3:
-            out = flib.pointingmatrix.intersects_axis3(matrix_, index,
-                      shape[-1], shape[-2], shape[-3])
+            out = flib.pointingmatrix.intersects_axis3(
+                matrix_, index, shape[-1], shape[-2], shape[-3])
         elif axis == 1 or axis == -2:
-            out = flib.pointingmatrix.intersects_axis2(matrix_, index,
-                      shape[-1], shape[-2], shape[-3])
+            out = flib.pointingmatrix.intersects_axis2(
+                matrix_, index, shape[-1], shape[-2], shape[-3])
         else:
             raise ValueError('Invalid axis.')
 
@@ -610,8 +617,9 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
             derived_units = matrix.info.get('derived_units', None)
 
         ProjectionBaseOperator.__init__(self, shapein=shapein,
-            shapeout=shapeout, units=units, derived_units=derived_units,
-            **keywords)
+                                        shapeout=shapeout, units=units,
+                                        derived_units=derived_units,
+                                        **keywords)
         self.matrix = matrix
         self.set_rule('.T.', self._rule_ptp, CompositionOperator)
         self.set_rule('{DiagonalOperator}.', self._rule_diagonal,
@@ -621,8 +629,9 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         mask = np.asarray(mask, np.bool8)
         matrix = self.matrix
         if mask.shape != self.shapeout:
-            raise ValueError("The mask shape '{0}' is incompatible with that of"
-                " the pointing matrix '{1}'.".format(mask.shape, matrix.shape))
+            raise ValueError("The mask shape '{0}' is incompatible with that o"
+                             "f the pointing matrix '{1}'.".format(mask.shape,
+                             matrix.shape))
         matrix.value.T[...] *= 1 - mask.T
 
     @staticmethod
@@ -684,7 +693,8 @@ class ProjectionOnFlyOperator(ProjectionBaseOperator):
         self.id = id
         self.func = func
         ProjectionBaseOperator.__init__(self, units=units,
-                                        derived_units=derived_units, **keywords)
+                                        derived_units=derived_units,
+                                        **keywords)
 
     @property
     def matrix(self):
@@ -699,7 +709,6 @@ class ProjectionOnFlyOperator(ProjectionBaseOperator):
 @orthogonal
 @inplace
 class RollOperator(Operator):
-    
     def __init__(self, n, axis=None, **keywords):
         Operator.__init__(self, **keywords)
         if axis is None:
@@ -707,8 +716,8 @@ class RollOperator(Operator):
         self.axis = (axis,) if isscalar(axis) else tuple(axis)
         self.n = (n,) * len(self.axis) if isscalar(n) else tuple(n)
         if len(self.axis) != len(self.n):
-            raise ValueError('There is a mismatch between the number of axes an'
-                             'd offsets.')
+            raise ValueError('There is a mismatch between the number of axes a'
+                             'nd offsets.')
 
     def direct(self, input, output):
         output[...] = np.roll(input, self.n[0], axis=self.axis[0])

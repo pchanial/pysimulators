@@ -19,7 +19,7 @@ from pyoperators.decorators import real, square, inplace
 from pyoperators.utils import isscalar, operation_assignment
 from . import _flib as flib
 
-__all__ = [ 
+__all__ = [
     'angle_lonlat',
     'barycenter_lonlat',
     'create_fitsheader',
@@ -35,6 +35,7 @@ __all__ = [
 # See https://github.com/astropy/astropy/issues/976
 ASTROPY_WCS_NDIM_IS_2 = True
 
+
 def angle_lonlat(lon1, lat1, lon2=None, lat2=None):
     """
     Returns the angle between vectors on the celestial sphere in degrees.
@@ -48,10 +49,12 @@ def angle_lonlat(lon1, lat1, lon2=None, lat2=None):
 
     Example
     -------
-    >>> angle_lonlat((ra1,dec1), (ra2,dec2))
+    >>> ra1, dec1 = 30, 70
+    >>> ra2, dec2 = 30.5, 70.5
+    >>> angle_lonlat((ra1, dec1), (ra2, dec2))
     >>> angle_lonlat(ra1, dec1, ra2, dec2)
-    """
 
+    """
     if lon2 is None and lat2 is None:
         lon2, lat2 = lat1
         lon1, lat1 = lon1
@@ -63,9 +66,6 @@ def angle_lonlat(lon1, lat1, lon2=None, lat2=None):
     if angle.size == 1:
         angle = float(angle)
     return angle
-
-
-#-------------------------------------------------------------------------------
 
 
 def barycenter_lonlat(lon, lat):
@@ -84,9 +84,6 @@ def barycenter_lonlat(lon, lat):
     return flib.wcsutils.barycenter_lonlat(lon, lat)
 
 
-#-------------------------------------------------------------------------------
-
-
 def combine_fitsheader(headers, cdelt=None, pa=None):
     """
     Returns a FITS header which encompasses all input headers.
@@ -100,7 +97,7 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
         Physical increment at the reference pixel. Default is the lowest
         header cdelt.
     pa : float
-        Position angle of the Y=AXIS2 axis (=-CROTA2). Default is the mean 
+        Position angle of the Y=AXIS2 axis (=-CROTA2). Default is the mean
         header pa.
     """
 
@@ -119,14 +116,15 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
         cdeltpa = [get_cdelt_pa(h) for h in headers]
 
     if cdelt is None:
-        cdelt = min([np.min(abs(cdelt)) for cdelt, pa in cdeltpa])
+        cdelt = min([np.min(abs(cdelt_)) for cdelt_, pa_ in cdeltpa])
 
     if pa is None:
-        pa = flib.wcsutils.mean_degrees(np.array([pa for cdelt, pa in cdeltpa]))
+        pa = flib.wcsutils.mean_degrees(
+            np.array([pa_ for cdelt_, pa_ in cdeltpa]))
 
     # first, create the combined header with a single pixel centred on the
     # reference coordinates, with correct orientation and cdelt
-    header0 = create_fitsheader((1,1), cdelt=cdelt, pa=pa, crpix=(1,1),
+    header0 = create_fitsheader((1, 1), cdelt=cdelt, pa=pa, crpix=(1, 1),
                                 crval=crval)
 
     # then, 'enlarge' it to make it fit the edges of each header
@@ -136,8 +134,8 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
         p = WCS(h)
         nx = h['NAXIS1']
         ny = h['NAXIS2']
-        x  = h['CRPIX1']
-        y  = h['CRPIX2']
+        x = h['CRPIX1']
+        y = h['CRPIX2']
         edges = p.wcs_pix2world(
             [0.5, x, nx+0.5, 0.5, x, nx+0.5, 0.5, x, nx+0.5],
             [0.5, 0.5, 0.5, y, y, y, ny+0.5, ny+0.5, ny+0.5], 1)
@@ -156,13 +154,10 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
     return header0
 
 
-#-------------------------------------------------------------------------------
-
-
 def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
-                      crval=(0.,0.), crpix=None, ctype=('RA---TAN','DEC--TAN'),
-                      cunit='deg', cd=None, cdelt=None, pa=None, radesys='ICRS',
-                      equinox=None):
+                      crval=(0, 0), crpix=None, cunit='deg',
+                      ctype=('RA---TAN', 'DEC--TAN'), cd=None, cdelt=None,
+                      pa=None, radesys='ICRS', equinox=None):
     """
     Helper to create a FITS header.
 
@@ -200,15 +195,16 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
 
     Example
     -------
-    >>> map = Map.ones((10,100), unit='Jy/pixel')
+    >>> from pysimulators import Map
+    >>> map = Map.ones((10, 100), unit='Jy/pixel')
     >>> ny, nx = map.shape
-    >>> map.header = create_fitsheader((nx, ny), cd=[[-1,0],[0,1]])
+    >>> map.header = create_fitsheader((nx, ny), cd=[[-1,0], [0,1]])
 
     """
     if naxes is not None and fromdata is not None or naxes is None and \
        fromdata is None:
-        raise ValueError("Either keyword 'naxes' or 'fromdata' must be specifie"
-                         "d.")
+        raise ValueError(
+            "Either keyword 'naxes' or 'fromdata' must be specified.")
 
     if fromdata is None:
         naxes = np.array(naxes, dtype=int, ndmin=1)
@@ -221,9 +217,9 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
         else:
             typename = 'float64'
     else:
-        print("The keyword 'from_data' in create_fitsheader is deprecated and w"
-              "ill be removed in an upcoming release. Use the function create_f"
-              "itsheader_for instead.")
+        print("The keyword 'from_data' in create_fitsheader is deprecated and "
+              "will be removed in an upcoming release. Use the function create"
+              "_fitsheader_for instead.")
         array = np.array(fromdata, copy=False)
         naxes = tuple(reversed(array.shape))
         if dtype is not None:
@@ -239,7 +235,7 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
 
     header = pyfits.Header()
     if extname is None:
-        header['simple'] = True # primary header
+        header['simple'] = True  # primary header
     else:
         header['xtension'] = ('IMAGE', 'Image extension')
     if typename is not None:
@@ -257,7 +253,7 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
 
     if cd is not None:
         cd = np.asarray(cd, dtype=float)
-        if cd.shape != (2,2):
+        if cd.shape != (2, 2):
             raise ValueError('The CD matrix is not a 2x2 matrix.')
     else:
         if cdelt is None:
@@ -267,9 +263,9 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
             cdelt = np.array([-cdelt, cdelt])
         if pa is None:
             pa = 0.
-        theta=np.deg2rad(-pa)
-        cd = np.diag(cdelt).dot(np.array([[ np.cos(theta), np.sin(theta)],
-                                          [-np.sin(theta), np.cos(theta)]]))
+        theta = np.deg2rad(-pa)
+    cd = np.diag(cdelt).dot(np.array([[np.cos(theta), np.sin(theta)],
+                                      [-np.sin(theta), np.cos(theta)]]))
 
     crval = np.asarray(crval, float)
     if crval.size != 2:
@@ -296,10 +292,10 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
     header['crval2'] = crval[1]
     header['crpix1'] = crpix[0]
     header['crpix2'] = crpix[1]
-    header['cd1_1' ] = cd[0,0]
-    header['cd2_1' ] = cd[1,0]
-    header['cd1_2' ] = cd[0,1]
-    header['cd2_2' ] = cd[1,1]
+    header['cd1_1'] = cd[0, 0]
+    header['cd2_1'] = cd[1, 0]
+    header['cd1_2'] = cd[0, 1]
+    header['cd2_2'] = cd[1, 1]
     header['ctype1'] = ctype[0]
     header['ctype2'] = ctype[1]
     header['cunit1'] = cunit[0]
@@ -309,16 +305,13 @@ def create_fitsheader(naxes=None, dtype=None, fromdata=None, extname=None,
         header['radesys'] = radesys.upper()
 
     if equinox is not None:
-        header['equinox'] =  float(equinox)
+        header['equinox'] = float(equinox)
 
     return header
 
 
-#-------------------------------------------------------------------------------
-
-
-def create_fitsheader_for(data, extname=None, crval=(0.,0.), crpix=None,
-                          ctype=('RA---TAN','DEC--TAN'), cunit='deg', cd=None,
+def create_fitsheader_for(data, extname=None, crval=(0, 0), crpix=None,
+                          ctype=('RA---TAN', 'DEC--TAN'), cunit='deg', cd=None,
                           cdelt=None, pa=None, radesys='ICRS', equinox=None):
     """
     Helper to create a FITS header from an ndarray.
@@ -357,6 +350,7 @@ def create_fitsheader_for(data, extname=None, crval=(0.,0.), crpix=None,
 
     Example
     -------
+    >>> from pysimulators import Map
     >>> map = Map.ones((10,100), unit='Jy/pixel')
     >>> map.header = create_fitsheader_for(map, cd=[[-1,0], [0,1]])
 
@@ -379,15 +373,9 @@ def create_fitsheader_for(data, extname=None, crval=(0.,0.), crpix=None,
                              pa=pa, radesys=radesys, equinox=equinox)
 
 
-#-------------------------------------------------------------------------------
-
-
 def fitsheader2shape(header):
     ndim = header['NAXIS']
-    return tuple(header['NAXIS{0}'.format(i)] for i in range(ndim,0,-1))
-
-
-#-------------------------------------------------------------------------------
+    return tuple(header['NAXIS{0}'.format(i)] for i in range(ndim, 0, -1))
 
 
 def get_cdelt_pa(header):
@@ -405,60 +393,51 @@ def get_cdelt_pa(header):
         Physical increment at the reference pixel.
     pa : float
         Position angle of the Y=AXIS2 axis (=-CROTA2).
+
     """
     try:
         cd = np.array([[header['CD1_1'], header['CD1_2']],
                        [header['CD2_1'], header['CD2_2']]], float)
     except KeyError:
-        if any([not k in header for k in ('CDELT1', 'CDELT2', 'CROTA2')]):
+        if any(not k in header for k in ('CDELT1', 'CDELT2', 'CROTA2')):
             raise KeyError('Header has no astrometry.')
-        return np.array([header['CDELT1'], header['CDELT2']]), -header['CROTA2']
+        return (np.array([header['CDELT1'], header['CDELT2']]),
+                -header['CROTA2'])
 
     det = np.linalg.det(cd)
     sgn = det / np.abs(det)
-    cdelt = np.array([sgn * np.sqrt(cd[0,0]**2 + cd[0,1]**2),
-                      np.sqrt(cd[1,1]**2 + cd[1,0]**2)])
-    pa = -np.arctan2(-cd[1,0], cd[1,1])
+    cdelt = np.array([sgn * np.sqrt(cd[0, 0]**2 + cd[0, 1]**2),
+                      np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)])
+    pa = -np.arctan2(-cd[1, 0], cd[1, 1])
     return cdelt, np.rad2deg(pa)
-    
-
-#-------------------------------------------------------------------------------
 
 
 def has_wcs(header):
     """
-    Returns True is the input FITS header has a defined World Coordinate System.
+    Returns True is the input FITS header has a defined World Coordinate
+    System.
     """
 
     required = 'CRPIX,CRVAL,CTYPE'.split(',')
-    keywords = np.concatenate([(lambda i: [r+str(i+1) for r in required])(i) 
+    keywords = np.concatenate([(lambda i: [r+str(i+1) for r in required])(i)
                                for i in range(header['NAXIS'])])
     return all([k in header for k in keywords])
 
 
-#-------------------------------------------------------------------------------
-
-
 def mean_degrees(array):
     """
-    Returns the mean value of an array of values in degrees, by taking into 
+    Returns the mean value of an array of values in degrees, by taking into
     account the discrepancy at 0 degree
     """
     return flib.wcsutils.mean_degrees(np.asarray(array, dtype=float).ravel())
 
 
-#-------------------------------------------------------------------------------
-
-
 def minmax_degrees(array):
     """
-    Returns the minimum and maximum value of an array of values in degrees, 
+    Returns the minimum and maximum value of an array of values in degrees,
     by taking into account the discrepancy at 0 degree.
     """
     return flib.wcsutils.minmax_degrees(np.asarray(array, dtype=float).ravel())
-
-
-#-------------------------------------------------------------------------------
 
 
 def str2fitsheader(string):
@@ -479,16 +458,13 @@ def str2fitsheader(string):
     return header
 
 
-#-------------------------------------------------------------------------------
-
-
 @real
 @square
 class DistortionOperator(Operator):
     """
     Distortion operator.
 
-    The interpolation is performed using the Clough-Tocher method. 
+    The interpolation is performed using the Clough-Tocher method.
     Interpolation of points outside the object plane coordinates convex hull
     will return NaN.
 
@@ -504,22 +480,22 @@ class DistortionOperator(Operator):
         xin = np.asarray(xin)
         xout = np.asarray(xout)
         if xin.shape[-1] != 2:
-            raise ValueError('The shape of the object plane coordinates should '
-                             'be (npoints,ndims), where ndims is only implement'
-                             'ed for 2.')
+            raise ValueError('The shape of the object plane coordinates should'
+                             ' be (npoints,ndims), where ndims is only impleme'
+                             'nted for 2.')
         if xin.shape != xout.shape:
-            raise ValueError('The object and image coordinates do not have the '
-                             'same shape.')
+            raise ValueError('The object and image coordinates do not have the'
+                             ' same shape.')
 
         keywords['dtype'] = float
         Operator.__init__(self, **keywords)
-        self.interp0 = interp.CloughTocher2DInterpolator(xin, xout[...,0])
-        self.interp1 = interp.CloughTocher2DInterpolator(xin, xout[...,1])
-        self.set_rule('.I', lambda s:DistortionOperator(xout, xin))
+        self.interp0 = interp.CloughTocher2DInterpolator(xin, xout[..., 0])
+        self.interp1 = interp.CloughTocher2DInterpolator(xin, xout[..., 1])
+        self.set_rule('.I', lambda s: DistortionOperator(xout, xin))
 
     def direct(self, input, output):
-        output[...,0] = self.interp0(input)
-        output[...,1] = self.interp1(input)
+        output[..., 0] = self.interp0(input)
+        output[..., 1] = self.interp1(input)
 
 
 @real
@@ -530,6 +506,7 @@ class _WCSKapteynOperator(Operator):
         """
         wcs : FITS header or Kapteyn wcs.Projection instance
             Representation of the world coordinate system
+
         """
         if isinstance(wcs, pyfits.Header):
             wcs = kwcs.Projection(wcs)
@@ -550,12 +527,13 @@ class _WCSKapteynOperator(Operator):
 class WCSKapteynToPixelOperator(_WCSKapteynOperator):
     """
     Operator for WCS world-to-pixel transforms.
-    
+
     Example
     -------
     >>> header = pyfits.open('myfile.fits')
-    >>> w = WCSToPixelOperator(header)
-    >>> pix = w((ra0,dec0))
+    >>> w = WCSKapteynToPixelOperator(header)
+    >>> ra0, dec0 = 190, 77
+    >>> pix = w([ra0, dec0])
 
     """
     def __init__(self, wcs, **keywords):
@@ -570,12 +548,13 @@ class WCSKapteynToPixelOperator(_WCSKapteynOperator):
 class WCSKapteynToWorldOperator(_WCSKapteynOperator):
     """
     Operator for WCS pixel-to-world transforms.
-    
+
     Example
     -------
     >>> header = pyfits.open('myfile.fits')
-    >>> w = WCSToWorldOperator(header)
-    >>> radec = w((x,y))
+    >>> w = WCSKapteynToWorldOperator(header)
+    >>> x0, y0 = 34, 65.2
+    >>> radec = w([x0, y0])
 
     """
     def __init__(self, wcs, **keywords):
@@ -619,12 +598,13 @@ class _WCSOperator(Operator):
 class WCSToPixelOperator(_WCSOperator):
     """
     Operator for WCS world-to-pixel transforms.
-    
+
     Example
     -------
     >>> header = pyfits.open('myfile.fits')
     >>> w = WCSToPixelOperator(header)
-    >>> pix = w((ra0,dec0))
+    >>> ra0, dec0 = 190, 77
+    >>> pix = w([ra0, dec0])
 
     """
     def __init__(self, wcs, origin=0, **keywords):
@@ -634,20 +614,21 @@ class WCSToPixelOperator(_WCSOperator):
 
     def direct(self, input, output, operation=operation_assignment):
         if ASTROPY_WCS_NDIM_IS_2:
-            input = input.reshape((-1,2))
-            output = output.reshape((-1,2))
+            input = input.reshape((-1, 2))
+            output = output.reshape((-1, 2))
         operation(output, self.wcs.wcs_world2pix(input, self.origin))
 
 
 class WCSToWorldOperator(_WCSOperator):
     """
     Operator for WCS pixel-to-world transforms.
-    
+
     Example
     -------
     >>> header = pyfits.open('myfile.fits')
     >>> w = WCSToWorldOperator(header)
-    >>> radec = w((x,y))
+    >>> x0, y0 = 34, 65.2
+    >>> radec = w([x0, y0])
 
     """
     def __init__(self, wcs, origin=0, **keywords):
@@ -657,7 +638,6 @@ class WCSToWorldOperator(_WCSOperator):
 
     def direct(self, input, output, operation=operation_assignment):
         if ASTROPY_WCS_NDIM_IS_2:
-            input = input.reshape((-1,2))
-            output = output.reshape((-1,2))
+            input = input.reshape((-1, 2))
+            output = output.reshape((-1, 2))
         operation(output, self.wcs.wcs_pix2world(input, self.origin))
-
