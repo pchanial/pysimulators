@@ -487,6 +487,7 @@ class Quantity(np.ndarray):
 
         if du is not None:
             item._derived_units = du
+
         return item
 
     def __getslice__(self, i, j):

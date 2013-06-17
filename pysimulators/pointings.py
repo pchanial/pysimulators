@@ -12,6 +12,7 @@ from .quantities import Quantity
 from .wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
 
 __all__ = ['Pointing']
+
 POINTING_DTYPE = [
     ('ra', float),
     ('dec', float),
@@ -55,7 +56,7 @@ class Pointing(FitsArray):
         elif isinstance(coords, dict):
             if 'ra' not in coords or 'dec' not in coords:
                 raise ValueError(
-                    "The input pointing does have keywords 'ra' an" "d 'dec'."
+                    "The input pointing does have keywords 'ra' a" "nd 'dec'."
                 )
             ra = coords['ra']
             dec = coords['dec']
@@ -89,9 +90,7 @@ class Pointing(FitsArray):
         masked = np.asarray(masked)
         removed = np.asarray(removed)
 
-        if np.any(
-            [x.shape not in ((), shape) for x in [dec, pa, info, masked, removed]]
-        ):
+        if any(x.shape not in ((), shape) for x in [dec, pa, info, masked, removed]):
             raise ValueError('The pointing inputs do not have the same size.')
 
         result = FitsArray.zeros(shape, dtype=dtype)
@@ -112,8 +111,8 @@ class Pointing(FitsArray):
     def __getattr__(self, name):
         if self.dtype.names is None or name not in self.dtype.names:
             raise AttributeError(
-                "'" + self.__class__.__name__ + "' object ha"
-                "s no attribute '" + name + "'"
+                "'" + self.__class__.__name__ + "' object has"
+                " no attribute '" + name + "'"
             )
         return self[name].magnitude
 
@@ -149,8 +148,8 @@ class Pointing(FitsArray):
         angle_max = np.nanmax(angles)
         if angle_max >= 90.0:
             print(
-                'Warning: some coordinates have an angular distance to the pr'
-                'ojection point greater than 90 degrees.'
+                'Warning: some coordinates have an angular distance to the p'
+                'rojection point greater than 90 degrees.'
             )
             angles[angles >= 90] = np.nan
             angle_max = np.nanmax(angles)
@@ -192,8 +191,8 @@ class Pointing(FitsArray):
         percentile : float, tuple of two floats
             As a float, percentile of values to be discarded, otherwise,
             percentile of the minimum and maximum values to be displayed.
-        """
 
+        """
         if km is None:
             raise RuntimeError('The kapteyn library is required.')
         invalid = self.masked | self.removed
@@ -214,24 +213,23 @@ class Pointing(FitsArray):
             image = map.imshow(
                 title=title, new_figure=new_figure, percentile=percentile, **kw
             )
-            _plot_scan(image, ra, dec, linewidth=linewidth, **kw)
-            return image
-
-        if header is None:
-            header = self.get_map_header(naxis=1)
-        fitsobj = km.FITSimage(externalheader=dict(header))
-        if new_figure:
-            fig = mp.figure()
-            frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
         else:
-            frame = mp.gca()
-        if title is not None:
-            frame.set_title(title)
-        image = fitsobj.Annotatedimage(frame, blankcolor='w')
-        image.Graticule()
-        image.plot()
-        image.interact_toolbarinfo()
-        image.interact_writepos()
+            if header is None:
+                header = self.get_map_header(naxis=1)
+            fitsobj = km.FITSimage(externalheader=dict(header))
+            if new_figure:
+                fig = mp.figure()
+                frame = fig.add_axes((0.1, 0.1, 0.8, 0.8))
+            else:
+                frame = mp.gca()
+            if title is not None:
+                frame.set_title(title)
+            image = fitsobj.Annotatedimage(frame, blankcolor='w')
+            image.Graticule()
+            image.plot()
+            image.interact_toolbarinfo()
+            image.interact_writepos()
+
         mp.show()
         _plot_scan(image, ra, dec, linewidth=linewidth, **kw)
         return image
