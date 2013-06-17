@@ -10,7 +10,7 @@ from . import _flib as flib
 
 __all__ = ['Quantity', 'UnitError', 'units']
 
-_re_unit = re.compile(r' *([/*])? *([a-zA-Z_"\']+|\?+)(\^-?[0-9]+(\.[0-9]*)?)? *')
+_RE_UNIT = re.compile(r' *([/*])? *([a-zA-Z_"\']+|\?+)(\^-?[0-9]+(\.[0-9]*)?)? *')
 
 
 class UnitError(Exception):
@@ -19,9 +19,9 @@ class UnitError(Exception):
 
 def _extract_unit(string):
     """
-    Convert the input string into a unit as a dictionary
-    """
+    Convert the input string into a unit as a dictionary.
 
+    """
     if string is None:
         return {}
 
@@ -31,7 +31,7 @@ def _extract_unit(string):
     if not isinstance(string, str):
         raise TypeError(
             "Invalid unit type '"
-            + string.__class__.__name__
+            + type(string).__name__
             + "'. Expected types are string or dictionary."
         )
 
@@ -39,7 +39,7 @@ def _extract_unit(string):
     result = {}
     start = 0
     while start < len(string):
-        match = _re_unit.match(string, start)
+        match = _RE_UNIT.match(string, start)
         if match is None:
             raise ValueError("Unit '" + string[start:] + "' cannot be understood.")
         op = match.group(1)
@@ -62,6 +62,7 @@ def _multiply_unit_inplace(unit, key, val):
     Unlike _divide_unit, _multiply_unit and _power_unit,
     the operation is done in place, to speed up main
     caller _extract_unit.
+
     """
     if key in unit:
         if unit[key] == -val:
@@ -76,6 +77,7 @@ def _multiply_unit_inplace(unit, key, val):
 def _power_unit(unit, power):
     """
     Raise to power a unit as a dictionary
+
     """
     if len(unit) == 0 or power == 0:
         return {}
@@ -88,6 +90,7 @@ def _power_unit(unit, power):
 def _multiply_unit(unit1, unit2):
     """
     Multiplication of units as dictionary.
+
     """
     unit = unit1.copy()
     for key, val in unit2.items():
@@ -103,7 +106,8 @@ def _multiply_unit(unit1, unit2):
 
 def _divide_unit(unit1, unit2):
     """
-    Division of units as dictionary
+    Division of units as dictionary.
+
     """
     unit = unit1.copy()
     for key, val in unit2.items():
@@ -123,7 +127,8 @@ def _get_units(units):
 
 def _strunit(unit):
     """
-    Convert a unit as dictionary into a string
+    Convert a unit as dictionary into a string.
+
     """
     if len(unit) == 0:
         return ''
@@ -167,9 +172,9 @@ def _grab_doc(doc, func):
     doc = doc.replace(func + '(shape, ', func + '(shape, unit=None, ')
     doc = doc.replace(
         '\n    dtype : ',
-        '\n    unit : string\n        Unit of'
-        ' the new array, e.g. ``W``. Default is None for scalar.\n    dtype : '
-        '',
+        '\n    unit : string\n        Unit of '
+        'the new array, e.g. ``W``. Default is None for scalar.'
+        '\n    dtype : ',
     )
     doc = doc.replace('np.' + func, 'unit.' + func)
     doc = doc.replace('\n    out : ndarray', '\n    out : Quantity')
@@ -192,14 +197,14 @@ class Quantity(np.ndarray):
     Quantity(0.018, 'km')
 
     A more useful conversion:
-    >>> sky = Quantity(4*numpy.pi, 'sr')
+    >>> sky = Quantity(4 * np.pi, 'sr')
     >>> print(sky.tounit('deg^2'))
     41252.9612494 deg^2
 
     Quantities can be compared:
     >>> Quantity(0.018, 'km') > Quantity(10., 'm')
     True
-    >>> minimum(Quantity(1, 'm'), Quantity(0.1, 'km'))
+    >>> np.minimum(Quantity(1, 'm'), Quantity(0.1, 'km'))
     Quantity(1.0, 'm')
 
     Quantities can be operated on:
@@ -207,8 +212,7 @@ class Quantity(np.ndarray):
     >>> a / time
     Quantity(0.09, 'km / s')
 
-    Units do not have to be standard and ? can be used as a
-    non-standard one:
+    Units do not have to be standard and ? can be used as a non-standard one:
     >>> value = Quantity(1., '?/detector')
     >>> value *= Quantity(100, 'detector')
     >>> value
@@ -228,6 +232,7 @@ class Quantity(np.ndarray):
     >>> unit['krouf'] = Quantity(0.5, 'broug^2')
     >>> print(Quantity(1, 'krouf').SI)
     0.5 broug^2
+
     """
 
     _unit = None
@@ -265,8 +270,8 @@ class Quantity(np.ndarray):
         return result
 
     def __array_finalize__(self, obj):
-        # for some numpy methods (append): the result doesn't go through __new__
-        # and obj is None. We have to set the instance attributes
+        # for some numpy methods (append): the result doesn't go through
+        # __new__ and obj is None. We have to set the instance attributes
         self._unit = getattr(obj, '_unit', {})
         self._derived_units = getattr(obj, '_derived_units', {})
 
@@ -308,12 +313,9 @@ class Quantity(np.ndarray):
                     continue
 
                 print(
-                    "Warning: applying function '"
-                    + str(ufunc)
-                    + "' to Quant\
-ities of different units may have changed operands to common unit '"
-                    + _strunit(self._unit)
-                    + "'."
+                    "Warning: applying function '" + str(ufunc) + "' to Quan"
+                    "tities of different units may have changed operands to "
+                    "common unit '" + _strunit(self._unit) + "'."
                 )
                 arg.inunit(self._unit)
 
@@ -531,6 +533,7 @@ ities of different units may have changed operands to common unit '"
         -------
         >>> Quantity(32., 'm/s').unit
         'm / s'
+
         """
         return _strunit(self._unit)
 
@@ -542,6 +545,7 @@ ities of different units may have changed operands to common unit '"
     def derived_units(self):
         """
         Return the derived units associated with the quantity
+
         """
         return self._derived_units
 
@@ -563,8 +567,8 @@ ities of different units may have changed operands to common unit '"
                     continue
                 if key[pos:] not in ('[leftward]', '[rightward]'):
                     raise UnitError(
-                        "Invalid broadcast : '{0}'. Valid values ar"
-                        "e '[leftward]' or '[rightward]'.".format(key[pos:])
+                        "Invalid broadcast : '{0}'. Valid values a"
+                        "re '[leftward]' or '[rightward]'.".format(key[pos:])
                     )
         self._derived_units = derived_units
 
@@ -842,9 +846,6 @@ def _check_in_du(key, derived_units):
     raise ValueError()
 
 
-# -------------------------------------------------------------------------------
-
-
 def pixel_to_pixel_reference(input):
     """
     Returns the pixel area in units of reference pixel.
@@ -872,9 +873,6 @@ def pixel_to_pixel_reference(input):
     return Quantity(scale.T, 'pixel_reference', copy=False)
 
 
-# -------------------------------------------------------------------------------
-
-
 def pixel_reference_to_solid_angle(input):
     """
     Returns the reference pixel area in the units defined by the FITSheader
@@ -896,9 +894,6 @@ def pixel_reference_to_solid_angle(input):
     cunit1 = header['CUNIT1'] if 'CUNIT1' in header else 'deg'
     cunit2 = header['CUNIT2'] if 'CUNIT2' in header else 'deg'
     return area * Quantity(1, cunit1) * Quantity(1, cunit2)
-
-
-# -------------------------------------------------------------------------------
 
 
 units_table = {
