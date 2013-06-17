@@ -108,14 +108,6 @@ class Pointing(FitsArray):
 
         return result.view(cls)
 
-    def __getattr__(self, name):
-        if self.dtype.names is None or name not in self.dtype.names:
-            raise AttributeError(
-                "'" + self.__class__.__name__ + "' object has"
-                " no attribute '" + name + "'"
-            )
-        return self[name].magnitude
-
     @property
     def velocity(self):
         if self.size == 0:

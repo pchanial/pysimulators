@@ -429,6 +429,14 @@ class Quantity(np.ndarray):
 
         return array
 
+    def __getattr__(self, name):
+        if self.dtype.names is None or name not in self.dtype.names:
+            raise AttributeError(
+                "'" + self.__class__.__name__ + "' object has"
+                " no attribute '" + name + "'"
+            )
+        return self[name]
+
     def __getitem__(self, key):
         """
         x.__getitem__(y) <==> x[y]
