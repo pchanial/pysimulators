@@ -454,6 +454,7 @@ class Instrument(object):
         """
         Convert coordinates in the instrument frame into sky pixel coordinates,
         assuming a pointing direction and a position angle.
+
         """
         coords = np.array(coords, float, order='c', copy=False)
         if ASTROPY_WCS_NDIM_IS_2:
@@ -470,6 +471,7 @@ class Instrument(object):
         """
         Return the minimum and maximum sky pixel coordinate values given a set
         of coordinates specified in the instrument frame.
+
         """
         coords = np.array(coords, float, order='c', copy=False)
         xmin, ymin, xmax, ymax, status = flib.wcsutils.instrument2xy_minmax(
