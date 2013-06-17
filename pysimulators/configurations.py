@@ -244,11 +244,8 @@ class Configuration(object):
             cross = _create_scan(center, length, step, sampling_period, speed,
                                  acceleration, nlegs, angle + 90, dtype)
             cross.time += scan.time[-1] + sampling_period
-            scan = Pointing((np.hstack([scan.ra, cross.ra]),
-                             np.hstack([scan.dec, cross.dec]), 0),
-                            np.hstack([scan.time, cross.time]),
-                            info=np.hstack([scan.info, cross.info]),
-                            dtype=dtype, header=scan.header)
+            scan, scan.header = (np.hstack([scan, cross]).view(Pointing),
+                                 scan.header)
 
         scan.pa = angle + instrument_angle
         scan.header.update('HIERARCH instrument_angle', instrument_angle)
