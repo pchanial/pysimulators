@@ -111,12 +111,15 @@ class Configuration(object):
         Parameters
         ----------
         resolution : float
-            Sky pixel increment, in arc seconds. Default is .default_resolution.
+            Sky pixel increment, in arc seconds. The default value is set
+            in Configuration's __init__ method through the default_resolution
+            keyword.
 
         Returns
         -------
         header : pyfits.Header
             The resulting FITS header.
+
         """
         return self.instrument.get_map_header(self.pointing, resolution=resolution)
 
@@ -185,14 +188,14 @@ class Configuration(object):
                     n = max(p.info['npixels_per_sample_min'] for p in pmatrix)
                     if npixels_per_sample == 0 or npixels_per_sample != n:
                         info += [
-                            "set keyword 'npixels_per_sample' to {0} for b"
-                            "etter performances".format(n)
+                            "set keyword 'npixels_per_sample' to {0} for "
+                            "better performances".format(n)
                         ]
                     outside = any(
                         p.info['outside'] for p in pmatrix if 'outside' in p.info
                     )
                     if outside:
-                        info += ['warning, some detectors fall outside the map']
+                        info += ['warning, some detectors fall outside the ' 'map']
                 print(
                     strelapsed(time0, 'Computing the projector')
                     + ' ({0})'.format(', '.join(info))
@@ -253,10 +256,7 @@ class Configuration(object):
         dtype=POINTING_DTYPE,
     ):
         """
-        Return a sky scan.
-
-        The output is a Pointing instance that can be handed to the Configuration
-        constructor.
+        Return a sky scan as a Pointing array.
 
         Parameters
         ----------
@@ -310,18 +310,12 @@ class Configuration(object):
                 dtype,
             )
             cross.time += scan.time[-1] + sampling_period
-            scan, scan.header = (
-                Pointing(
-                    (
-                        np.hstack([scan.ra, cross.ra]),
-                        np.hstack([scan.dec, cross.dec]),
-                        0.0,
-                    ),
-                    np.hstack([scan.time, cross.time]),
-                    info=np.hstack([scan.info, cross.info]),
-                    dtype=dtype,
-                ),
-                scan.header,
+            scan = Pointing(
+                (np.hstack([scan.ra, cross.ra]), np.hstack([scan.dec, cross.dec]), 0),
+                np.hstack([scan.time, cross.time]),
+                info=np.hstack([scan.info, cross.info]),
+                dtype=dtype,
+                header=scan.header,
             )
 
         scan.pa = angle + instrument_angle
@@ -402,8 +396,8 @@ def _create_scan(
     compute the pointing timeline of the instrument reference point
     from the description of a scan map
     Authors: R. Gastaud, P. Chanial
-    """
 
+    """
     ra0, dec0 = center
 
     length = float(length)
@@ -443,7 +437,7 @@ def _create_scan(
     # Time needed to go along the scanline at constant speed
     line_time = length / speed
     # Total time for a scanline
-    full_line_time = extra_time1 + line_time + extra_time1 + extra_time2 + extra_time2
+    full_line_time = extra_time1 + line_time + extra_time1 + 2 * extra_time2
     # Total duration of the observation
     total_time = full_line_time * nlegs - 2 * extra_time2
 
@@ -459,7 +453,7 @@ def _create_scan(
 
     # Start of computations, alpha and delta are the longitude and
     # latitide in arc seconds in the referential of the map.
-    signe = 1
+    sign = 1
     delta = -extralength - length / 2
     alpha = -step * (nlegs - 1) / 2
     alpha0 = alpha
@@ -472,7 +466,7 @@ def _create_scan(
         # check if new line
         if working_time > full_line_time:
             working_time = working_time - full_line_time
-            signe = -signe
+            sign = -sign
             line_counter = line_counter + 1
             alpha = -step * (nlegs - 1) / 2 + line_counter * step
             alpha0 = alpha
@@ -481,14 +475,14 @@ def _create_scan(
         # speed.
         if working_time < extra_time1:
             delta = (
-                -signe * (extralength + length / 2)
-                + signe * 0.5 * acceleration * working_time * working_time
+                -sign * (extralength + length / 2)
+                + sign * 0.5 * acceleration * working_time * working_time
             )
             info = Pointing.TURNAROUND
 
         # constant speed
         if working_time >= extra_time1 and working_time < extra_time1 + line_time:
-            delta = signe * (-length / 2 + (working_time - extra_time1) * speed)
+            delta = sign * (-length / 2 + (working_time - extra_time1) * speed)
             info = Pointing.INSCAN
 
         # Deceleration at then end of the scanline to stop
@@ -497,7 +491,7 @@ def _create_scan(
             and working_time < extra_time1 + line_time + extra_time1
         ):
             dt = working_time - extra_time1 - line_time
-            delta = signe * (length / 2 + speed * dt - 0.5 * acceleration * dt * dt)
+            delta = sign * (length / 2 + speed * dt - 0.5 * acceleration * dt**2)
             info = Pointing.TURNAROUND
 
         # Acceleration to go toward the next scan line
@@ -506,7 +500,7 @@ def _create_scan(
             and working_time < 2 * extra_time1 + line_time + extra_time2
         ):
             dt = working_time - 2 * extra_time1 - line_time
-            alpha = alpha0 + 0.5 * acceleration * dt * dt
+            alpha = alpha0 + 0.5 * acceleration * dt**2
             info = Pointing.TURNAROUND
 
         # Deceleration to stop at the next scan line
@@ -518,7 +512,7 @@ def _create_scan(
             alpha = (
                 (alpha0 + step / 2)
                 + acceleration * extra_time2 * dt
-                - 0.5 * acceleration * dt * dt
+                - 0.5 * acceleration * dt**2
             )
             info = Pointing.TURNAROUND
 
@@ -609,27 +603,22 @@ class MaskPolicy(object):
                 values = (values,)
         if len(flags) != len(values):
             raise ValueError(
-                'The number of policy flags is different from th'
-                'e number of policies.'
+                'The number of policy flags is different from the'
+                ' number of policies.'
             )
 
         self._policy = []
         for flag, value in zip(flags, values):
             if flag[0] == '_':
                 raise ValueError(
-                    'A policy flag should not start with an unde' 'rscore.'
+                    'A policy flag should not start with an under' 'score.'
                 )
             value = value.strip().lower()
             choices = ('keep', 'mask', 'remove')
             if value not in choices:
                 raise KeyError(
-                    'Invalid policy '
-                    + flag
-                    + "='"
-                    + value
-                    + "'. Expected policies are "
-                    + strenum(choices)
-                    + '.'
+                    'Invalid policy ' + flag + "='" + value + "'. E"
+                    "xpected ones are " + strenum(choices) + '.'
                 )
             self._policy.append({flag: value})
             setattr(self, flag, value)

@@ -1,7 +1,7 @@
 from __future__ import division
 
 
-def create_circle(radius, center=[0, 0], n=72, dtype=float):
+def create_circle(radius, center=(0, 0), n=72, dtype=float):
     """
     Return coordinates of a circle.
 
@@ -27,7 +27,7 @@ def create_circle(radius, center=[0, 0], n=72, dtype=float):
     return coords
 
 
-def create_rectangle(size, center=[0, 0], angle=0, dtype=float):
+def create_rectangle(size, center=(0, 0), angle=0, dtype=float):
     """
     Return coordinates of a rectangle.
 
@@ -57,7 +57,7 @@ def create_rectangle(size, center=[0, 0], angle=0, dtype=float):
     return coords
 
 
-def create_square(size, center=[0, 0], angle=0, dtype=float):
+def create_square(size, center=(0, 0), angle=0, dtype=float):
     """
     Return coordinates of a square.
 

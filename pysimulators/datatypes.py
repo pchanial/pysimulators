@@ -20,9 +20,13 @@ except ImportError:
 import matplotlib
 import matplotlib.pyplot as mp
 import numpy as np
+import os
 import pickle
 import StringIO
 import scipy.stats
+import sys
+import time
+import uuid
 
 try:
     import ds9
@@ -49,7 +53,8 @@ __all__ = ['FitsArray', 'Map', 'Tod']
 class FitsArray(Quantity):
     """
     FitsArray(filename|object, header=None, unit=None, derived_units=None,
-              dtype=None, copy=True, order='C', subok=False, ndmin=0, comm=None)
+              dtype=None, copy=True, order='C', subok=False, ndmin=0,
+              comm=None)
 
     An ndarray subclass, whose instances
         - store the FITS header information
@@ -142,7 +147,7 @@ class FitsArray(Quantity):
 
         elif comm is not None:
             raise ValueError(
-                'The MPI communicator can only be set for input FI' 'TS files.'
+                'The MPI communicator can only be set for input F' 'ITS files.'
             )
 
         # get a new FitsArray instance (or a subclass if subok is True)
@@ -155,7 +160,7 @@ class FitsArray(Quantity):
         # copy header attribute
         if header is not None:
             result.header = header
-        elif hasattr(data, '_header') and data._header.__class__ is pyfits.Header:
+        elif hasattr(data, '_header') and type(data._header) is pyfits.Header:
             if copy:
                 result._header = data._header.copy()
             else:
@@ -432,13 +437,14 @@ class FitsArray(Quantity):
         Examples
         --------
         >>> m = Map('myfits.fits')
-        >>> d=m.ds9(('zoom to fit','saveimage png myfits.png'),scale='histequ',
-                    cmap='invert yes', height=400)
+        >>> d=m.ds9(('zoom to fit', 'saveimage png myfits.png'),
+        ...         scale='histequ', cmap='invert yes', height=400)
         >>> d.set('exit')
+
         """
         if ds9 is None:
             raise ImportError('The library pyds9 has not been installed.')
-        import os, time, sys, uuid, xpa
+        import xpa
 
         id = None
         if not new:
@@ -458,9 +464,9 @@ class FitsArray(Quantity):
 
             wait = 10
 
-            id = 'ds9_' + str(uuid.uuid1())[4:8]
+            id_ = 'ds9_' + str(uuid.uuid1())[4:8]
 
-            command = 'ds9 -title ' + id
+            command = 'ds9 -title ' + id_
 
             for k, v in keywords.items():
                 k = str(k)
@@ -471,7 +477,7 @@ class FitsArray(Quantity):
             os.system(command + ' &')
 
             # start the xpans name server
-            if xpa.xpaaccess("xpans", None, 1) == None:
+            if xpa.xpaaccess("xpans", None, 1) is None:
                 _cmd = None
                 # look in install directories
                 for _dir in sys.path:
@@ -482,15 +488,15 @@ class FitsArray(Quantity):
                     os.system(_cmd)
 
             for i in range(wait):
-                list = xpa.xpaaccess(id, None, 1024)
-                if list:
+                list = xpa.xpaaccess(id_, None, 1024)
+                if list is not None:
                     break
                 time.sleep(1)
             if not list:
                 raise ValueError('No active ds9 running for target: %s' % list)
 
         # get ds9 instance with given id
-        d = ds9.ds9(id)
+        d = ds9.ds9(id_)
 
         # load array
         input = self.view(np.ndarray)
@@ -574,6 +580,7 @@ class Map(FitsArray):
     comm : mpi4py.Comm, optional
         MPI communicator specifying to which processors the FITS file
         should be distributed.
+
     """
 
     coverage = None
@@ -637,8 +644,8 @@ class Map(FitsArray):
             origin = origin.strip().lower()
             if origin not in ('lower', 'upper'):
                 raise ValueError(
-                    "Invalid origin '" + origin + "'. Expected v"
-                    "alues are 'lower' or 'upper'."
+                    "Invalid origin '" + origin + "'. Expected va"
+                    "lues are 'lower' or 'upper'."
                 )
             result.origin = origin
 
@@ -880,9 +887,6 @@ class Map(FitsArray):
         result.coverage = None
         result.error = None
         return result
-
-
-# -------------------------------------------------------------------------------
 
 
 class Tod(FitsArray):

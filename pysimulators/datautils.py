@@ -54,9 +54,6 @@ def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1):
     return d
 
 
-# -------------------------------------------------------------------------------
-
-
 def aperture_circular(shape, diameter, origin=None, resolution=1):
     """
     Return a two-dimensional map with circular mask.
@@ -78,9 +75,6 @@ def aperture_circular(shape, diameter, origin=None, resolution=1):
     array[m] = 0
     array[~m] = 1
     return array
-
-
-# -------------------------------------------------------------------------------
 
 
 def distance(shape, origin=None, resolution=1.0):
@@ -127,21 +121,17 @@ def distance(shape, origin=None, resolution=1.0):
         resolution = np.resize(resolution, rank)
     resolution = np.asanyarray(resolution, dtype=float)
 
+    du = flib.datautils
     if rank == 1:
-        d = flib.datautils.distance_1d(shape[0], origin[0], resolution[0])
+        d = du.distance_1d(shape[0], origin[0], resolution[0])
     elif rank == 2:
-        d = flib.datautils.distance_2d(shape[1], shape[0], origin, resolution).T
+        d = du.distance_2d(shape[1], shape[0], origin, resolution).T
     elif rank == 3:
-        d = flib.datautils.distance_3d(
-            shape[2], shape[1], shape[0], origin, resolution
-        ).T
+        d = du.distance_3d(shape[2], shape[1], shape[0], origin, resolution).T
     else:
         d = _distance_slow(shape, origin, resolution, float)
 
     return Map(d, copy=False, unit=unit)
-
-
-# -------------------------------------------------------------------------------
 
 
 def _distance_slow(shape, origin, resolution, dtype):
@@ -168,9 +158,6 @@ def _distance_slow(shape, origin, resolution, dtype):
     return d
 
 
-# -------------------------------------------------------------------------------
-
-
 class Ds9(object):
     """
     Helper around the ds9 package.
@@ -180,7 +167,9 @@ class Ds9(object):
     >>> ds9.open_in_new_window = False
     >>> d = ds9.current
     >>> d.set('scale linear')
+    >>> mynewmap = gaussian((128, 128), sigma=32)
     >>> ds9(mynewmap, 'zoom to fit')
+
     """
 
     def __call__(self, array, xpamsg=None, origin=None, **keywords):
@@ -225,9 +214,6 @@ class Ds9(object):
 ds9 = Ds9()
 
 
-# -------------------------------------------------------------------------------
-
-
 def gaussian(shape, sigma=None, fwhm=None, origin=None, resolution=1, unit=None):
     """
     Returns an array whose values are the distances to a given origin.
@@ -264,9 +250,6 @@ def gaussian(shape, sigma=None, fwhm=None, origin=None, resolution=1, unit=None)
     return d
 
 
-# -------------------------------------------------------------------------------
-
-
 def integrated_profile(input, origin=None, bin=1.0, nbins=None):
     """
     Returns axisymmetric integrated profile of a 2d image.
@@ -298,17 +281,11 @@ def integrated_profile(input, origin=None, bin=1.0, nbins=None):
     return x, np.add.accumulate(y)
 
 
-# -------------------------------------------------------------------------------
-
-
 def phasemask_fourquadrant(shape, phase=-1):
     array = Map.ones(shape, dtype=complex)
     array[0 : shape[0] // 2, shape[1] // 2 :] = phase
     array[shape[0] // 2 :, 0 : shape[1] // 2] = phase
     return array
-
-
-# -------------------------------------------------------------------------------
 
 
 def plot_tod(tod, mask=None, **kw):
@@ -317,6 +294,7 @@ def plot_tod(tod, mask=None, **kw):
     Plotting every detector timelines may be time consuming, so it is
     recommended to use this method on one or few detectors like this:
     >>> plot_tod(tod[idetector])
+
     """
     if mask is None:
         mask = getattr(tod, 'mask', None)
@@ -341,9 +319,6 @@ def plot_tod(tod, mask=None, **kw):
     else:
         mp.ylabel('Signal')
     mp.xlabel('Time sample')
-
-
-# -------------------------------------------------------------------------------
 
 
 def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
@@ -387,9 +362,6 @@ def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
         return x, y, n
     else:
         return x, y
-
-
-# -------------------------------------------------------------------------------
 
 
 def psd2(input):
