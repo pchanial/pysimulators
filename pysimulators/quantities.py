@@ -404,7 +404,7 @@ class Quantity(np.ndarray):
         except ValueError:
             pass
 
-        key += (self.ndim-len(key))*(slice(None),)
+        key += (self.ndim-len(key)) * (slice(None),)
 
         # update the broadcastable derived units
         du = None
@@ -433,6 +433,7 @@ class Quantity(np.ndarray):
 
         if du is not None:
             item._derived_units = du
+
         return item
 
     def __getslice__(self, i, j):
