@@ -10,16 +10,19 @@ from . import _flib as flib
 
 __all__ = ['Quantity', 'UnitError', 'units']
 
-_re_unit = re.compile(
-               r' *([/*])? *([a-zA-Z_"\']+|\?+)(\^-?[0-9]+(\.[0-9]*)?)? *')
+_RE_UNIT = re.compile(
+    r' *([/*])? *([a-zA-Z_"\']+|\?+)(\^-?[0-9]+(\.[0-9]*)?)? *')
 
-class UnitError(Exception): pass
+
+class UnitError(Exception):
+    pass
+
 
 def _extract_unit(string):
     """
-    Convert the input string into a unit as a dictionary
-    """
+    Convert the input string into a unit as a dictionary.
 
+    """
     if string is None:
         return {}
 
@@ -27,14 +30,14 @@ def _extract_unit(string):
         return string
 
     if not isinstance(string, str):
-        raise TypeError("Invalid unit type '" + string.__class__.__name__ + \
+        raise TypeError("Invalid unit type '" + type(string).__name__ +
                         "'. Expected types are string or dictionary.")
 
     string = string.strip()
     result = {}
     start = 0
     while start < len(string):
-        match = _re_unit.match(string, start)
+        match = _RE_UNIT.match(string, start)
         if match is None:
             raise ValueError("Unit '"+string[start:]+"' cannot be understood.")
         op = match.group(1)
@@ -57,6 +60,7 @@ def _multiply_unit_inplace(unit, key, val):
     Unlike _divide_unit, _multiply_unit and _power_unit,
     the operation is done in place, to speed up main
     caller _extract_unit.
+
     """
     if key in unit:
         if unit[key] == -val:
@@ -67,9 +71,11 @@ def _multiply_unit_inplace(unit, key, val):
         unit[key] = val
     return unit
 
+
 def _power_unit(unit, power):
     """
     Raise to power a unit as a dictionary
+
     """
     if len(unit) == 0 or power == 0:
         return {}
@@ -78,9 +84,11 @@ def _power_unit(unit, power):
         result[key] *= power
     return result
 
+
 def _multiply_unit(unit1, unit2):
     """
     Multiplication of units as dictionary. 
+
     """
     unit = unit1.copy()
     for key, val in unit2.items():
@@ -93,9 +101,11 @@ def _multiply_unit(unit1, unit2):
             unit[key] = val
     return unit
 
+
 def _divide_unit(unit1, unit2):
     """
-    Division of units as dictionary
+    Division of units as dictionary.
+
     """
     unit = unit1.copy()
     for key, val in unit2.items():
@@ -108,12 +118,15 @@ def _divide_unit(unit1, unit2):
             unit[key] = -val
     return unit
 
+
 def _get_units(units):
     return [getattr(q, '_unit', {}) for q in units]
 
+
 def _strunit(unit):
     """
-    Convert a unit as dictionary into a string
+    Convert a unit as dictionary into a string.
+
     """
     if len(unit) == 0:
         return ''
@@ -151,12 +164,14 @@ def _strunit(unit):
 
     return result[1:]
 
+
 def _grab_doc(doc, func):
     # ex: zeros.__doc__ = _grab_doc(np.zeros.__doc__, 'zeros')
     doc = doc.replace(func + '(shape, ', func + '(shape, unit=None, ')
-    doc = doc.replace('\n    dtype : ', '\n    unit : string\n        Unit of' \
-      ' the new array, e.g. ``W``. Default is None for scalar.\n    dtype : ''')
-    doc = doc.replace('np.'+func, 'unit.'+func)
+    doc = doc.replace('\n    dtype : ', '\n    unit : string\n        Unit of '
+                      'the new array, e.g. ``W``. Default is None for scalar.'
+                      '\n    dtype : ')
+    doc = doc.replace('np.' + func, 'unit.' + func)
     doc = doc.replace('\n    out : ndarray', '\n    out : Quantity')
     return doc
 
@@ -177,14 +192,14 @@ class Quantity(np.ndarray):
     Quantity(0.018, 'km')
 
     A more useful conversion:
-    >>> sky = Quantity(4*numpy.pi, 'sr')
+    >>> sky = Quantity(4 * np.pi, 'sr')
     >>> print(sky.tounit('deg^2'))
     41252.9612494 deg^2
-    
+
     Quantities can be compared:
     >>> Quantity(0.018, 'km') > Quantity(10., 'm')
     True
-    >>> minimum(Quantity(1, 'm'), Quantity(0.1, 'km'))
+    >>> np.minimum(Quantity(1, 'm'), Quantity(0.1, 'km'))
     Quantity(1.0, 'm')
 
     Quantities can be operated on:
@@ -192,8 +207,7 @@ class Quantity(np.ndarray):
     >>> a / time
     Quantity(0.09, 'km / s')
 
-    Units do not have to be standard and ? can be used as a 
-    non-standard one:
+    Units do not have to be standard and ? can be used as a non-standard one:
     >>> value = Quantity(1., '?/detector')
     >>> value *= Quantity(100, 'detector')
     >>> value
@@ -213,12 +227,13 @@ class Quantity(np.ndarray):
     >>> unit['krouf'] = Quantity(0.5, 'broug^2')
     >>> print(Quantity(1, 'krouf').SI)
     0.5 broug^2
-    """
 
+    """
     _unit = None
     _derived_units = None
 
-    def __new__(cls, data, unit=None, derived_units=None, dtype=None, copy=True, order='C', subok=False, ndmin=0):
+    def __new__(cls, data, unit=None, derived_units=None, dtype=None,
+                copy=True, order='C', subok=False, ndmin=0):
 
         data = np.asanyarray(data)
         if dtype is None and data.dtype.kind in ('b', 'i'):
@@ -227,7 +242,8 @@ class Quantity(np.ndarray):
         # get a new Quantity instance (or a subclass if subok is True)
         result = np.array(data, dtype, copy=copy, order=order, subok=True,
                           ndmin=ndmin)
-        if not subok and type(result) is not cls or not isinstance(result, cls):
+        if not subok and type(result) is not cls or \
+           not isinstance(result, cls):
             result = result.view(cls)
 
         # set unit attribute
@@ -241,8 +257,8 @@ class Quantity(np.ndarray):
         return result
 
     def __array_finalize__(self, obj):
-        # for some numpy methods (append): the result doesn't go through __new__
-        # and obj is None. We have to set the instance attributes
+        # for some numpy methods (append): the result doesn't go through
+        # __new__ and obj is None. We have to set the instance attributes
         self._unit = getattr(obj, '_unit', {})
         self._derived_units = getattr(obj, '_derived_units', {})
 
@@ -261,7 +277,7 @@ class Quantity(np.ndarray):
                 array = array.view(type(self))
             # copy over attributes
             array.__dict__.update(self.__dict__)
-            
+
         if context is None or len(self._unit) == 0:
             return array
 
@@ -274,9 +290,9 @@ class Quantity(np.ndarray):
                 if len(u) == 0 or u == self._unit:
                     continue
 
-                print("Warning: applying function '" + str(ufunc) + "' to Quant\
-ities of different units may have changed operands to common unit '" + \
-                    _strunit(self._unit) + "'.")
+                print("Warning: applying function '" + str(ufunc) + "' to Quan"
+                      "tities of different units may have changed operands to "
+                      "common unit '" + _strunit(self._unit) + "'.")
                 arg.inunit(self._unit)
 
         return array
@@ -347,9 +363,9 @@ ities of different units may have changed operands to common unit '" + \
             array._unit = {}
 
         elif ufunc in (np.arccos, np.arccosh, np.arcsin, np.arcsinh, np.arctan,
-                       np.arctanh, np.arctan2, np.cos, np.cosh, np.exp, np.exp2,
-                       np.log, np.log2, np.log10, np.sin, np.sinh, np.tan,
-                       np.tanh):
+                       np.arctanh, np.arctan2, np.cos, np.cosh, np.exp,
+                       np.exp2, np.log, np.log2, np.log10, np.sin, np.sinh,
+                       np.tan, np.tanh):
             array._unit = {}
 
         elif ufunc in (np.abs, np.negative):
@@ -414,7 +430,7 @@ ities of different units may have changed operands to common unit '" + \
                 du[d[:pos]] = v
             else:
                 du[d] = v
-            
+
         if du is not None:
             item._derived_units = du
         return item
@@ -458,11 +474,12 @@ ities of different units may have changed operands to common unit '" + \
     def unit(self):
         """
         Return the Quantity unit as a string
-        
+
         Example
         -------
         >>> Quantity(32., 'm/s').unit
         'm / s'
+
         """
         return _strunit(self._unit)
 
@@ -474,6 +491,7 @@ ities of different units may have changed operands to common unit '" + \
     def derived_units(self):
         """
         Return the derived units associated with the quantity
+
         """
         return self._derived_units
 
@@ -485,15 +503,16 @@ ities of different units may have changed operands to common unit '" + \
             for key in derived_units:
                 if not isinstance(derived_units[key], Quantity) and \
                         not hasattr(derived_units[key], '__call__'):
-                    raise UnitError("The user derived unit '" + key + \
+                    raise UnitError("The user derived unit '" + key +
                                     "' is not a Quantity.")
                 try:
                     pos = key.index('[')
                 except ValueError:
                     continue
                 if key[pos:] not in ('[leftward]', '[rightward]'):
-                    raise UnitError("Invalid broadcast : '{0}'. Valid values ar"
-                        "e '[leftward]' or '[rightward]'.".format(key[pos:]))
+                    raise UnitError("Invalid broadcast : '{0}'. Valid values a"
+                                    "re '[leftward]' or '[rightward]'."
+                                    .format(key[pos:]))
         self._derived_units = derived_units
 
     def tounit(self, unit):
@@ -557,7 +576,7 @@ ities of different units may have changed operands to common unit '" + \
             q2 = Quantity(1., newunit, self.derived_units).SI
 
         if q1._unit != q2._unit:
-            raise UnitError("Units '" + self.unit + "' and '" + \
+            raise UnitError("Units '" + self.unit + "' and '" +
                             _strunit(newunit) + "' are incompatible.")
         factor = q1.magnitude / q2.magnitude
         if np.rank(self) == 0:
@@ -586,14 +605,15 @@ ities of different units may have changed operands to common unit '" + \
         for key, val in self._unit.items():
 
             # check if the unit is a local derived unit
-            newfactor, broadcast = _check_du(self, key, val, self.derived_units)
+            newfactor, broadcast = _check_du(self, key, val,
+                                             self.derived_units)
 
             # check if the unit is a global derived unit
             if newfactor is None:
                 newfactor, broadcast = _check_du(self, key, val, units)
-                
+
             # if the unit is not derived, we add it to the dictionary
-            if newfactor is None:            
+            if newfactor is None:
                 _multiply_unit_inplace(fslow._unit, key, val)
                 continue
 
@@ -621,18 +641,18 @@ ities of different units may have changed operands to common unit '" + \
                     subclass_state[slot] = getattr(self, slot)
                 except AttributeError:
                     pass
-        state[2] = (state[2],subclass_state)
+        state[2] = (state[2], subclass_state)
         return tuple(state)
-    
-    def __setstate__(self,state):
+
+    def __setstate__(self, state):
         ndarray_state, subclass_state = state
-        np.ndarray.__setstate__(self, ndarray_state)        
+        np.ndarray.__setstate__(self, ndarray_state)
         for k, v in subclass_state.items():
             setattr(self, k, v)
 
     def __repr__(self):
         return type(self).__name__+'(' + str(np.asarray(self)) + ", '" + \
-               _strunit(self._unit) + "')"
+            _strunit(self._unit) + "')"
 
     def __str__(self):
         result = str(np.asarray(self))
@@ -695,21 +715,22 @@ ities of different units may have changed operands to common unit '" + \
     def _wrap_func(self, func, unit, *args, **kw):
         result = func(self.magnitude, *args, **kw).view(type(self))
         if not isinstance(result, np.ndarray):
-            return type(self)(result, unit=unit, derived_units= \
+            return type(self)(result, unit=unit, derived_units=
                               self.derived_units)
         result.__array_finalize__(self)
         if unit is not None:
             result.unit = unit
         return result
 
+
 def _check_du(input, key, val, derived_units):
     if len(derived_units) == 0:
         return None, None
-    if (key,val) in derived_units:
-        du, broadcast = _get_du(input, (key,val), derived_units)
+    if (key, val) in derived_units:
+        du, broadcast = _get_du(input, (key, val), derived_units)
         return (None, None) if du is None else (du.SI, broadcast)
-    if (key,-val) in derived_units:
-        du, broadcast = _get_du(input, (key,-val), derived_units)
+    if (key, -val) in derived_units:
+        du, broadcast = _get_du(input, (key, -val), derived_units)
         return (None, None) if du is None else ((1 / du).SI, broadcast)
     du, broadcast = _get_du(input, key, derived_units)
     if du is None:
@@ -719,6 +740,7 @@ def _check_du(input, key, val, derived_units):
     if val == -1.:
         return (1 / du).SI, broadcast
     return (du ** val).SI, broadcast
+
 
 def _get_du(input, key, derived_units):
     try:
@@ -735,6 +757,7 @@ def _get_du(input, key, derived_units):
     du._derived_units = input._derived_units
     return du, broadcast
 
+
 def _check_in_du(key, derived_units):
     for du, value in derived_units.items():
         try:
@@ -747,9 +770,6 @@ def _check_in_du(key, derived_units):
     raise ValueError()
 
 
-#-------------------------------------------------------------------------------
-
-
 def pixel_to_pixel_reference(input):
     """
     Returns the pixel area in units of reference pixel.
@@ -758,20 +778,17 @@ def pixel_to_pixel_reference(input):
         return Quantity(1, 'pixel_reference')
     required = 'CRPIX,CRVAL,CTYPE'.split(',')
     keywords = np.concatenate(
-        [(lambda i: [r+str(i+1) for r in required])(i) 
-         for i in range(input.header['NAXIS'])])    
+        [(lambda i: [r + str(i + 1) for r in required])(i)
+         for i in range(input.header['NAXIS'])])
     if not all([k in input.header for k in keywords]):
         return Quantity(1, 'pixel_reference')
 
     scale, status = flib.wcsutils.projection_scale(str(input.header).replace(
-        '\n',''), input.header['NAXIS1'], input.header['NAXIS2'])
+        '\n', ''), input.header['NAXIS1'], input.header['NAXIS2'])
     if status != 0:
         raise RuntimeError()
 
     return Quantity(scale.T, 'pixel_reference', copy=False)
-
-
-#-------------------------------------------------------------------------------
 
 
 def pixel_reference_to_solid_angle(input):
@@ -783,8 +800,8 @@ def pixel_reference_to_solid_angle(input):
 
     header = input.header
     if all([key in header for key in ('CD1_1', 'CD2_1', 'CD1_2', 'CD2_2')]):
-        cd = np.array([ [header['cd1_1'],header['cd1_2']],
-                        [header['cd2_1'],header['cd2_2']] ])
+        cd = np.array([[header['cd1_1'], header['cd1_2']],
+                       [header['cd2_1'], header['cd2_2']]])
         area = abs(np.linalg.det(cd))
     elif 'CDELT1' in header and 'CDELT2' in header:
         area = abs(header['CDELT1'] * header['CDELT2'])
@@ -794,9 +811,6 @@ def pixel_reference_to_solid_angle(input):
     cunit1 = header['CUNIT1'] if 'CUNIT1' in header else 'deg'
     cunit2 = header['CUNIT2'] if 'CUNIT2' in header else 'deg'
     return area * Quantity(1, cunit1) * Quantity(1, cunit2)
-
-
-#-------------------------------------------------------------------------------
 
 
 units_table = {
@@ -869,6 +883,7 @@ units_table = {
     'V'      : Quantity(1., 'kg m^2 / A / s^3'),
 }
 
+
 class Unit(dict):
     def __init__(self):
         for k, v in units_table.items():
@@ -877,6 +892,3 @@ class Unit(dict):
                 setattr(self, k, Quantity(1, k))
 
 units = Unit()
-
-
-
