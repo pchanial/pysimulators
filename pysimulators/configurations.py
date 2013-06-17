@@ -207,7 +207,7 @@ class Configuration(object):
 
     @classmethod
     def create_scan(cls, center, length, step, sampling_period, speed,
-                    acceleration, nlegs=3, angle=0., instrument_angle=45,
+                    acceleration, nlegs=3, angle=0, instrument_angle=45,
                     cross_scan=True, dtype=POINTING_DTYPE):
         """
         Return a sky scan as a Pointing array.
