@@ -15,7 +15,7 @@ from .datatypes import Map
 from .mpiutils import gather_fitsheader_if_needed
 from .wcsutils import barycenter_lonlat, combine_fitsheader, create_fitsheader, ASTROPY_WCS_NDIM_IS_2
 
-__all__ = ['Instrument']
+__all__ = ['Instrument', 'Imager']
 
 class Instrument(object):
     """
@@ -31,12 +31,9 @@ class Instrument(object):
     detector (nvertices, removed, masked, get_corners, get_vertices)
     object_plane (toworld, topixel, topixel1d)
     image_plane (toworld, topixel, topixel1d)
-    toobject
-    toimage
 
     """
     def __init__(self, name, shape, removed=None, masked=None, nvertices=4,
-                 detector_center=None, detector_corner=None,
                  default_resolution=None, origin='upper', dtype=None,
                  comm=MPI.COMM_WORLD):
 
@@ -62,31 +59,12 @@ class Instrument(object):
         else:
             masked = False
 
-        if detector_center is not None:
-            if detector_center.shape != shape:
-                raise ValueError('The detector centers have an incompatible sha'
-                                 'pe.')
-            dtype_default += [('center', float, 2)]
-
-        if detector_corner is not None:
-            if detector_corner.ndim != len(shape) + 2 or \
-               detector_corner.shape[0:2] != shape:
-                raise ValueError('The detector corners have an incompatible sha'
-                                 'pe.')
-            dtype_default += [('center', float, 2), ('corner', float, (4,2))]
-            detector_center = np.mean(detector_corner, axis=-2)
-
         if dtype is None:
             dtype = dtype_default
 
         self.detector = Map.zeros(shape, dtype=dtype, origin=origin)
-        
         self.detector.masked = masked
         self.detector.removed = removed
-        if detector_center is not None:
-            self.detector.center = detector_center
-        if detector_corner is not None:
-            self.detector.corner = detector_corner
 
     def get_ndetectors(self, masked=False):
         """
@@ -446,6 +424,7 @@ class Instrument(object):
         Notes
         -----
         The routine is not accurate at the poles.
+
         """
         coords = np.array(coords, float, order='c', copy=False)
         shape = coords.shape
@@ -652,3 +631,25 @@ class Instrument(object):
             mp.autoscale()
 
         mp.show()
+
+
+class Imager(Instrument):
+    """
+    An Imager is an instrument for which a relationship between the object
+    and image planes does exist (unlike an interferometer).
+
+    Attributes
+    ----------
+    toobject
+    toimage
+
+    """
+    def __init__(self, name, shape, removed=None, masked=None, nvertices=4,
+                 default_resolution=None, origin='upper', dtype=None,
+                 comm=MPI.COMM_WORLD, toimage=None):
+        Instrument.__init__(self, name, shape, removed=removed, masked=masked,
+                            nvertices=nvertices,
+                            default_resolution=default_resolution,
+                            origin=origin, dtype=dtype, comm=comm)
+        self.toimage = asoperator(toimage)
+        self.toobject = self.toimage.I
