@@ -25,7 +25,7 @@ __all__ = ['Configuration', 'MaskPolicy']
 
 class Configuration(object):
     """
-    The QubicConfiguration class, which represents the instrument and
+    The Configuration class, which represents the instrument and
     pointing setups.
 
     """
@@ -34,8 +34,8 @@ class Configuration(object):
         """
         Parameters
         ----------
-        instrument : str or Instrument
-            Instrument name, or an Instrument instance.
+        instrument : Instrument
+            The Instrument instance.
         pointing : array-like of shape (n,3) or structured array of shape (n,),
                    or sequence of
             The pointing directions.
