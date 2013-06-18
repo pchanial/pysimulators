@@ -7,7 +7,6 @@ import gc
 import numpy as np
 import time
 import types
-from astropy.wcs import WCS
 from pyoperators import BlockColumnOperator, MPI
 from pyoperators.utils import (ifirst, isscalar, product, strelapsed, strenum,
                                strnbytes, strplural)
