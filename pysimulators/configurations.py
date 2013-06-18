@@ -395,30 +395,48 @@ class ConfigurationImager(Configuration):
             )
             for b in self.block
         ]
-        if npixels_per_sample == 0:
-            npixels_per_sample = max(
-                p.header['min_npixels_per_sample'] for p in pmatrices
-            )
+        npps_min = max(p.header['min_npixels_per_sample'] for p in pmatrices)
+
+        if npps_min == 0:
+            info += ['Warning, all detectors fall outside the map.']
+
+        elif npixels_per_sample < npps_min:
             if npixels_per_sample > 0:
                 info += [
-                    "Set keyword 'npixels_per_sample' to {0} for better p"
-                    "erformances.".format(npixels_per_sample)
-                ]
-                del pmatrices
-                pmatrices = [
-                    self._get_pointing_matrix(
-                        header,
-                        self.pointing[b.start : b.stop],
-                        npixels_per_sample=npixels_per_sample,
-                        method=method,
+                    "Warning, the value 'npixels_per_sample' is not large"
+                    " enough. Set it to '{0}' instead of '{1}' to avoid r"
+                    "ecomputation of the pointing matrix.".format(
+                        npps_min, npixels_per_sample
                     )
-                    for b in self.block
                 ]
             else:
-                info += ['Warning, all detectors fall outside the map.']
-        else:
-            if any(p.header['outside'] for p in pmatrices):
-                info += ['Warning, some detectors fall outside the map.']
+                info += [
+                    "Set the keyword 'npixels_per_sample' to '{0}' to avo"
+                    "id recomputation of the pointing matrix.".format(npps_min)
+                ]
+            npixels_per_sample = npps_min
+            del pmatrices
+            pmatrices = [
+                self._get_pointing_matrix(
+                    header,
+                    self.pointing[b.start : b.stop],
+                    npixels_per_sample=npixels_per_sample,
+                    method=method,
+                )
+                for b in self.block
+            ]
+
+        elif npixels_per_sample > npps_min:
+            info += [
+                "Warning, the value 'npixels_per_sample' is too large. Se"
+                "t it to '{0}' instead of '{1}' for better memory perform"
+                "ance.".format(npps_min, npixels_per_sample)
+            ]
+
+        if any(p.header['outside'] for p in pmatrices):
+            info += ['Warning, some detectors fall outside the map.']
+
+        info.insert(0, strnbytes(sum(p.nbytes for p in pmatrices)))
         print(
             strelapsed(time0, 'Computing the projector')
             + ' ({0})'.format(' '.join(info))
