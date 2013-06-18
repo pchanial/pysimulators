@@ -518,10 +518,6 @@ class ConfigurationImager(Configuration):
             'nearest' : the value of the sky pixel closest to the detector
                         center is taken as the sample value, assuming
                         surface brightness conservation.
-        downsampling : boolean
-            If True, return a pointing matrix downsampled by the instrument
-            fine sampling factor. Otherwise return a pointing matrix sampled
-            at the instrument fine sampling factor.
 
         """
         if method is None:
