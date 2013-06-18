@@ -241,10 +241,10 @@ contains
     !---------------------------------------------------------------------------
 
 
-    subroutine instrument2ad(input, output, ncoords, ra, dec, pa)
-        ! Convert coordinates in the instrument frame (focal plane) into
-        ! celestial coordinates, assuming a pointing direction and a position
-        ! angle.
+    subroutine object2ad(input, output, ncoords, ra, dec, pa)
+        ! Convert coordinates in the instrument object plane in arc seconds into
+        ! celestial coordinates in degrees, assuming a pointing direction and
+        ! a position angle.
         !
         !         input(2) = Declination if PA=0
         !    \    |
@@ -255,10 +255,9 @@ contains
         !
         ! 
         ! The routine is not accurate at the poles.
-        ! Input units are in arc seconds, output units in degrees.
 
         integer, intent(in)    :: ncoords           ! number of coordinates
-        real(p), intent(in)    :: input(2,ncoords)  ! input coordinates in instrument frame
+        real(p), intent(in)    :: input(2,ncoords)  ! input coordinates in instrument object plane
         real(p), intent(inout) :: output(2,ncoords) ! output in celestial coordinates
         real(p), intent(in)    :: ra, dec, pa       ! pointing direction is (0,0) in the local frame
 
@@ -275,14 +274,14 @@ contains
             output(1,i) = ra  + ( c1 * cospa + c2 * sinpa) / cos(output(2,i) * DEG2RAD)
         end do
 
-    end subroutine instrument2ad
+    end subroutine object2ad
 
 
     !---------------------------------------------------------------------------
 
 
-    subroutine instrument2xy_minmax(coords, ncoords, ra, dec, pa, npointings, header, xmin, ymin, xmax, ymax, status)
-        ! Return the minimum and maximum sky pixel coordinate values of coordinates in the instrument frame.
+    subroutine object2xy_minmax(coords, ncoords, ra, dec, pa, npointings, header, xmin, ymin, xmax, ymax, status)
+        ! Return the minimum and maximum sky pixel coordinate values of coordinates in the instrument object plane.
 
         integer*8, intent(in)                      :: ncoords, npointings     ! #coordinates, #pointings
         real(p), intent(in)                        :: coords(2,ncoords)       ! instrument frame coordinates
@@ -312,7 +311,7 @@ contains
 #endif
         do ipointing = 1, npointings
 
-            call instrument2ad(hull_instrument, hull, size(ihull), ra(ipointing), dec(ipointing), pa(ipointing))
+            call object2ad(hull_instrument, hull, size(ihull), ra(ipointing), dec(ipointing), pa(ipointing))
             call ad2xy_gnomonic(hull(1,:), hull(2,:))
             xmin = min(xmin, minval(hull(1,:)))
             ymin = min(ymin, minval(hull(2,:)))
@@ -324,13 +323,13 @@ contains
         !$omp end parallel do
 #endif
 
-    end subroutine instrument2xy_minmax
+    end subroutine object2xy_minmax
 
 
     !---------------------------------------------------------------------------
 
 
-    subroutine instrument2pmatrix_nearest_neighbour(coords, ncoords, area, ra, dec, pa, masked, npointings, header, pmatrix, out,  &
+    subroutine object2pmatrix_nearest_neighbour(coords, ncoords, area, ra, dec, pa, masked, npointings, header, pmatrix, out,  &
                                                     status)
         !f2py integer*8, depend(npointings,ncoords) :: pmatrix(npointings*ncoords)
         integer*8, intent(in)                        :: ncoords, npointings     ! #coordinates, #pointings
@@ -366,7 +365,7 @@ contains
                 cycle
             end if
 
-            call instrument2ad(coords, coords2, int(ncoords), ra(isample), dec(isample), pa(isample))
+            call object2ad(coords, coords2, int(ncoords), ra(isample), dec(isample), pa(isample))
             
             call ad2xys_gnomonic(coords2, x, y, s)
 
@@ -380,13 +379,13 @@ contains
         end do
         !$omp end parallel do
 
-    end subroutine instrument2pmatrix_nearest_neighbour
+    end subroutine object2pmatrix_nearest_neighbour
 
 
     !---------------------------------------------------------------------------
 
 
-    subroutine instrument2pmatrix_sharp_edges(coords, nvertices, ncoords, ra, dec, pa, masked, npointings, header, pmatrix,        &
+    subroutine object2pmatrix_sharp_edges(coords, nvertices, ncoords, ra, dec, pa, masked, npointings, header, pmatrix,        &
                                               npixels_per_sample, new_npixels_per_sample, out, status)
         !f2py integer*8, depend(npixels_per_sample,npointings,ncoords) :: pmatrix(npixels_per_sample*npointings*ncoords)
         integer*8, intent(in)                        :: nvertices, ncoords, npointings ! #vertices, #coordinates, #pointings
@@ -425,7 +424,7 @@ contains
                 cycle
             end if
 
-            call instrument2ad(coords, coords2, int(ncoords*nvertices), ra(isample), dec(isample), pa(isample))
+            call object2ad(coords, coords2, int(ncoords*nvertices), ra(isample), dec(isample), pa(isample))
             call ad2xy_gnomonic(coords2(1,:,:), coords2(2,:,:))
             roi = xy2roi(coords2)
             call roi2pmatrix_cartesian(roi, coords2, nx, ny, new_npixels_per_sample, out, pmatrix(:,isample,:))
@@ -433,7 +432,7 @@ contains
         end do
         !$omp end parallel do
 
-    end subroutine instrument2pmatrix_sharp_edges
+    end subroutine object2pmatrix_sharp_edges
 
 
 end module wcsutils
