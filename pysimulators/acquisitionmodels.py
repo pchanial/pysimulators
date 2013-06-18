@@ -605,11 +605,6 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
             raise TypeError("The 'shapeout' keyword should not be used.")
         shapeout = matrix.shape[:-1]
 
-        if units is None:
-            units = matrix.info.get('units', None)
-        if derived_units is None:
-            derived_units = matrix.info.get('derived_units', None)
-
         ProjectionBaseOperator.__init__(self, shapein=shapein,
                                         shapeout=shapeout, units=units,
                                         derived_units=derived_units,
