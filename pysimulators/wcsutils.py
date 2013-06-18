@@ -27,6 +27,7 @@ __all__ = [
     'fitsheader2shape',
     'str2fitsheader',
     'DistortionOperator',
+    'RotationBoresightEquatorialOperator',
     'WCSToPixelOperator',
     'WCSToWorldOperator',
 ]
@@ -496,6 +497,44 @@ class DistortionOperator(Operator):
     def direct(self, input, output):
         output[..., 0] = self.interp0(input)
         output[..., 1] = self.interp1(input)
+
+
+@real
+class RotationBoresightEquatorialOperator(Operator):
+    """
+    Convert coordinates in the instrument object plane into celestial
+    coordinates, assuming a pointing direction and a position angle.
+
+            input[1] along declination if PA=0
+       \    |
+        \PA_|
+         \/ |
+          \ |
+           \|_______ input[0] along -R.A. if PA=0
+
+    The routine is not accurate at the poles.
+    Input coordinates are in arc seconds, pointing and output are in degrees.
+
+    """
+    def __init__(self, pointing, **keywords):
+        if any(k not in pointing.dtype.names for k in ('ra', 'dec', 'pa')):
+            raise TypeError('The input is not an equatorial pointing.')
+        self.pointing = pointing
+        Operator.__init__(self, **keywords)
+
+    def direct(self, x, out):
+        s = (Ellipsis,) + (x.ndim - 1) * (None,)
+        ra = self.pointing[s].ra
+        dec = self.pointing[s].dec
+        pa = np.deg2rad(self.pointing[s].pa)
+        cospa = np.cos(pa) / 3600
+        sinpa = np.sin(pa) / 3600
+        out[..., 1] = dec + (-x[..., 0] * sinpa + x[..., 1] * cospa)
+        out[..., 0] = ra + (x[..., 0] * cospa + x[..., 1] * sinpa) /    \
+                           np.cos(np.deg2rad(out[..., 1]))
+
+    def reshapein(self, shape):
+        return self.pointing.shape + shape
 
 
 @real
