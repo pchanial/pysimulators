@@ -354,10 +354,7 @@ class Instrument(object):
 
         """
         if method is None:
-            if 'corner' in self.detector.dtype.names:
-                method = 'sharp'
-            else:
-                method = 'nearest'
+            method = 'sharp' if self.nvertices > 0 else 'nearest'
         method = method.lower()
         choices = ('nearest', 'sharp')
         if method not in choices:
@@ -408,12 +405,12 @@ class Instrument(object):
 
         # compute the pointing matrix
         if method == 'sharp':
-            coords = self.pack(self.get_vertices())
+            coords = self.image2object(self.pack(self.get_vertices()))
             new_npixels_per_sample, outside = self._instrument2pmatrix_sharp_edges(
                 coords, pointing, header, pmatrix, npixels_per_sample
             )
         elif method == 'nearest':
-            coords = self.pack(self.get_centers())
+            coords = self.image2object(self.pack(self.get_centers()))
             new_npixels_per_sample = 1
             outside = self._instrument2pmatrix_nearest_neighbour(
                 coords, pointing, header, pmatrix
@@ -497,8 +494,6 @@ class Instrument(object):
         ):
             flib.wcsutils.instrument2ad(coords.T, r.T, ra, dec, pa)
         result = result.reshape(pointing.shape + shape)
-        for dim in range(pointing.ndim):
-            result = np.rollaxis(result, 0, -1)
         return result
 
     def _instrument2xy(self, coords, pointing, header):
@@ -545,7 +540,7 @@ class Instrument(object):
         between detectors and map pixels.
 
         """
-        coords = coords.reshape((-1,) + coords[-2:])
+        coords = coords.reshape((-1,) + coords.shape[-2:])
         ra = pointing['ra'].ravel()
         dec = pointing['dec'].ravel()
         pa = pointing['pa'].ravel()
@@ -725,12 +720,15 @@ class Instrument(object):
 class Imager(Instrument):
     """
     An Imager is an Instrument for which a relationship between the object
-    and image planes does exist (unlike an interferometer).
+    plane and image plane world coordinates does exist (unlike an inter-
+    ferometer).
 
     Attributes
     ----------
-    toobject
-    toimage
+    object2image : Operator
+        Transform from object plane to image plane coordinates.
+    image2object : Operator
+        Transform from image plane to object plane coordinates.
 
     """
 
@@ -745,8 +743,14 @@ class Imager(Instrument):
         origin='upper',
         dtype=None,
         comm=MPI.COMM_WORLD,
-        toimage=None,
+        image2object=None,
+        object2image=None,
     ):
+        if image2object is None and object2image is None:
+            raise ValueError(
+                'Neither the image2object nor the object2image tr'
+                'ansforms are speficied.'
+            )
         Instrument.__init__(
             self,
             name,
@@ -759,5 +763,9 @@ class Imager(Instrument):
             dtype=dtype,
             comm=comm,
         )
-        self.toimage = asoperator(toimage)
-        self.toobject = self.toimage.I
+        if object2image is not None:
+            self.object2image = asoperator(object2image)
+            self.image2object = self.object2image.I
+        else:
+            self.image2object = asoperator(image2object)
+            self.object2image = self.image2object.I
