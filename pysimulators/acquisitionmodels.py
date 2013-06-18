@@ -17,9 +17,9 @@ from pyoperators.utils import (isscalar, operation_assignment, product,
                                tointtuple)
 
 from . import _flib as flib
-from .datatypes import Map, Tod
+from .datatypes import FitsArray, Map, Tod
 from .quantities import Quantity, _divide_unit, _multiply_unit
-from .wcsutils import fitsheader2shape
+from .wcsutils import create_fitsheader, fitsheader2shape
 
 __all__ = [
     'BlackBodyOperator',
@@ -335,50 +335,43 @@ class PowerLawOperator(DiagonalNumexprOperator):
             self.x, self.x0, scalar=self.scalar)
 
 
-class PointingMatrix(np.ndarray):
-    DTYPE = np.dtype([('value', np.float32), ('index', np.int32)])
+class PointingMatrix(FitsArray):
+    DTYPE = np.dtype([('index', np.int32), ('value', np.float32)])
 
-    def __new__(cls, array, shape_input, info=None, copy=True, ndmin=0):
-        result = np.array(array, copy=copy, ndmin=ndmin).view(cls)
-        result.info = info
+    def __new__(cls, array, shape_input, copy=True, ndmin=0):
+        result = FitsArray.__new__(cls, array, copy=copy, ndmin=ndmin).view(
+            cls.DTYPE, cls)
+        result.header = create_fitsheader(result.shape[::-1])
         result.shape_input = shape_input
         return result
 
-    def __array_finalize__(self, obj):
-        self.info = getattr(obj, 'info', None)
-        self.shape_input = getattr(obj, 'shape_input', None)
-
-    def __getattr__(self, name):
-        if self.dtype.names is not None and name in self.dtype.names:
-            return self[name].view(np.ndarray)
-        return super(PointingMatrix, self).__getattribute__(name)
+    def __array_finalize__(self, array):
+        FitsArray.__array_finalize__(self, array)
+        self.shape_input = getattr(array, 'shape_input', None)
 
     @classmethod
-    def empty(cls, shape, shape_input, info=None, verbose=True):
+    def empty(cls, shape, shape_input, verbose=True):
         buffer = empty(shape, cls.DTYPE, description='for the pointing matrix',
                        verbose=verbose)
-        return PointingMatrix(buffer, shape_input, info=info, copy=False)
+        return PointingMatrix(buffer, shape_input, copy=False)
 
     @classmethod
-    def zeros(cls, shape, shape_input, info=None, verbose=True):
+    def zeros(cls, shape, shape_input, verbose=True):
         buffer = empty(shape, cls.DTYPE, description='for the pointing matrix',
                        verbose=verbose)
-        buffer.value = 0
-        buffer.index = -1
-        return PointingMatrix(buffer, shape_input, info=info, copy=False)
+        buffer['value'] = 0
+        buffer['index'] = -1
+        return PointingMatrix(buffer, shape_input, copy=False)
 
-    def isvalid(self, npixels=None):
+    def isvalid(self):
         """
         Return true if the indices in the pointing matrix are greater or equal
-        to -1 or less than the number of pixels in the map.
+        to -1 and lesser than the number of pixels in the map.
 
         """
         if self.size == 0:
             return True
-        if self.info is not None and 'header' in self.info:
-            npixels = product(fitsheader2shape(self.info['header']))
-        elif npixels is None:
-            raise ValueError('The number of map pixels is not specified.')
+        npixels = product(self.shape_input)
         result = flib.pointingmatrix.isvalid(
             self.ravel().view(np.int64), self.shape[-1],
             product(self.shape[:-1]), npixels)
@@ -400,8 +393,6 @@ class PointingMatrix(np.ndarray):
         if out is None:
             out = empty(self.shape_input, np.bool8, description='as new mask')
             out[...] = True
-            out = Map(out, header=self.info.get('header', None), copy=False,
-                      dtype=bool)
         elif out.dtype != bool:
             raise TypeError('The output mask argument has an invalid type.')
         elif out.shape != self.shape_input:
@@ -421,7 +412,8 @@ class ProjectionBaseOperator(Operator):
     Abstract class for projection operators.
 
     """
-    def __init__(self, units=None, derived_units=None, **keywords):
+    def __init__(self, units=None, derived_units=None, attrin={},
+                 attrout={}, **keywords):
 
         if units is None:
             units = ('', '')
@@ -434,6 +426,8 @@ class ProjectionBaseOperator(Operator):
         Operator.__init__(self, classin=Map, classout=Tod, dtype=float,
                           attrin=self.set_attrin, attrout=self.set_attrout,
                           **keywords)
+        self._attrin = attrin
+        self._attrout = attrout
         self.unit = unit
         self.duout, self.duin = derived_units
 
@@ -470,15 +464,14 @@ class ProjectionBaseOperator(Operator):
                                       input_.T, output.T, matrix.shape[-1])
 
     def set_attrin(self, attr):
-        matrix = self.matrix
-        header = matrix.info.get('header', None)
-        if header is not None:
-            attr['_header'] = header.copy()
+        if '_header' in attr:
+            del attr['_header']
         unitout = attr['_unit'] if '_unit' in attr else {}
         if unitout:
             attr['_unit'] = _divide_unit(unitout, self.unit)
         if self.duin is not None:
             attr['_derived_units'] = self.duin
+        attr.update(self._attrin)
 
     def set_attrout(self, attr):
         if '_header' in attr:
@@ -488,6 +481,7 @@ class ProjectionBaseOperator(Operator):
             attr['_unit'] = _multiply_unit(unitin, self.unit)
         if self.duout is not None:
             attr['_derived_units'] = self.duout
+        attr.update(self._attrout)
 
     def apply_mask(self, mask):
         """
