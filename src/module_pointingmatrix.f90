@@ -25,8 +25,8 @@ module module_pointingmatrix
     public :: backprojection_weighted_roi
 
     type PointingElement
-        real(sp)  :: value
         integer*4 :: index
+        real(sp)  :: value
     end type PointingElement
 
 contains
