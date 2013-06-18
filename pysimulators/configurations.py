@@ -3,12 +3,16 @@
 
 from __future__ import division
 
+import gc
 import numpy as np
 import time
 import types
+from astropy.wcs import WCS
+from pyoperators import BlockColumnOperator
 from pyoperators.utils import (
     ifirst,
     isscalar,
+    product,
     strelapsed,
     strenum,
     strnbytes,
@@ -16,11 +20,20 @@ from pyoperators.utils import (
 )
 from pyoperators.utils.mpi import MPI
 
-from .instruments import Instrument
+from . import _flib as flib
+from .acquisitionmodels import PointingMatrix, ProjectionInMemoryOperator
+from .instruments import Instrument, Imager
+from .mpiutils import gather_fitsheader_if_needed
 from .pointings import POINTING_DTYPE, Pointing
-from .wcsutils import create_fitsheader
+from .wcsutils import (
+    RotationBoresightEquatorialOperator,
+    barycenter_lonlat,
+    combine_fitsheader,
+    create_fitsheader,
+    fitsheader2shape,
+)
 
-__all__ = ['Configuration', 'MaskPolicy']
+__all__ = ['Configuration', 'ConfigurationImager', 'MaskPolicy']
 
 
 class Configuration(object):
@@ -71,6 +84,7 @@ class Configuration(object):
             if len(pointing) > 1 and all(p.ndim == 1 for p in pointing):
                 pointing = [np.vstack(pointing)]
             pointing = [np.array(p, copy=False, ndmin=2, subok=True) for p in pointing]
+
         if selection is None:
             selection = tuple(range(len(pointing)))
         pointing = [pointing[i] for i in selection]
@@ -103,124 +117,6 @@ class Configuration(object):
 
         """
         raise NotImplementedError()
-
-    def get_map_header(self, resolution=None, downsampling=False):
-        """
-        Return the FITS header of the smallest map that encompasses
-        the observation, by taking into account the instrument geometry.
-
-        Parameters
-        ----------
-        resolution : float
-            Sky pixel increment, in arc seconds. The default value is set
-            in Configuration's __init__ method through the default_resolution
-            keyword.
-
-        Returns
-        -------
-        header : pyfits.Header
-            The resulting FITS header.
-
-        """
-        return self.instrument.get_map_header(self.pointing, resolution=resolution)
-
-    def get_pointing_matrix(
-        self,
-        header,
-        npixels_per_sample=0,
-        method=None,
-        downsampling=False,
-        section=None,
-        comm=MPI.COMM_WORLD,
-        **keywords,
-    ):
-        """
-        Return the pointing matrix for the configuration.
-
-        If the configuration has several blocks, as many pointing matrices
-        are returned in a list.
-
-        Parameters
-        ----------
-        header : pyfits.Header
-            The map FITS header
-        npixels_per_sample : int
-            Maximum number of sky pixels intercepted by a detector.
-            By setting 0 (the default), the actual value will be determined
-            automatically.
-        method : string
-            'sharp' : the intersection of the sky pixels and the detectors
-                      is computed assuming that the transmission outside
-                      the detector is zero and one otherwise (sharp edge
-                      geometry)
-            'nearest' : the value of the sky pixel closest to the detector
-                        center is taken as the sample value, assuming
-                        surface brightness conservation.
-        downsampling : boolean
-            If True, return a pointing matrix downsampled by the instrument
-            fine sampling factor. Otherwise return a pointing matrix sampled
-            at the instrument fine sampling factor.
-        section : slice
-            If specified, return the pointing matrix for a specific slice.
-        comm : mpi4py.MPI.Comm
-            Map communicator, only used if the input FITS header is local.
-
-        """
-        # if section is None, return as many pointing matrices as slices
-        if section is None:
-            if self.block is not None:
-                time0 = time.time()
-                pmatrix = [
-                    self.get_pointing_matrix(
-                        header,
-                        npixels_per_sample,
-                        method,
-                        downsampling,
-                        section=s,
-                        comm=comm,
-                        **keywords,
-                    )
-                    for s in self.block
-                ]
-                info = [strnbytes(sum(p.nbytes for p in pmatrix))]
-                if all(p.shape[-1] == 0 for p in pmatrix):
-                    info += 'warning, all detectors fall outside the map'
-                else:
-                    n = max(p.info['npixels_per_sample_min'] for p in pmatrix)
-                    if npixels_per_sample == 0 or npixels_per_sample != n:
-                        info += [
-                            "set keyword 'npixels_per_sample' to {0} for "
-                            "better performances".format(n)
-                        ]
-                    outside = any(
-                        p.info['outside'] for p in pmatrix if 'outside' in p.info
-                    )
-                    if outside:
-                        info += ['warning, some detectors fall outside the ' 'map']
-                print(
-                    strelapsed(time0, 'Computing the projector')
-                    + ' ({0})'.format(', '.join(info))
-                )
-                if len(pmatrix) == 1:
-                    pmatrix = pmatrix[0]
-                return pmatrix
-            pointing = self.pointing
-        else:
-            # otherwise, restrict the pointing to the input section
-            if not isinstance(section, slice):
-                section = slice(section.start, section.stop)
-            pointing = self.pointing[section]
-        result = self.instrument.get_pointing_matrix(
-            pointing,
-            header,
-            npixels_per_sample,
-            method,
-            downsampling,
-            comm=comm,
-            **keywords,
-        )
-        result.info.update(keywords)
-        return result
 
     def get_nsamples(self):
         """
@@ -318,6 +214,209 @@ class Configuration(object):
         scan.header.update('HIERARCH instrument_angle', instrument_angle)
         return scan
 
+    def plot(self, map=None, header=None, new_figure=True, percentile=0.01, **keywords):
+        """
+        map : ndarray of dim 2
+            The optional map to be displayed as background.
+        header : pyfits.Header
+            The optional map's FITS header.
+        new_figure : boolean
+            If true, plot the scan in a new window.
+        percentile : float, tuple of two floats
+            As a float, percentile of values to be discarded, otherwise,
+            percentile of the minimum and maximum values to be displayed.
+
+        """
+        if header is None:
+            header = getattr(map, 'header', None)
+            if header is None:
+                header = self.pointing.get_map_header(naxis=1)
+        annim = self.pointing[self.block[0].start : self.block[0].stop].plot(
+            map=map,
+            header=header,
+            new_figure=new_figure,
+            percentile=percentile,
+            **keywords,
+        )
+
+        for s in self.block[1:]:
+            self.pointing[s.start : s.stop].plot(
+                header=header, new_figure=False, **keywords
+            )
+
+        return annim
+
+    @staticmethod
+    def _get_block(pointing, block_id):
+        npointings = [p.shape[0] for p in pointing]
+        start = np.concatenate([[0], np.cumsum(npointings)[:-1]])
+        stop = np.cumsum(npointings)
+        block = np.recarray(
+            len(pointing),
+            dtype=[('start', int), ('stop', int), ('n', int), ('id', 'S29')],
+        )
+        block.n = npointings
+        block.start = start
+        block.stop = stop
+        block.identifier = block_id if block_id is not None else ''
+        return block
+
+
+class ConfigurationImager(Configuration):
+    """
+    The ConfigurationImager class, which represents the setups of an imager
+    instrument and the pointing.
+
+    """
+
+    def __init__(self, instrument, pointing, block_id=None, selection=None):
+        """
+        Parameters
+        ----------
+        instrument : Imager
+            The Imager instance.
+        pointing : array-like of shape (n,3) or structured array of shape (n,),
+                   or sequence of
+            The pointing directions.
+        block_id : string or sequence of, optional
+           The pointing block identifier.
+        selection : integer or sequence of, optional
+           The indices of the pointing sequence to be selected to construct
+           the pointing configuration.
+
+        """
+        if not isinstance(instrument, Imager):
+            raise TypeError(
+                "The instrument has an invalid type '{}'.".format(
+                    type(instrument).__name__
+                )
+            )
+        Configuration.__init__(
+            self, instrument, pointing, block_id=block_id, selection=selection
+        )
+        self.object2world = RotationBoresightEquatorialOperator(self.pointing)
+
+    def get_map_header(self, resolution=None):
+        """
+        Return the FITS header of the smallest map that encompasses the config-
+        uration pointings, by taking into account the instrument geometry.
+
+        Parameters
+        ----------
+        resolution : float
+            Sky pixel increment, in arc seconds. The default value is the
+            Instrument default_resolution.
+
+        Returns
+        -------
+        header : astropy.io.Header
+            The resulting FITS header.
+
+        """
+        if resolution is None:
+            resolution = self.instrument.default_resolution
+        if self.instrument.nvertices > 0:
+            coords = self.instrument.get_vertices()
+        else:
+            coords = self.instrument.get_centers()
+        self.instrument.image2object(coords, out=coords)
+        # XXX we should only keep the convex hull
+        coords = self.pack(coords, masked=True)
+
+        valid = ~self.pointing['removed'] & ~self.pointing['masked']
+        if not np.any(valid):
+            raise ValueError(
+                'The FITS header cannot be inferred: there is no ' 'valid pointing.'
+            )
+        pointing = self.pointing[valid]
+
+        # get a dummy header, with correct cd and crval
+        ra0, dec0 = barycenter_lonlat(pointing.ra, pointing.dec)
+        header = create_fitsheader(
+            (1, 1), cdelt=resolution / 3600, crval=(ra0, dec0), crpix=(1, 1)
+        )
+
+        # compute coordinate boundaries according to the header's astrometry
+        xmin, ymin, xmax, ymax = self._object2xy_minmax(
+            coords, pointing, str(header).replace('\n', '')
+        )
+        ixmin = int(np.round(xmin))
+        ixmax = int(np.round(xmax))
+        iymin = int(np.round(ymin))
+        iymax = int(np.round(ymax))
+        nx = ixmax - ixmin + 1
+        ny = iymax - iymin + 1
+
+        # move the reference pixel (not the reference value!)
+        header = create_fitsheader(
+            (nx, ny),
+            cdelt=resolution / 3600,
+            crval=(ra0, dec0),
+            crpix=(-ixmin + 2, -iymin + 2),
+        )
+
+        # gather and combine the FITS headers
+        headers = self.comm.allgather(header)
+        return combine_fitsheader(headers)
+
+    def get_projection_operator(
+        self, header, npixels_per_sample=0, method=None, units=None, derived_units=None
+    ):
+        if method == 'nearest':
+            npixels_per_sample = 1
+        time0 = time.time()
+        info = []
+        pmatrices = [
+            self._get_pointing_matrix(
+                header,
+                self.pointing[b.start : b.stop],
+                npixels_per_sample=npixels_per_sample,
+                method=method,
+            )
+            for b in self.block
+        ]
+        if npixels_per_sample == 0:
+            npixels_per_sample = max(
+                p.header['min_npixels_per_sample'] for p in pmatrices
+            )
+            if npixels_per_sample > 0:
+                info += [
+                    "Set keyword 'npixels_per_sample' to {0} for better p"
+                    "erformances.".format(npixels_per_sample)
+                ]
+                del pmatrices
+                pmatrices = [
+                    self._get_pointing_matrix(
+                        header,
+                        self.pointing[b.start : b.stop],
+                        npixels_per_sample=npixels_per_sample,
+                        method=method,
+                    )
+                    for b in self.block
+                ]
+            else:
+                info += ['Warning, all detectors fall outside the map.']
+        else:
+            if any(p.header['outside'] for p in pmatrices):
+                info += ['Warning, some detectors fall outside the map.']
+        print(
+            strelapsed(time0, 'Computing the projector')
+            + ' ({0})'.format(' '.join(info))
+        )
+
+        return BlockColumnOperator(
+            [
+                ProjectionInMemoryOperator(
+                    p,
+                    attrin={'_header': header},
+                    units=units,
+                    derived_units=derived_units,
+                )
+                for p in pmatrices
+            ],
+            axisout=-1,
+        )
+
     def plot(
         self,
         map=None,
@@ -341,48 +440,220 @@ class Configuration(object):
             percentile of the minimum and maximum values to be displayed.
 
         """
-        if header is None:
-            header = getattr(map, 'header', None)
-            if header is None:
-                header = self.pointing.get_map_header(naxis=1)
-        annim = self.pointing[self.block[0].start : self.block[0].stop].plot(
+        image = Configuration.plot(
+            self,
             map=map,
             header=header,
             new_figure=new_figure,
             percentile=percentile,
             **keywords,
         )
+        if not instrument:
+            return image
 
         valid = ~self.pointing.removed & ~self.pointing.masked
-        if np.max(valid) == 0:
-            return
+        p = self.pointing[ifirst(valid, True)]
+        t = RotationBoresightEquatorialOperator(p) * self.instrument.image2object
+        f = lambda x: image.projection.topixel(t(x))
+        self.instrument.plot(transform=f, autoscale=False)
+        return image
 
-        for s in self.block[1:]:
-            self.pointing[s.start : s.stop].plot(
-                header=header, new_figure=False, **keywords
+    def _get_pointing_matrix(self, header, pointing, npixels_per_sample=0, method=None):
+        """
+        Return the pointing matrix for a given set of pointings.
+
+        Parameters
+        ----------
+        pointing : Pointing
+            The pointing containing the astrometry of the array center.
+        header : pyfits.Header
+            The map FITS header
+        npixels_per_sample : int
+            Maximum number of sky pixels intercepted by a detector.
+            By setting 0 (the default), the actual value will be determined
+            automatically.
+        method : string
+            'sharp' : the intersection of the sky pixels and the detectors
+                      is computed assuming that the transmission outside
+                      the detector is zero and one otherwise (sharp edge
+                      geometry)
+            'nearest' : the value of the sky pixel closest to the detector
+                        center is taken as the sample value, assuming
+                        surface brightness conservation.
+        downsampling : boolean
+            If True, return a pointing matrix downsampled by the instrument
+            fine sampling factor. Otherwise return a pointing matrix sampled
+            at the instrument fine sampling factor.
+
+        """
+        if method is None:
+            method = 'sharp' if self.instrument.nvertices > 0 else 'nearest'
+        method = method.lower()
+        choices = ('nearest', 'sharp')
+        if method not in choices:
+            raise ValueError(
+                "Invalid method '" + method + "'. Expected values"
+                " are " + strenum(choices) + '.'
             )
-        if instrument:
-            p = self.pointing[ifirst(valid, True)]
-            t = self.instrument.toobject
-            f = lambda x: self.instrument._instrument2xy(t(x), p, header) + 1
-            self.instrument.plot(f, autoscale=False)
 
-        return annim
+        shape_input = fitsheader2shape(header)
+        if product(shape_input) > np.iinfo(np.int32).max:
+            raise RuntimeError(
+                'The map is too large: pixel indices cannot be '
+                'stored using 32 bits: {0}>{1}'.format(
+                    product(shape_input), np.iinfo(np.int32).max
+                )
+            )
+
+        mask = ~pointing['removed']
+        pointing = pointing[mask]
+        nvalids = pointing.size
+
+        if method == 'nearest':
+            npixels_per_sample = 1
+
+        # allocate memory for the pointing matrix
+        ndetectors = self.get_ndetectors()
+        shape = (ndetectors, nvalids, npixels_per_sample)
+        try:
+            pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
+        except MemoryError:
+            gc.collect()
+            pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
+
+        # compute the pointing matrix
+        if method == 'sharp':
+            coords = self.instrument.image2object(
+                self.pack(self.instrument.get_vertices())
+            )
+            new_npps, outside = self._object2pmatrix_sharp_edges(
+                coords, pointing, header, pmatrix, npixels_per_sample
+            )
+        elif method == 'nearest':
+            coords = self.instrument.image2object(
+                self.pack(self.instrument.get_centers())
+            )
+            new_npps = 1
+            outside = self._object2pmatrix_nearest_neighbour(
+                coords, pointing, header, pmatrix
+            )
+        else:
+            raise NotImplementedError()
+
+        pmatrix.header['method'] = method
+        pmatrix.header['outside'] = bool(outside)
+        pmatrix.header['HIERARCH min_npixels_per_sample'] = new_npps
+
+        return pmatrix
 
     @staticmethod
-    def _get_block(pointing, block_id):
-        npointings = [p.shape[0] for p in pointing]
-        start = np.concatenate([[0], np.cumsum(npointings)[:-1]])
-        stop = np.cumsum(npointings)
-        block = np.recarray(
-            len(pointing),
-            dtype=[('start', int), ('stop', int), ('n', int), ('id', 'S29')],
+    def _object2ad(coords, pointing):
+        """
+        Convert coordinates in the instrument frame into celestial coordinates,
+        assuming a pointing direction and a position angle.
+
+        The instrument frame is the frame used for the 'center' or 'corner'
+        coordinates, which are fields of the 'detector' attribute.
+
+        Parameters
+        ----------
+        coords : float array (last dimension is 2)
+            Coordinates in the instrument frame in arc seconds.
+        pointing : array with flexible dtype including 'ra', 'dec' and 'pa'
+            Direction corresponding to (0,0) in the local frame, in degrees.
+
+        Returns
+        -------
+        coords_converted : float array (last dimension is 2, for Ra and Dec)
+            Converted coordinates, in degrees.
+
+        Notes
+        -----
+        The routine is not accurate at the poles.
+
+        """
+        coords = np.array(coords, float, order='c', copy=False)
+        shape = coords.shape
+        coords = coords.reshape((-1, 2))
+        new_shape = (pointing.size,) + coords.shape
+        result = np.empty(new_shape, float)
+        for r, ra, dec, pa in zip(
+            result, pointing['ra'].flat, pointing['dec'].flat, pointing['pa'].flat
+        ):
+            flib.wcsutils.object2ad(coords.T, r.T, ra, dec, pa)
+        result = result.reshape(pointing.shape + shape)
+        return result
+
+    @staticmethod
+    def _object2xy_minmax(coords, pointing, header):
+        """
+        Return the minimum and maximum sky pixel coordinate values given a set
+        of coordinates specified in the instrument frame.
+
+        """
+        coords = np.array(coords, float, order='c', copy=False)
+        xmin, ymin, xmax, ymax, status = flib.wcsutils.object2xy_minmax(
+            coords.reshape((-1, 2)).T,
+            pointing['ra'].ravel(),
+            pointing['dec'].ravel(),
+            pointing['pa'].ravel(),
+            str(header).replace('\n', ''),
         )
-        block.n = npointings
-        block.start = start
-        block.stop = stop
-        block.identifier = block_id if block_id is not None else ''
-        return block
+        if status != 0:
+            raise RuntimeError()
+        return xmin, ymin, xmax, ymax
+
+    @staticmethod
+    def _object2pmatrix_sharp_edges(
+        coords, pointing, header, pmatrix, npixels_per_sample
+    ):
+        """
+        Return the sparse pointing matrix whose values are intersections
+        between detectors and map pixels.
+
+        """
+        coords = coords.reshape((-1,) + coords.shape[-2:])
+        ra = pointing['ra'].ravel()
+        dec = pointing['dec'].ravel()
+        pa = pointing['pa'].ravel()
+        masked = pointing['masked'].view(np.int8).ravel()
+        if pmatrix.size == 0:
+            # f2py doesn't accept zero-sized opaque arguments
+            pmatrix = np.empty(1, np.int64)
+        else:
+            pmatrix = pmatrix.ravel().view(np.int64)
+        header = str(header).replace('\n', '')
+
+        new_npps, out, status = flib.wcsutils.object2pmatrix_sharp_edges(
+            coords.T, ra, dec, pa, masked, header, pmatrix, npixels_per_sample
+        )
+        if status != 0:
+            raise RuntimeError()
+
+        return new_npps, out
+
+    @staticmethod
+    def _object2pmatrix_nearest_neighbour(coords, pointing, header, pmatrix):
+        """
+        Return the sparse pointing matrix whose values are intersection between
+        detector centers and map pixels.
+
+        """
+        coords = coords.reshape((-1, 2))
+        area = np.ones(coords.shape[0])
+        ra = pointing['ra'].ravel()
+        dec = pointing['dec'].ravel()
+        pa = pointing['pa'].ravel()
+        masked = pointing['masked'].view(np.int8).ravel()
+        pmatrix = pmatrix.ravel().view(np.int64)
+        header = str(header).replace('\n', '')
+        out, status = flib.wcsutils.object2pmatrix_nearest_neighbour(
+            coords.T, area, ra, dec, pa, masked, header, pmatrix
+        )
+        if status != 0:
+            raise RuntimeError()
+
+        return out
 
 
 def _create_scan(
