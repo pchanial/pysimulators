@@ -294,7 +294,7 @@ class Instrument(object):
                                  out.shape, shape_corners))
         else:
             out = np.empty(shape_corners)
-        flib.wcsutils.create_grid_square(
+        flib.geometry.create_grid_squares(
             size, filling_factor, xreflection, yreflection, rotation, xcenter,
             ycenter, out.T)
         return out
