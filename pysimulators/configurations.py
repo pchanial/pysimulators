@@ -82,8 +82,8 @@ class Configuration(object):
         pointing = [np.asanyarray(p) for p in pointing]
         if any(type(p) is not type(pointing[0]) for p in pointing):
             raise TypeError('The input pointings have different types.')
-        if any(p.dtype.kind != pointing[0].dtype.kind for p in pointing):
-            raise TypeError('The input pointings have different dtype kinds.')
+        if any(p.dtype.names != pointing[0].dtype.names for p in pointing):
+            raise TypeError('The input pointings have different dtypes.')
         if pointing[0].dtype.kind == 'V':
             pointing = [np.array(p, copy=False, ndmin=1, subok=True) for p in pointing]
         else:
