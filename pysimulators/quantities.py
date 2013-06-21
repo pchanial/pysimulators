@@ -5,6 +5,7 @@ from __future__ import division
 
 import numpy as np
 import re
+from pyoperators.memory import empty
 
 from . import _flib as flib
 
@@ -235,6 +236,7 @@ class Quantity(np.ndarray):
 
     """
 
+    default_dtype = np.float64
     _unit = None
     _derived_units = None
 
@@ -251,11 +253,13 @@ class Quantity(np.ndarray):
     ):
 
         data = np.asanyarray(data)
-        if dtype is None and data.dtype.kind in ('b', 'i'):
+        if dtype is None and data.dtype.kind == 'i':
             dtype = float
 
         # get a new Quantity instance (or a subclass if subok is True)
-        result = np.array(data, dtype, copy=copy, order=order, subok=True, ndmin=ndmin)
+        result = np.array(
+            data, dtype=dtype, copy=copy, order=order, subok=True, ndmin=ndmin
+        )
         if not subok and type(result) is not cls or not isinstance(result, cls):
             result = result.view(cls)
 
@@ -450,6 +454,8 @@ class Quantity(np.ndarray):
         item = np.ndarray.__getitem__(self, key)
         if not isinstance(item, np.ndarray):
             item = Quantity(item, self._unit, self._derived_units, copy=False)
+        elif self.dtype.kind == 'V' and isinstance(key, str):
+            return Quantity(item, '', {}, copy=False)
 
         if isinstance(key, list):
             key = tuple(key)
@@ -739,17 +745,50 @@ class Quantity(np.ndarray):
             return result
         return result + ' ' + _strunit(self._unit)
 
-    @staticmethod
-    def empty(shape, unit=None, derived_units=None, dtype=None, order=None):
-        return Quantity(np.empty(shape, dtype, order), unit, derived_units, copy=False)
+    @classmethod
+    def empty(
+        cls, shape, unit=None, derived_units=None, dtype=None, order=None, **keywords
+    ):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(
+            empty(shape, dtype, order),
+            dtype=dtype,
+            unit=unit,
+            derived_units=derived_units,
+            copy=False,
+            **keywords,
+        )
 
-    @staticmethod
-    def ones(shape, unit=None, derived_units=None, dtype=None, order=None):
-        return Quantity(np.ones(shape, dtype, order), unit, derived_units, copy=False)
+    @classmethod
+    def ones(
+        cls, shape, unit=None, derived_units=None, dtype=None, order=None, **keywords
+    ):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(
+            np.ones(shape, dtype, order),
+            dtype=dtype,
+            unit=unit,
+            derived_units=derived_units,
+            copy=False,
+            **keywords,
+        )
 
-    @staticmethod
-    def zeros(shape, unit=None, derived_units=None, dtype=None, order=None):
-        return Quantity(np.zeros(shape, dtype, order), unit, derived_units, copy=False)
+    @classmethod
+    def zeros(
+        cls, shape, unit=None, derived_units=None, dtype=None, order=None, **keywords
+    ):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(
+            np.zeros(shape, dtype, order),
+            dtype=dtype,
+            unit=unit,
+            derived_units=derived_units,
+            copy=False,
+            **keywords,
+        )
 
     def min(self, *args, **kw):
         return self._wrap_func(np.min, self.unit, *args, **kw)

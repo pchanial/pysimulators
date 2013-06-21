@@ -13,63 +13,119 @@ from .wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
 
 __all__ = ['Pointing']
 
-POINTING_DTYPE = [
-    ('ra', float),
-    ('dec', float),
-    ('pa', float),
-    ('time', float),
-    ('info', np.int64),
-    ('masked', np.bool8),
-    ('removed', np.bool8),
-]
-
 
 class Pointing(FitsArray):
     INSCAN = 1
     TURNAROUND = 2
     OTHER = 3
+    default_dtype = [
+        ('ra', float),
+        ('dec', float),
+        ('pa', float),
+        ('time', float),
+        ('info', np.int64),
+        ('masked', np.bool8),
+        ('removed', np.bool8),
+    ]
 
     def __new__(
-        cls, coords, time=None, info=None, masked=None, removed=None, dtype=None
+        cls,
+        coords,
+        time=None,
+        info=None,
+        masked=None,
+        removed=None,
+        header=None,
+        unit=None,
+        derived_units=None,
+        dtype=None,
+        copy=True,
+        order='C',
+        subok=False,
+        ndmin=0,
     ):
 
-        if isinstance(coords, np.ndarray):
-            s = coords.shape[-1]
-            if s not in (2, 3):
-                raise ValueError('Invalid number of dimensions.')
-            ra = coords[..., 0]
-            dec = coords[..., 1]
-            if s == 3:
-                pa = coords[..., 2]
-            else:
-                pa = 0
-        elif isinstance(coords, (list, tuple)):
-            s = len(coords)
-            if s not in (2, 3):
-                raise ValueError('Invalid number of dimensions.')
-            ra = coords[0]
-            dec = coords[1]
-            if s == 3:
-                pa = coords[2]
-            else:
-                pa = 0
-        elif isinstance(coords, dict):
-            if 'ra' not in coords or 'dec' not in coords:
-                raise ValueError(
-                    "The input pointing does have keywords 'ra' a" "nd 'dec'."
+        if isinstance(coords, np.ndarray) and coords.dtype.kind == 'V':
+            if dtype is None or dtype == coords.dtype:
+                result = FitsArray.__new__(
+                    cls,
+                    coords,
+                    header=header,
+                    unit=unit,
+                    derived_units=derived_units,
+                    dtype=dtype,
+                    copy=copy,
+                    order=order,
+                    subok=True,
+                    ndmin=ndmin,
                 )
-            ra = coords['ra']
-            dec = coords['dec']
-            pa = coords.get('pa', 0)
+                if not subok and type(coords) is not cls:
+                    result = result.view(cls)
+            else:
+                result = FitsArray.zeros(
+                    coords.shape,
+                    header=header,
+                    unit=unit,
+                    derived_units=derived_units,
+                    dtype=dtype,
+                    order=order,
+                )
+                result = result.view(type(coords) if subok else Pointing)
+                result.ra = coords.ra
+                result.dec = coords.dec
+                result.pa = coords.pa
+                if time is None:
+                    time = coords.time
+                if info is None:
+                    info = coords.info
+                if masked is None:
+                    masked = coords.masked
+                if removed is None:
+                    removed = coords.removed
         else:
-            raise TypeError('The input pointing type is invalid.')
-
-        ra = np.asarray(ra)
-        shape = ra.shape
-        size = 1 if ra.ndim == 0 else shape[-1]
+            if isinstance(coords, np.ndarray):
+                s = coords.shape[-1]
+                if s not in (2, 3):
+                    raise ValueError('Invalid number of dimensions.')
+                ra = coords[..., 0]
+                dec = coords[..., 1]
+                if s == 3:
+                    pa = coords[..., 2]
+                else:
+                    pa = 0
+            elif isinstance(coords, (list, tuple)):
+                s = len(coords)
+                if s not in (2, 3):
+                    raise ValueError('Invalid number of dimensions.')
+                ra = coords[0]
+                dec = coords[1]
+                if s == 3:
+                    pa = coords[2]
+                else:
+                    pa = 0
+            elif isinstance(coords, dict):
+                if 'ra' not in coords or 'dec' not in coords:
+                    raise ValueError(
+                        "The input pointing does have keywords 'r" "a' and 'dec'."
+                    )
+                ra = coords['ra']
+                dec = coords['dec']
+                pa = coords.get('pa', 0)
+            else:
+                raise TypeError('The input pointing type is invalid.')
+            ra = np.asarray(ra)
+            dec = np.asarray(dec)
+            pa = np.asarray(pa)
+            shape = ra.shape
+            if any(x.shape not in ((), shape) for x in [dec, pa]):
+                raise ValueError('The pointing inputs do not have the same size.')
+            result = cls.zeros(shape, dtype=dtype or cls.default_dtype)
+            result.ra = ra
+            result.dec = dec
+            result.pa = pa
 
         if time is None:
-            time = np.arange(size, dtype=float)
+            time = np.arange(result.size, dtype=float).reshape(result.shape)
 
         if info is None:
             info = Pointing.INSCAN
@@ -80,33 +136,19 @@ class Pointing(FitsArray):
         if removed is None:
             removed = False
 
-        if dtype is None:
-            dtype = POINTING_DTYPE
-
-        dec = np.asarray(dec)
-        pa = np.asarray(pa)
         time = np.asarray(time)
         info = np.asarray(info)
         masked = np.asarray(masked)
         removed = np.asarray(removed)
-
-        if any(x.shape not in ((), shape) for x in [dec, pa, info, masked, removed]):
+        if any(
+            x.shape not in ((), result.shape) for x in [time, info, masked, removed]
+        ):
             raise ValueError('The pointing inputs do not have the same size.')
-
-        result = FitsArray.zeros(shape, dtype=dtype)
-        result.ra = ra
-        result.dec = dec
-        result.pa = pa
         result.time = time
         result.info = info
         result.masked = masked
         result.removed = removed
-        result.header = create_fitsheader(shape)
-        result._unit = {}
-        result._derived_units = {}
-        result = result.view(cls)
-
-        return result.view(cls)
+        return result
 
     @property
     def velocity(self):

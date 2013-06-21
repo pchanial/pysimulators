@@ -22,7 +22,7 @@ from . import _flib as flib
 from .acquisitionmodels import PointingMatrix, ProjectionInMemoryOperator
 from .instruments import Instrument, Imager
 from .mpiutils import gather_fitsheader_if_needed
-from .pointings import POINTING_DTYPE, Pointing
+from .pointings import Pointing
 from .wcsutils import (
     RotationBoresightEquatorialOperator,
     barycenter_lonlat,
@@ -163,7 +163,7 @@ class Configuration(object):
         angle=0,
         instrument_angle=45,
         cross_scan=True,
-        dtype=POINTING_DTYPE,
+        dtype=None,
     ):
         """
         Return a sky scan as a Pointing array.
@@ -192,7 +192,7 @@ class Configuration(object):
             axis, in degrees.
         cross_scan : boolean
             If true, a cross-scan is appended to the pointings.
-        dtype : flexible dtype
+        dtype : structured dtype
             Pointing data type.
 
         """

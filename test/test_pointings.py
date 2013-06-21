@@ -1,6 +1,10 @@
 import numpy as np
 from pysimulators import Pointing
 from numpy.testing import assert_equal, assert_raises
+from pyoperators.utils.testing import assert_is
+
+POINTING_DTYPE = Pointing.default_dtype
+SUPER_POINTING_DTYPE = POINTING_DTYPE + [('junk', 'S1')]
 
 
 def test_coords():
@@ -74,3 +78,20 @@ def test_coords():
             lambda ra, dec, pa, junk: [ra, dec, pa, junk],
         ):
             yield assert_raises, ValueError, Pointing, format(ra, dec, pa, junk)
+
+
+def test_dtype_subclass():
+    class SubPointing(Pointing):
+        pass
+
+    def func(coords, dtype, subok):
+        p = Pointing(coords, dtype=dtype, subok=subok)
+        assert_is(
+            type(p), SubPointing if type(coords) is SubPointing and subok else Pointing
+        )
+        assert_equal(dtype, p.dtype)
+
+    for coords in ([1, 2, 3], Pointing([1, 2, 3]), SubPointing([1, 2, 3])):
+        for dtype in (POINTING_DTYPE, SUPER_POINTING_DTYPE):
+            for subok in (False, True):
+                yield func, coords, dtype, subok

@@ -336,11 +336,11 @@ class PowerLawOperator(DiagonalNumexprOperator):
 
 
 class PointingMatrix(FitsArray):
-    DTYPE = np.dtype([('index', np.int32), ('value', np.float32)])
+    default_dtype = np.dtype([('index', np.int32), ('value', np.float32)])
 
     def __new__(cls, array, shape_input, copy=True, ndmin=0):
         result = FitsArray.__new__(cls, array, copy=copy, ndmin=ndmin).view(
-            cls.DTYPE, cls)
+            cls.default_dtype, cls)
         result.header = create_fitsheader(result.shape[::-1])
         result.shape_input = shape_input
         return result
@@ -351,16 +351,24 @@ class PointingMatrix(FitsArray):
 
     @classmethod
     def empty(cls, shape, shape_input, verbose=True):
-        buffer = empty(shape, cls.DTYPE, description='for the pointing matrix',
-                       verbose=verbose)
+        buffer = empty(shape, cls.default_dtype, verbose=verbose,
+                       description='for the pointing matrix')
+        return PointingMatrix(buffer, shape_input, copy=False)
+
+    @classmethod
+    def ones(cls, shape, shape_input, verbose=True):
+        buffer = empty(shape, cls.default_dtype, verbose=verbose,
+                       description='for the pointing matrix')
+        buffer['index'] = -1
+        buffer['value'] = 1
         return PointingMatrix(buffer, shape_input, copy=False)
 
     @classmethod
     def zeros(cls, shape, shape_input, verbose=True):
-        buffer = empty(shape, cls.DTYPE, description='for the pointing matrix',
-                       verbose=verbose)
-        buffer['value'] = 0
+        buffer = empty(shape, cls.default_dtype, verbose=verbose,
+                       description='for the pointing matrix')
         buffer['index'] = -1
+        buffer['value'] = 0
         return PointingMatrix(buffer, shape_input, copy=False)
 
     def isvalid(self):
