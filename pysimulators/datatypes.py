@@ -141,7 +141,7 @@ class FitsArray(Quantity):
         # get a new FitsArray instance (or a subclass if subok is True)
         result = Quantity.__new__(cls, data, unit, derived_units, dtype, copy,
                                   order, True, ndmin)
-        if not subok and result.__class__ is not cls:
+        if not subok and type(result) is not cls:
             result = result.view(cls)
 
         # copy header attribute
@@ -204,23 +204,32 @@ class FitsArray(Quantity):
             result._header['BITPIX'] = pyfits.PrimaryHDU.ImgCode[typename]
         return result
 
-    @staticmethod
-    def empty(shape, header=None, unit=None, derived_units=None, dtype=None,
-              order=None):
-        return FitsArray(empty(shape, dtype, order), header, unit,
-                         derived_units, dtype, copy=False)
+    @classmethod
+    def empty(cls, shape, header=None, unit=None, derived_units=None,
+              dtype=None, order=None, **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(empty(shape, dtype, order), header=header, unit=unit,
+                   derived_units=derived_units, dtype=dtype, copy=False,
+                   **keywords)
 
-    @staticmethod
-    def ones(shape, header=None, unit=None, derived_units=None, dtype=None,
-             order=None):
-        return FitsArray(np.ones(shape, dtype, order), header, unit,
-                         derived_units, dtype, copy=False)
+    @classmethod
+    def ones(cls, shape, header=None, unit=None, derived_units=None,
+              dtype=None, order=None, **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(np.ones(shape, dtype, order), header=header, unit=unit,
+                   derived_units=derived_units, dtype=dtype, copy=False,
+                   **keywords)
 
-    @staticmethod
-    def zeros(shape, header=None, unit=None, derived_units=None, dtype=None,
-              order=None):
-        return FitsArray(np.zeros(shape, dtype, order), header, unit,
-                         derived_units, dtype, copy=False)
+    @classmethod
+    def zeros(cls, shape, header=None, unit=None, derived_units=None,
+              dtype=None, order=None, **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(np.zeros(shape, dtype, order), header=header, unit=unit,
+                   derived_units=derived_units, dtype=dtype, copy=False,
+                   **keywords)
 
     def has_wcs(self):
         """
@@ -564,7 +573,7 @@ class Map(FitsArray):
         # get a new Map instance (or a subclass if subok is True)
         result = FitsArray.__new__(cls, data, header, unit, derived_units,
                                    dtype, copy, order, True, ndmin, comm)
-        if not subok and result.__class__ is not cls:
+        if not subok and type(result) is not cls:
             result = result.view(cls)
 
         if isinstance(data, (str, unicode)):
@@ -656,23 +665,38 @@ class Map(FitsArray):
             result.error = self.error.astype(dtype)
         return result
 
-    @staticmethod
-    def empty(shape, coverage=None, error=None, origin='lower', header=None,
-              unit=None, derived_units=None, dtype=None, order=None):
-        return Map(empty(shape, dtype, order), header, unit, derived_units,
-                   coverage, error, origin, dtype, copy=False)
+    @classmethod
+    def empty(cls, shape, header=None, unit=None, derived_units=None,
+              coverage=None, error=None, origin=None, dtype=None, order=None,
+              **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(empty(shape, dtype, order), header=header, unit=unit,
+                   derived_units=derived_units, coverage=coverage,
+                   error=error, origin=origin, copy=False, dtype=dtype,
+                   **keywords)
 
-    @staticmethod
-    def ones(shape, coverage=None, error=None, origin='lower', header=None,
-             unit=None, derived_units=None, dtype=None, order=None):
-        return Map(np.ones(shape, dtype, order), header, unit, derived_units,
-                   coverage, error, origin, dtype, copy=False)
+    @classmethod
+    def ones(cls, shape, header=None, unit=None, derived_units=None,
+             coverage=None, error=None, origin=None, dtype=None, order=None,
+             **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(np.ones(shape, dtype, order), header=header, unit=unit,
+                   derived_units=derived_units, coverage=coverage,
+                   error=error, origin=origin, copy=False, dtype=dtype,
+                   **keywords)
 
-    @staticmethod
-    def zeros(shape, coverage=None, error=None, origin='lower', header=None,
-              unit=None, derived_units=None, dtype=None, order=None):
-        return Map(np.zeros(shape, dtype, order), header, unit, derived_units,
-                   coverage, error, origin, dtype, copy=False)
+    @classmethod
+    def zeros(cls, shape, header=None, unit=None, derived_units=None,
+              coverage=None, error=None, origin=None, dtype=None, order=None,
+              **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(np.zeros(shape, dtype, order), header=header, unit=unit,
+                   derived_units=derived_units, coverage=coverage,
+                   error=error, origin=origin, copy=False, dtype=dtype,
+                   **keywords)
 
     def imshow(self, mask=None, new_figure=True, title=None, xlabel='X',
                ylabel='Y', interpolation='nearest', origin=None, colorbar=True,
@@ -831,7 +855,7 @@ class Tod(FitsArray):
         # get a new Tod instance (or a subclass if subok is True)
         result = FitsArray.__new__(cls, data, header, unit, derived_units,
                                    dtype, copy, order, True, ndmin, comm)
-        if not subok and result.__class__ is not cls:
+        if not subok and type(result) is not cls:
             result = result.view(cls)
 
         # mask attribute
@@ -914,23 +938,32 @@ class Tod(FitsArray):
         result.derived_units = self.derived_units.copy()
         return result
 
-    @staticmethod
-    def empty(shape, mask=None, header=None, unit=None, derived_units=None,
-              dtype=None, order=None):
-        return Tod(empty(shape, dtype, order), mask, header, unit,
-                   derived_units, dtype, copy=False)
+    @classmethod
+    def empty(cls, shape, mask=None, header=None, unit=None,
+              derived_units=None, dtype=None, order=None, **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(empty(shape, dtype, order), mask=mask, header=header,
+                   unit=unit, derived_units=derived_units, dtype=dtype,
+                   copy=False, **keywords)
 
-    @staticmethod
-    def ones(shape, mask=None, header=None, unit=None, derived_units=None,
-             dtype=None, order=None):
-        return Tod(np.ones(shape, dtype, order), mask, header, unit,
-                   derived_units, dtype, copy=False)
+    @classmethod
+    def ones(cls, shape, mask=None, header=None, unit=None,
+             derived_units=None, dtype=None, order=None, **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(np.ones(shape, dtype, order), mask=mask, header=header,
+                   unit=unit, derived_units=derived_units, dtype=dtype,
+                   copy=False, **keywords)
 
-    @staticmethod
-    def zeros(shape, mask=None, header=None, unit=None, derived_units=None,
-              dtype=None, order=None):
-        return Tod(np.zeros(shape, dtype, order), mask, header, unit,
-                   derived_units, dtype, copy=False)
+    @classmethod
+    def zeros(cls, shape, mask=None, header=None, unit=None,
+              derived_units=None, dtype=None, order=None, **keywords):
+        if dtype is None:
+            dtype = cls.default_dtype
+        return cls(np.zeros(shape, dtype, order), mask=mask, header=header,
+                   unit=unit, derived_units=derived_units, dtype=dtype,
+                   copy=False, **keywords)
 
     def imshow(self, mask=None, xlabel='Sample', ylabel='Detector number',
                aspect='auto', origin='upper', percentile=0, **keywords):

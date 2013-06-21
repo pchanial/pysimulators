@@ -3,14 +3,23 @@ import glob
 import os
 import pickle
 
-from numpy.testing import assert_array_equal
+import astropy.io.fits as fits
+from numpy.testing import assert_array_equal, assert_equal
 from pyoperators.utils.testing import assert_eq, assert_is_none
 from pysimulators import Quantity, FitsArray, Map, Tod, create_fitsheader
 from uuid import uuid1
 
 filename = 'pysimulatorstest-'+str(uuid1())
-default_type = float
-types = [Quantity, FitsArray, Map, Tod]
+types = (Quantity, FitsArray, Map, Tod)
+keywords_q = {'unit': 'km', 'derived_units': {'km': Quantity(1000, 'm')}}
+keywords_f = keywords_q.copy()
+keywords_f.update({'header': fits.Header({'NAXIS': 0})})
+keywords_m = keywords_f.copy()
+keywords_m.update({'coverage': 8, 'error': 1., 'origin': 'upper'})
+keywords_t = keywords_f.copy()
+keywords_t.update({'mask': True})
+keywords_types = (keywords_q, keywords_f, keywords_m, keywords_t)
+dtypes = (bool, int, np.float32, np.float64, np.complex64, np.complex128)
 
 def teardown():
     for file in glob.glob(filename+'*'):
@@ -118,20 +127,39 @@ def test_operation():
     for t in types[1:]:
         yield func, t
 
-def test_default_dtype():
-    def func(t):
-        a = t([10,20])
-        assert a.dtype == default_type
-    for t in types:
-        yield func, t
 
 def test_dtype():
-    def func(t, dtype):
-        d = t(a, dtype=dtype, copy=False)
-        assert d.dtype == dtype
+    def func1(t, d):
+        a = t(np.array([10, 20], dtype=d))
+        assert a.dtype == (d if d != int else float)
+
+    def func2(t, d):
+        a = t(np.array([10, 20], dtype=d), dtype=d)
+        assert a.dtype == d
+
+    def func3(t, d):
+        a = t(np.ones((4, 3)), dtype=d, copy=False)
+        assert a.dtype == d
     for t in types:
-        for dtype in [np.float32, np.float64, np.complex64, np.complex128]:
-            yield func, t, dtype
+        for d in dtypes:
+            yield func1, t, d
+            yield func2, t, d
+            yield func3, t, d
+
+
+def test_empty_ones_zeros():
+    def func(t, k, m, d):
+        method = getattr(t, m)
+        a = method((2, 3), dtype=d, **k)
+        assert_equal(a.dtype, t.default_dtype if d is None else d)
+        for k_, v in k.items():
+            assert_equal(getattr(a, k_), v)
+
+    for t, k in zip(types, keywords_types):
+        for m in ('empty', 'ones', 'zeros'):
+            for d in (None,) + dtypes:
+                yield func, t, k, m, d
+
 
 def test_tod_save():
     m = np.ndarray((10,2,10), dtype='int8')
