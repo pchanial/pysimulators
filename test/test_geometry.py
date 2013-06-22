@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 from numpy.testing import assert_almost_equal
 from pyoperators.utils import product
+from pyoperators.utils.testing import assert_same
 from pysimulators.geometry import (
     create_circle,
     create_grid,
@@ -16,24 +17,6 @@ DTYPES = [np.float16, np.float32, np.float64, np.float128]
 SHAPES = [(), (1,), (1, 1), (1, 2), (2, 1), (2, 2)]
 
 
-def allsame(a, b, rtol=2):
-    """
-    Compare arrays of floats. The relative error depends on the data type.
-    Broadcasting between argument is possible.
-
-    Parameters
-    ----------
-    rtol : float
-       Relative tolerance to account for numerical error propagation.
-
-    """
-    a = np.asarray(a)
-    b = np.asarray(b)
-    dtype = sorted(arg.dtype for arg in [a, b])[0]
-    eps = np.finfo(dtype).eps * rtol
-    return np.all(abs(a - b) <= eps * np.maximum(abs(a), abs(b)))
-
-
 def test_rotate():
     e = [np.array(1, np.float128) / 2, np.sqrt(np.array(3, np.float128)) / 2]
 
@@ -42,8 +25,8 @@ def test_rotate():
         c = [sqrt3 / 2, np.array(1, dtype) / 2]
         coords = np.empty(shape + (2,), dtype)
         coords[...] = c
-        assert allsame(rotate(coords, 30), e)
-        assert allsame(rotate(coords, 30, out=coords), e)
+        assert_same(rotate(coords, 30), e, broadcasting=True)
+        assert_same(rotate(coords, 30, out=coords), e, broadcasting=True)
 
     for dtype in DTYPES:
         for shape in SHAPES:
@@ -58,7 +41,7 @@ def test_circle():
         radius = np.arange(1, n + 1, dtype=dtype).reshape(shape)
         circle = create_circle(radius, center=origin, dtype=dtype)
         actual = np.sqrt(np.sum((circle - origin) ** 2, axis=-1))
-        assert allsame(actual, radius[..., None])
+        assert_same(actual, radius[..., None], broadcasting=True)
 
     for dtype in DTYPES:
         for shape in SHAPES:
@@ -99,7 +82,7 @@ def test_grid():
             yreflection=yreflection,
             center=origin,
         )
-        assert allsame(actual, expected)
+        assert_same(actual, expected)
 
     for shape in shapes:
         for xreflection in (False, True):
@@ -166,7 +149,7 @@ def test_grid_squares():
             yreflection=yreflection,
             center=origin,
         )
-        assert allsame(actual, expected)
+        assert_same(actual, expected)
 
     for shape in shapes:
         for xreflection in (False, True):
@@ -190,7 +173,7 @@ def test_square():
         expected[..., 2, 1] = origin[1] - size / 2
         expected[..., 3, 0] = origin[0] + size / 2
         expected[..., 3, 1] = origin[1] - size / 2
-        assert allsame(actual, expected)
+        assert_same(actual, expected)
 
     for dtype in DTYPES:
         for shape in SHAPES:
@@ -216,7 +199,7 @@ def test_rectangle():
         expected[..., 2, 1] = origin[1] - size_y / 2
         expected[..., 3, 0] = origin[0] + size_x / 2
         expected[..., 3, 1] = origin[1] - size_y / 2
-        assert allsame(actual, expected)
+        assert_same(actual, expected)
 
     for dtype in DTYPES:
         for shape in SHAPES:
