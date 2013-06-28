@@ -9,9 +9,6 @@ del locale
 
 from . import _flib
 from . import geometry
-from .version import VERSION as __version__
-
-del version
 from .acquisitionmodels import *
 from .datatypes import *
 from .instruments import *
@@ -24,3 +21,7 @@ from .pointings import *
 from .quantities import *
 from .datautils import *
 from .wcsutils import *
+
+import pkg_resources  # part of setuptools
+
+__version__ = pkg_resources.require("pysimulators")[0].version
