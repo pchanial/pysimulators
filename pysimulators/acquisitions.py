@@ -3,11 +3,17 @@
 
 from __future__ import division
 
-import gc
 import numpy as np
 import time
 import types
-from pyoperators import BlockColumnOperator, MPI
+from pyoperators import (
+    BlockColumnOperator,
+    BlockDiagonalOperator,
+    DiagonalOperator,
+    SymmetricBandToeplitzOperator,
+    MPI,
+)
+from pyoperators.memory import empty
 from pyoperators.utils import (
     ifirst,
     isscalar,
@@ -24,6 +30,14 @@ from .geometry import convex_hull
 from .instruments import Instrument, Imager
 from .layouts import Layout
 from .mpiutils import gather_fitsheader_if_needed
+from .noises import (
+    _fold_psd,
+    _gaussian_psd_1f,
+    _gaussian_sample,
+    _logloginterp_psd,
+    _psd2invntt,
+    _unfold_psd,
+)
 from .operators import PointingMatrix, ProjectionInMemoryOperator
 from .pointings import Pointing
 from .wcsutils import (
@@ -121,19 +135,22 @@ class Acquisition(object):
 
     __repr__ = __str__
 
+    def pack(self, x):
+        return self.instrument.detector.pack(x)
+
+    pack.__doc__ = Layout.pack.__doc__
+
+    def unpack(self, x):
+        return self.instrument.detector.unpack(x)
+
+    unpack.__doc__ = Layout.unpack.__doc__
+
     def get_ndetectors(self):
         """
         Return the number of non-removed detectors.
 
         """
         return len(self.instrument.detector.packed)
-
-    def get_filter_uncorrelated(self):
-        """
-        Return the invNtt for uncorrelated detectors.
-
-        """
-        raise NotImplementedError()
 
     def get_nsamples(self):
         """
@@ -150,15 +167,105 @@ class Acquisition(object):
             int(np.sum(~self.pointing[s.start : s.stop].removed)) for s in self.block
         )
 
-    def pack(self, x):
-        return self.instrument.detector.pack(x)
+    def get_invntt_operator(
+        self,
+        psd=None,
+        bandwidth=None,
+        twosided=False,
+        sigma=None,
+        fknee=0,
+        fslope=1,
+        sampling_frequency=None,
+        ncorr=None,
+        fftw_flag='FFTW_MEASURE',
+        nthreads=None,
+    ):
+        """
+        Return the inverse time-time noise correlation matrix as an Operator.
 
-    pack.__doc__ = Layout.pack.__doc__
+        The input Power Spectrum Density can either be fully specified by using
+        the 'bandwidth' and 'psd' keywords, or by providing the parameters of
+        the gaussian distribution:
+            psd = sigma**2 * (1 + (fknee/f)**fslope) / B
+        where B is the sampling bandwidth equal to sampling_frequency / N.
 
-    def unpack(self, x):
-        return self.instrument.detector.unpack(x)
+        Parameters
+        ----------
+        psd : array-like
+            The one-sided or two-sided power spectrum density
+            [signal unit/sqrt Hz].
+        bandwidth : float, optional
+            The PSD frequency increment [Hz].
+        twosided : boolean, optional
+            Whether or not the input psd is one-sided (only positive
+            frequencies) or two-sided (positive and negative frequencies).
+        sigma : float
+            Standard deviation of the white noise component.
+        fknee : float
+            The 1/f noise knee frequency [Hz].
+        fslope : float
+            The 1/f noise slope.
+        sampling_frequency : float
+            The sampling frequency [Hz].
+        ncorr : int
+            The correlation length of the time-time noise correlation matrix.
+        fftw_flag : string, optional
+            The flags FFTW_ESTIMATE, FFTW_MEASURE, FFTW_PATIENT and
+            FFTW_EXHAUSTIVE can be used to describe the increasing amount of
+            effort spent during the planning stage to create the fastest
+            possible transform. Usually, FFTW_MEASURE is a good compromise
+            and is the default.
+        nthreads : int, optional
+            Tells how many threads to use when invoking FFTW or MKL. Default is
+            the number of cores.
 
-    unpack.__doc__ = Layout.unpack.__doc__
+        """
+        if (
+            bandwidth is None
+            and psd is not None
+            or bandwidth is not None
+            and psd is None
+        ):
+            raise ValueError('The bandwidth or the PSD is not specified.')
+        if bandwidth is None and psd is None and sigma is None:
+            raise ValueError('The noise model is not specified.')
+
+        # handle the non-correlated case first
+        if bandwidth is None and fknee == 0:
+            return DiagonalOperator(1 / sigma**2, broadcast='rightward')
+
+        if sampling_frequency is None:
+            if not hasattr(self, 'sampling_frequency'):
+                raise ValueError('The sampling frequency is not specified.')
+            sampling_frequency = self.sampling_frequency
+
+        nsamples_max = np.max(self.block.n)
+        fftsize = 2
+        while fftsize < nsamples_max:
+            fftsize *= 2
+
+        new_bandwidth = sampling_frequency / fftsize
+        if bandwidth is not None and psd is not None:
+            if twosided:
+                psd = _fold_psd(psd)
+            f = np.arange(fftsize // 2 + 1, dtype=float) * new_bandwidth
+            p = _unfold_psd(_logloginterp_psd(f, bandwidth, psd))
+        else:
+            p = _gaussian_psd_1f(
+                fftsize, sampling_frequency, sigma, fknee, fslope, twosided=True
+            )
+        p[..., 0] = p[..., 1]
+        invntt = _psd2invntt(p, new_bandwidth, ncorr, fftw_flag=fftw_flag)
+
+        ops = []
+        for b in self.block:
+            shapein = (self.get_ndetectors(), b.n)
+            ops += [
+                SymmetricBandToeplitzOperator(
+                    shapein, invntt, fftw_flag=fftw_flag, nthreads=nthreads
+                )
+            ]
+        return BlockDiagonalOperator(ops, axisin=-1)
 
     def get_projection_operator(
         self, header, npixels_per_sample=0, method=None, units=None, derived_units=None
@@ -239,6 +346,104 @@ class Acquisition(object):
             ],
             axisout=-1,
         )
+
+    def get_noise(
+        self,
+        psd=None,
+        bandwidth=None,
+        twosided=False,
+        sigma=None,
+        fknee=0,
+        fslope=1,
+        sampling_frequency=None,
+        out=None,
+    ):
+        """
+        Return the noise realization following a given PSD.
+
+        The input Power Spectrum Density can either be fully specified by using
+        the 'bandwidth' and 'psd' keywords, or by providing the parameters of
+        the gaussian distribution:
+            psd = sigma**2 * (1 + (fknee/f)**fslope) / B
+        where B is equal to sampling_frequency / N.
+
+        Parameters
+        ----------
+        psd : array-like, optional
+            The one-sided or two-sided Power Spectrum Density,
+            [signal unit**2/Hz].
+        bandwidth : float, optional
+            The PSD frequency increment [Hz].
+        twosided : boolean, optional
+            Whether or not the output psd is one-sided (only positive
+            frequencies) or two-sided (positive and negative frequencies).
+        sigma : float, optional
+            Standard deviation of the white noise component.
+        fknee : float, optional
+            The 1/f noise knee frequency [Hz].
+        fslope : float, optional
+            The 1/f noise slope.
+        sampling_frequency : float
+            The sampling frequency of the output timeline [Hz].
+        out : ndarray, optional
+            Placeholder for the output noise.
+
+        """
+        if (
+            bandwidth is None
+            and psd is not None
+            or bandwidth is not None
+            and psd is None
+        ):
+            raise ValueError('The bandwidth or the PSD is not specified.')
+        if bandwidth is None and psd is None and sigma is None:
+            raise ValueError('The noise model is not specified.')
+
+        shape = (self.get_ndetectors(), sum(self.get_nsamples()))
+
+        # handle non-correlated case first
+        if bandwidth is None and fknee == 0:
+            noise = np.random.randn(*shape)
+            if out is None:
+                out = noise
+            else:
+                out[...] = noise
+            np.multiply(out.T, sigma, out.T)
+            return out
+
+        if out is None:
+            out = empty(shape)
+
+        if sampling_frequency is None:
+            if not hasattr(self, 'sampling_frequency'):
+                raise ValueError('The sampling frequency is not specified.')
+            sampling_frequency = self.sampling_frequency
+
+        # fold two-sided input PSD
+        if bandwidth is not None and psd is not None:
+            if twosided:
+                psd = _fold_psd(psd)
+                twosided = False
+        else:
+            twosided = True
+
+        for b in self.block:
+            try:
+                valid = ~self.pointing.removed[b.start : b.stop]
+            except AttributeError:
+                valid = Ellipsis
+            if bandwidth is None and psd is None:
+                p = _gaussian_psd_1f(
+                    b.n, sampling_frequency, sigma, fknee, fslope, twosided=twosided
+                )
+            else:
+                # log-log interpolation of one-sided PSD
+                f = np.arange(b.n // 2 + 1, dtype=float) * (sampling_frequency / b.n)
+                p = _logloginterp_psd(f, bandwidth, psd)
+            noise = _gaussian_sample(b.n, sampling_frequency, p, twosided=twosided)
+            out[:, b.start : b.stop] = noise[valid]
+
+        return out
 
     def get_projection_matrix(
         self, header, start, stop, npixels_per_sample=0, method=None
