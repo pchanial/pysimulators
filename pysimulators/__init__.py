@@ -11,6 +11,7 @@ from . import _flib
 from . import geometry
 from .acquisitionmodels import *
 from .datatypes import *
+from .layouts import *
 from .instruments import *
 
 # from .mpiutils import *
