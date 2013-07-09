@@ -1,10 +1,12 @@
 from __future__ import division
 
 import numpy as np
+import scipy.fftpack
 import scipy.signal
 import scipy.special
 
 from matplotlib import pyplot as mp
+from pyoperators import FFTOperator
 from pyoperators.utils import isscalar, product
 from . import _flib as flib
 from .datatypes import Map
@@ -18,6 +20,7 @@ __all__ = [
     'integrated_profile',
     'phasemask_fourquadrant',
     'profile',
+    'profile_psd2',
     'psd2',
 ]
 
@@ -331,13 +334,13 @@ def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
     input: array
         2d input array
     origin: (x0,y0)
-        center of the profile. (Fits convention). Default is the image center.
+        Center of the profile. (Fits convention). Default is the image center.
     bin: number
-        width of the profile bins (in unit of pixels).
+        Width of the profile bins (in unit of pixels).
     nbins: integer
-        number of profile bins.
+        Number of profile bins.
     histogram: boolean
-        if set to True, return the histogram.
+        If set to True, return the histogram.
 
     """
     input = np.ascontiguousarray(input, float)
@@ -364,9 +367,65 @@ def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
         return x, y
 
 
-def psd2(input):
-    input = np.asanyarray(input)
-    s = np.abs(scipy.signal.fft2(input))
-    for axis, n in zip((-2, -1), s.shape[-2:]):
-        s = np.roll(s, n // 2, axis=axis)
-    return Map(s)
+def psd2(array, sampling_frequency=1, fftw_flag='FFTW_MEASURE'):
+    """
+    Return two-dimensional PSD.
+
+    Parameters
+    ----------
+    array : array-like
+       Two-dimensional array.
+    sampling_frequency : float
+       The sampling frequency.
+    fftw_flag : string
+       The FFTW planner flag.
+
+    Returns
+    -------
+    psd : ndarray
+       The Power Spectrum Density, such as
+           sum psd * bandwidth = mean(array**2)
+       with bandwidth = sampling_frequency ** 2 / array.size is the PSD bin
+       area.
+
+    """
+    array = np.asarray(array)
+    s = np.abs(FFTOperator(array.shape, fftw_flag=fftw_flag)(array)) ** 2
+    s /= array.size**2
+    bandwidth = sampling_frequency**2 / array.size
+    s /= bandwidth
+    return Map(scipy.fftpack.fftshift(s))
+
+
+def profile_psd2(array, sampling_frequency=1, fftw_flag='FFTW_MEASURE'):
+    """
+    Return the axisymmetric profile of the PSD of a 2-dimensional image.
+
+    Parameters
+    ----------
+    array : array-like
+       Two-dimensional input array.
+    sampling_frequency : float
+       The sampling frequency.
+    fftw_flag : string
+       The FFTW planner flag.
+
+    Returns
+    -------
+    x : ndarray
+       The frequency bin centers, spaced by sampling_frequency / array.shape[1]
+    y : ndarray
+       The PSD profile. For white noise of standard deviation sigma, the
+       following relationship stands:
+           np.mean(y) * sampling_frequency**2 ~= sigma**2
+
+    """
+    array = np.asanyarray(array)
+    if array.ndim != 2:
+        raise ValueError('The input array is not two-dimensional.')
+    if array.shape[0] != array.shape[1]:
+        raise ValueError('The input array is not square.')
+    psd = psd2(array, sampling_frequency=sampling_frequency, fftw_flag=fftw_flag)
+    x, y = profile(psd, origin=array.shape // np.array(2) + 1)
+    x *= sampling_frequency / array.shape[1]
+    return x, y

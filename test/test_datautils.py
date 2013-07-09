@@ -1,6 +1,6 @@
 import numpy as np
 
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_allclose, assert_array_equal
 from pyoperators.utils.testing import assert_eq
 from pysimulators.datautils import (
     airy_disk,
@@ -8,6 +8,7 @@ from pysimulators.datautils import (
     gaussian,
     profile,
     integrated_profile,
+    psd2,
     _distance_slow,
 )
 
@@ -76,3 +77,10 @@ def test_integrated_profile():
     x2, y2 = integrated_profile_slow(d, origin=(4, 5), bin=2.0)
     assert_eq(x, x2[0 : y.size])
     assert_eq(y, y2[0 : y.size])
+
+
+def test_psd2():
+    image = np.random.randn(122, 122)
+    fs = 1 / 0.11
+    psd = psd2(image, sampling_frequency=fs)
+    assert_allclose(np.sum(psd * (fs**2 / image.size)), np.mean(image**2))
