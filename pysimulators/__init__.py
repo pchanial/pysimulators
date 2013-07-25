@@ -15,6 +15,7 @@ from .instruments import *
 
 # from .mpiutils import *
 from .configurations import *
+from .planes import *
 from .pointings import *
 
 # from .processing import *
