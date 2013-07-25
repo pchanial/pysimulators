@@ -550,11 +550,7 @@ class ConfigurationImager(Configuration):
         # allocate memory for the pointing matrix
         ndetectors = self.get_ndetectors()
         shape = (ndetectors, nvalids, npixels_per_sample)
-        try:
-            pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
-        except MemoryError:
-            gc.collect()
-            pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
+        pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
 
         # compute the pointing matrix
         if method == 'sharp':
