@@ -420,8 +420,8 @@ class ProjectionBaseOperator(Operator):
     Abstract class for projection operators.
 
     """
-    def __init__(self, units=None, derived_units=None, attrin={},
-                 attrout={}, **keywords):
+    def __init__(self, units=None, derived_units=None, attrin={}, attrout={},
+                 **keywords):
 
         if units is None:
             units = ('', '')
@@ -431,9 +431,8 @@ class ProjectionBaseOperator(Operator):
         unit = _divide_unit(Quantity(1, units[0])._unit,
                             Quantity(1, units[1])._unit)
 
-        Operator.__init__(self, classin=Map, classout=Tod, dtype=float,
-                          attrin=self.set_attrin, attrout=self.set_attrout,
-                          **keywords)
+        Operator.__init__(self, dtype=float, attrin=self.set_attrin,
+                          attrout=self.set_attrout, **keywords)
         self._attrin = attrin
         self._attrout = attrout
         self.unit = unit
