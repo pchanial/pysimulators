@@ -136,8 +136,13 @@ class Configuration(object):
         They are those for which self.pointing.removed is False.
 
         """
+        if (
+            self.pointing.dtype.kind != 'V'
+            or 'removed' not in self.pointing.dtype.names
+        ):
+            return tuple(s.stop - s.start for s in self.block)
         return tuple(
-            [int(np.sum(~self.pointing[s.start : s.stop].removed)) for s in self.block]
+            int(np.sum(~self.pointing[s.start : s.stop].removed)) for s in self.block
         )
 
     def pack(self, x, masked=False):
