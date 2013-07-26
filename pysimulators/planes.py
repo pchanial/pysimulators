@@ -2,7 +2,6 @@ from __future__ import division
 
 import numpy as np
 from pyoperators import BlockDiagonalOperator, MinMaxOperator, RoundOperator
-from pyoperators.utils import product
 
 from . import _flib as flib
 from .acquisitionmodels import PointingMatrix, ProjectionInMemoryOperator
@@ -26,7 +25,7 @@ class Plane(object):
 
         Parameters
         ----------
-        vertices : array-like
+        vertices : array-like of shape (..., nvertices, 2)
             The vertices inside which the spatial integration is done,
             in the plane world coordinate units.
 
@@ -47,7 +46,7 @@ class Plane(object):
         else:
             pmatrix_ = pmatrix.ravel().view(np.int64)
 
-        nvertices = product(vertices.shape[:-2])
+        nvertices = vertices.shape[-2]
         new_npps, outside = flib.pointingmatrix.roi2pmatrix_cartesian(
             roi.reshape((-1, 2, 2)).T, xy.reshape((-1, nvertices, 2)).T,
             npixels_per_sample, shape_input[1], shape_input[0], pmatrix_)
