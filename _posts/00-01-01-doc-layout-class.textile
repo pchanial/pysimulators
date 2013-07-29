@@ -155,7 +155,7 @@ Special attributes can also be set using a function in order to decrease the mem
 
 {% highlight python %}
 >>> layout = LayoutGridSquares((8, 8), 0.250, index=index,
-                               subarray=lambda: index//16)
+                               subarray=lambda: index//16 + 1)
 >>> layout.plot()
 >>> for (x, y), s in zip(layout.packed.center, layout.packed.subarray):
 >>>     text(x, y, s, horizontalalignment='center', verticalalignment='center')
