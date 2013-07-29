@@ -12,7 +12,6 @@ module module_projection
     public :: intersection_polygon_unity_square
     public :: intersection_segment_unity_square
     public :: surface_parallelogram
-    public :: surface_convex_polygon
     public :: point_in_polygon
     public :: convex_hull
     public :: set_pivot
@@ -192,27 +191,6 @@ contains
         surface_parallelogram = (b(1) - a(1)) * (c(2) - a(2)) - (c(1) - a(1)) * (b(2) - a(2))
 
     end function surface_parallelogram
-
-
-    !-------------------------------------------------------------------------------------------------------------------------------
-
-
-    pure function surface_convex_polygon(xy) result(output)
-
-        real(p), intent(in) :: xy(:,:)
-        real(p)             :: output
-
-        integer             :: i, j
-
-        output = 0
-        j = size(xy,2)
-        do i=1, size(xy,2)
-            output = output + xy(1,j)*xy(2,i) - xy(2,j)*xy(1,i)
-            j = i
-        end do
-        output = 0.5_p * output
-
-    end function surface_convex_polygon
 
 
     !-------------------------------------------------------------------------------------------------------------------------------
