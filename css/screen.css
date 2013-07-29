@@ -128,10 +128,6 @@ p {
 }
 
 div.highlight > pre {
-  -moz-border-radius: 5px;
-  -moz-box-shadow: 0 -1px 0 #333;
-  -webkit-border-radius: 5px;
-  -webkit-box-shadow: 0 -1px 0 #333;
   border-radius: 5px;
   box-shadow: 0 -1px 0 #333;
   background-color: #333;
@@ -141,6 +137,14 @@ div.highlight > pre {
   padding: 1em;
   margin: 1em 2em;
   overflow: auto;
+}
+
+div.highlight_figure {
+  border-radius: 5px;
+  box-shadow: 0 -1px 0 #333;
+  background-color: #333;
+  padding: 0em 0em 1em;    
+  margin: 1em 2em;
 }
 
 div#outer {

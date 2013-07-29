@@ -1,0 +1,167 @@
+---
+layout: post
+title: 1.2 The Layout class
+category: doc
+---
+
+h2. 1.2.1. The Layout class and subclasses
+
+The @Layout@ class represents a set of components such as detectors, that can assume several geometries.
+
+<div class="definition">
+|  @Layout@  | Most general layout |
+|  @LayoutGrid@  | Rectangular layout |
+|  @LayoutGridCircles@  | Rectangular layout of circles |
+|  @LayoutGridSquares@  | Rectangular layout of squares |
+</div>
+
+The following snippet creates a grid of square detectors:
+
+<div class="highlight_figure">
+
+{% highlight python %}
+>>> spacing = 0.001
+>>> layout = LayoutGridSquares((16, 16), spacing, filling_factor=0.8)
+>>> layout.plot()
+{% endhighlight %}
+
+<img src="{{site.baseurl}}/documentation/figures/layoutgridsquares.png">
+</div>
+
+And this one, a grid of circles:
+
+<div class="highlight_figure">
+
+{% highlight python %}
+>>> layout = LayoutGridCircles((16, 16), spacing)
+>>> layout.plot()
+{% endhighlight %}
+
+<img src="{{site.baseurl}}/documentation/figures/layoutgridcircles.png">
+</div>
+
+More generally, it is possible to specify the positions by hand:
+
+<div class="highlight_figure">
+
+{% highlight python %}
+>>> center = [[[-1.5,  1.5], [0,  1], [1.5,  1.5]],
+              [[-1,    0  ], [0,  0], [1,    0  ]],
+              [[-1.5, -1.5], [0, -1], [1.5, -1.5]]]
+>>> layout = Layout((3, 3), center=center)
+>>> layout.plot()
+{% endhighlight %}
+
+<img src="{{site.baseurl}}/documentation/figures/layout.png">
+</div>
+
+
+h2. 1.2.2. Packing and unpacking
+
+Values associated to layout components (such as positions of detector centers, or any component characteristics) can be specified in a @Layout@ instance. Some components may be removed by using the @removed@ attribute, either because the components do not physically exist, or because they are not handled by the processing node, if the work is distributed and executed in parallel.
+In some cases, it is more convenient to travel these values in a 1-dimensional array (the packed array, which does not contain the removed components), but in some other cases, it is more practical to access them through a multi-dimensional array mimicking the multi-dimensional layout (the unpacked array, which includes the removed components). The purpose of the @Layout@ class is to make transparent these two ways of accessing the component values. Special attributes, such as @center@, @vertex@ or any extra keywords passed in the @Layout@ instantiation can be accessed in both manners: the packed array is accessed through the @packed@ attribute and the unpacked array directly as attribute of the @Layout@ instance. 
+
+{% highlight python %}
+>>> shape = (3, 3)
+>>> spacing = 1.
+>>> gain = [[1.0, 1.0, np.nan],
+            [0.9, 1.0, 1.0],
+            [0.8, 1.0, 1.0]]
+>>> layout = LayoutGridSquares(shape, spacing,
+                               removed=[[False, False, True ],
+                                        [False, False, False],
+                                        [False, False, False]],
+                               gain=gain)
+>>> len(layout)
+9
+>>> len(layout.packed)
+8
+>>> layout.gain
+array([[ 1. , 1. , nan],
+       [ 0.9, 1. , 1. ],
+       [ 0.8, 1. , 1. ]])
+>>> layout.packed.gain
+array([ 1. , 1. , 0.9, 1. , 1. , 0.8, 1. , 1. ])
+>>> layout.center.shape, layout.packed.center.shape
+((3, 3, 2), (8, 2))
+>>> layout.vertex.shape, layout.packed.vertex.shape
+((3, 3, 4, 2), (8, 4, 2))
+{% endhighlight %}
+
+Any external "unpacked" array can be packed:
+
+{% highlight python %}
+>>> values = np.arange(9).reshape(shape)
+>>> layout.pack(values)
+array([0, 1, 3, 4, 5, 6, 7, 8])
+{% endhighlight %}
+
+And conversely, any "packed" array can be unpacked. For removed components, -1 is used for integer arrays and NaN otherwise.
+
+{% highlight python %}
+>>> layout.unpack(np.arange(8))
+array([[ 0,  1, -1],
+       [ 2,  3,  4],
+       [ 5,  6,  7]])
+>>> layout.unpack(np.arange(8, dtype=float))
+array([[  0.,   1.,  nan],
+       [  2.,   3.,   4.],
+       [  5.,   6.,   7.]])
+{% endhighlight %}
+
+
+h2. 1.2.3. Component indexing
+
+In the previous examples, the indexing of the packed components follows the row-major storage of the unpacked arrays. Such indexing can be specified to follow a more appropriate numbering scheme. Let's consider an array of detectors which is made of 4 identical subarrays. Because cross-talk will mostly affect detectors of the same subarray, and because each subarray has its own readout electronic system, detectors in each subarray will have common artifacts, and it will be interesting to group them in packed arrays. The new numbering of detectors is specified through the unpacked @index@ keyword.
+
+<div class="highlight_figure">
+
+{% highlight python %}
+>>> i = arange(16).reshape((4, 4))
+>>> index = np.vstack([np.hstack([i, i + 16]),
+                       np.hstack([i + 32, i + 48])])
+>>> layout = LayoutGridSquares((8, 8), 0.250, index=index)
+>>> layout.plot()
+>>> for (x, y), s in zip(layout.packed.center, np.arange(len(layout))):
+>>>     text(x, y, s, horizontalalignment='center', verticalalignment='center')
+{% endhighlight %}
+
+<img src="{{site.baseurl}}/documentation/figures/layoutindex.png">
+</div>
+
+The packed components are sorted according to their ranks in the index array. It is also possible to remove a component by specifying a negative value in the index array, but the removed components do not necessary have to have a negative input index. The @index@ is a special attribute and is derived from the input @index@ keyword: the packed index attribute contains the non-removed row-major storage indices of the unpacked components.
+
+{% highlight python %}
+>>> layout.packed.index
+array([ 0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27,  4,
+        5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31, 32, 33,
+       34, 35, 40, 41, 42, 43, 48, 49, 50, 51, 56, 57, 58, 59, 36, 37, 38,
+       39, 44, 45, 46, 47, 52, 53, 54, 55, 60, 61, 62, 63])
+{% endhighlight %}
+
+The @index@ unpacked attribute may be different from the input @index@ if some removed components have a positive index value, or if the values in the index array don't start at zero or have gaps.
+
+
+h2. 1.2.4. More on the special attributes
+
+For memory efficiency, only the packed arrays are stored in memory, which implies the following limitations:
+
+* the removed mask cannot be updated once the layout is create.
+* only packed arrays can be modified. To enforce it, the unpacked arrays are set as non-writeable.
+
+Special attributes can also be set using a function in order to decrease the memory footprint. In this case, the function is called each time the attribute is accessed. For instance, the @LayoutGridSquares@ class uses such a mechanism for the @center@ and @vertex@ special attributes and as a consequences, such instances do not hold the component centers and vertices in memory. In the following example, continuing the previous one, the special attribute @subarray@ specifies to which subarray a detector belongs. It is set using a function to minimise the memory overhead.
+
+<div class="highlight_figure">
+
+{% highlight python %}
+>>> layout = LayoutGridSquares((8, 8), 0.250, index=index,
+                               subarray=lambda: index//16)
+>>> layout.plot()
+>>> for (x, y), s in zip(layout.packed.center, layout.packed.subarray):
+>>>     text(x, y, s, horizontalalignment='center', verticalalignment='center')
+{% endhighlight %}
+
+<img src="{{site.baseurl}}/documentation/figures/layoutsubarray.png">
+</div>
+
+A special attribute can be scalar. In this case, both packed and unpacked values are scalars.
