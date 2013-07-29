@@ -112,7 +112,7 @@ array([[  0.,   1.,  nan],
 
 h2. 1.2.3. Component indexing
 
-In the previous examples, the indexing of the packed components follows the row-major storage of the unpacked arrays. Such indexing can be specified to follow a more appropriate numbering scheme. Let's consider an array of detectors which is made of 4 identical subarrays. Because cross-talk will mostly affect detectors of the same subarray, and because each subarray has its own readout electronic system, detectors in each subarray will have common artifacts, and it will be interesting to group them in packed arrays. The new numbering of detectors is specified through the unpacked @index@ keyword.
+In the previous examples, the indexing of the packed components follows the row-major storage of the unpacked arrays. Such indexing can be specified to follow a more appropriate numbering scheme. Let's consider an array of detectors which is made of 4 identical subarrays. Because cross-talk will mostly affect detectors of the same subarray, and because each subarray has its own readout electronic system, detectors in each subarray will have common artifacts, and it will be interesting to group them in the packed arrays. The new numbering of detectors is specified through the unpacked @index@ keyword.
 
 <div class="highlight_figure">
 
@@ -146,7 +146,7 @@ h2. 1.2.4. More on the special attributes
 
 For memory efficiency, only the packed arrays are stored in memory, which implies the following limitations:
 
-* the removed mask cannot be updated once the layout is create.
+* the removed mask cannot be updated once the layout is created.
 * only packed arrays can be modified. To enforce it, the unpacked arrays are set as non-writeable.
 
 Special attributes can also be set using a function in order to decrease the memory footprint. In this case, the function is called each time the attribute is accessed. For instance, the @LayoutGridSquares@ class uses such a mechanism for the @center@ and @vertex@ special attributes and as a consequences, such instances do not hold the component centers and vertices in memory. In the following example, continuing the previous one, the special attribute @subarray@ specifies to which subarray a detector belongs. It is set using a function to minimise the memory overhead.
@@ -164,4 +164,4 @@ Special attributes can also be set using a function in order to decrease the mem
 <img src="{{site.baseurl}}/documentation/figures/layoutsubarray.png">
 </div>
 
-A special attribute can be scalar. In this case, both packed and unpacked values are scalars.
+A special attribute can also be a scalar. In this case, both packed and unpacked values are scalars.
