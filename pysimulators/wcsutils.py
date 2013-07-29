@@ -273,7 +273,15 @@ def create_fitsheader(
             return header
         cdelt = np.array(cdelt, float)
         if isscalar(cdelt):
-            cdelt = np.array([-cdelt, cdelt])
+            if (
+                ctype is None
+                or len(ctype) == 2
+                and ctype[0] == 'RA---TAN'
+                and ctype[1] == 'DEC--TAN'
+            ):
+                cdelt = (-cdelt, cdelt)
+            else:
+                cdelt = (cdelt, cdelt)
         if pa is None:
             pa = 0.0
         theta = np.deg2rad(-pa)
