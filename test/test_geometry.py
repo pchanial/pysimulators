@@ -6,7 +6,7 @@ from pyoperators.utils import product
 from pyoperators.utils.testing import assert_same
 from pysimulators.geometry import (
     create_circle, create_grid, create_grid_squares, create_rectangle,
-    create_square, rotate)
+    create_regular_polygon, create_square, rotate, surface_simple_polygon)
 
 DTYPES = [np.float16, np.float32, np.float64, np.float128]
 SHAPES = [(), (1,), (1, 1), (1, 2), (2, 1), (2, 2)]
@@ -167,3 +167,20 @@ def test_rectangle():
     for dtype in DTYPES:
         for shape in SHAPES:
             yield func, dtype, shape
+
+
+def test_surface_simple_polygon():
+    origin = np.asarray([1, 1])
+    nvertices = [3, 4, 5, 6, 7]
+    expected = [n*np.sin(2*np.pi/n)/2 for n in nvertices]
+    radius = np.array([1, 2])
+
+    def func(r, n, e):
+        polygon = create_regular_polygon(n, r, center=origin)
+        assert_same(surface_simple_polygon(polygon), e * r**2)
+        out = np.empty(np.shape(r))
+        surface_simple_polygon(polygon, out=out)
+        assert_same(out, e * r**2)
+    for r in (radius[0], radius):
+        for n, e in zip(nvertices, expected):
+            yield func, r, n, e

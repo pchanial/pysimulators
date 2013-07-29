@@ -34,14 +34,8 @@ def create_circle(radius, out=None, center=(0, 0), n=72, dtype=float):
         Coordinate data type.
 
     """
-    radius = _np.asarray(radius, dtype)
-    if out is None:
-        out = _np.empty(radius.shape + (n, 2), dtype)
-    pi = 4 * _np.arctan(_np.asarray(1, dtype))
-    a = 2 * pi / n * _np.arange(n, dtype=dtype)
-    out[...] = radius[..., None, None] * _np.asarray([_np.cos(a), _np.sin(a)]).T
-    out += center
-    return out
+    return create_regular_polygon(n, radius, out=out, center=center,
+                                  dtype=dtype)
 
 
 def create_grid(shape, spacing, out=None, xreflection=False, yreflection=False,
@@ -145,6 +139,39 @@ def create_rectangle(size, out=None, center=(0, 0), angle=0, dtype=float):
     return out
 
 
+def create_regular_polygon(n, radius, out=None, center=(0, 0), angle=0,
+                           dtype=float):
+    """
+    Return coordinates of a regular polygon.
+
+    Parameters
+    ----------
+    n : integer
+        Number of vertices, optional
+    radius : float
+        The center-to-vertex distance.
+    out : array of shape radius.shape + (2,), optional
+        Placeholder for the output coordinates.
+    center : array-like of size 2, optional
+        The (X, Y) coordinates of the circle center.
+    angle : float, optional
+        Counter-clockwise rotation in degrees around center.
+    dtype : dtype, optional
+        Coordinate data type.
+
+    """
+    radius = _np.asarray(radius, dtype)
+    center = _np.asarray(center, dtype)
+    if out is None:
+        b = _np.broadcast(radius[..., None], center)
+        out = _np.empty(b.shape[:-1] + (n, 2), dtype)
+    pi = 4 * _np.arctan(_np.asarray(1, dtype))
+    a = 2 * pi / n * _np.arange(n, dtype=dtype) + _np.radians(angle)
+    out[...] = radius[..., None, None] * _np.asarray(
+        [_np.cos(a), _np.sin(a)]).T + center[..., None, :]
+    return out
+
+
 def create_square(size, out=None, center=(0, 0), angle=0, dtype=float):
     """
     Return coordinates of a square.
@@ -240,3 +267,38 @@ def rotate(coords, angle, out=None):
     if isalias(coords, out):
         coords = coords.copy()
     return _np.dot(coords, m.T, out)
+
+
+def surface_simple_polygon(coords, out=None, dtype=float):
+    """
+    Return the surface of convex polygons.
+
+    Parameters
+    ----------
+    coords : array-like of shape (..., nvertices, 2)
+        The vertices coordinates.
+    out : ndarray, optional
+        Placeholder of the polygon surfaces.
+
+    Example
+    -------
+    >>> from pysimulators.geometry import create_square, create_regular_polygon, surface_simple_polygon
+    >>> c = create_square([1, 2])
+    >>> surface_simple_polygon(c)
+    array([ 1.,  4.])
+    >>> surface_simple_polygon(create_regular_polygon(6, 1))
+
+    """
+    coords = _np.array(coords, dtype=float, order='c')
+    if out is None:
+        out = _np.empty(coords.shape[:-2], dtype)
+    if coords.ndim < 3:
+        coords = coords[None, ...]
+    if out.ndim == 0:
+        out_ = out[None, ...]
+    else:
+        out_ = out
+    _flib.geometry.surface_simple_polygon(coords.T, out_.T)
+    if out.ndim == 0:
+        out = out[()]
+    return out

@@ -160,4 +160,29 @@ contains
     end subroutine rotate_2d_inplace
 
 
+    !-------------------------------------------------------------------------------------------------------------------------------
+
+
+    subroutine surface_simple_polygon(xy, output, nvertices, npolygons)
+        !f2py threadsafe
+        real*8, intent(in)    :: xy(2, nvertices, npolygons)
+        real*8, intent(inout) :: output(npolygons)
+        integer*8, intent(in) :: nvertices, npolygons
+        integer               :: i, j, k
+
+        !$omp parallel do private(j)
+        do k=1, npolygons
+            output(k) = 0
+            j = nvertices
+            do i=1, nvertices
+                output(k) = output(k) + xy(1,j,k)*xy(2,i,k) - xy(2,j,k)*xy(1,i,k)
+                j = i
+            end do
+            output(k) = 0.5_p * output(k)
+        end do
+        !$omp end parallel do
+
+    end subroutine surface_simple_polygon
+
+
 end module geometry
