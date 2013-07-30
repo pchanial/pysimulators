@@ -3,11 +3,11 @@ import numpy as np
 import os
 import re
 import sys
+import subprocess
 
-# from distutils.extension import Extension
 from distutils.util import get_platform
 from glob import glob
-from numpy.distutils.core import setup
+from numpy.distutils.core import setup, Command
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import Configuration
 from subprocess import Popen, PIPE
@@ -40,11 +40,42 @@ long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
-sys.argv += ['config_fc', "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp'"]
+if 'build' in sys.argv or 'config' in sys.argv or 'install' in sys.argv:
+    sys.argv += [
+        'config_fc',
+        "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp'",
+    ]
 
 # write f2py's type mapping file
 with open(os.path.join(os.path.dirname(__file__), '.f2py_f2cmap'), 'w') as f:
     f.write("{'real':{'p':'double'}, 'complex':{'p':'complex_double'}}\n")
+
+
+class NewCommand(Command):
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+
+class CoverageCommand(NewCommand):
+    description = "run the package coverage"
+
+    def run(self):
+        subprocess.call(
+            ['nosetests', '--with-coverage', '--cover-package', 'pysimulators']
+        )
+        subprocess.call(['coverage', 'html'])
+
+
+class TestCommand(NewCommand):
+    description = "run the test suite"
+
+    def run(self):
+        subprocess.call(['nosetests', 'test'])
 
 
 def configuration(parent_package='', top_path=None):
@@ -91,7 +122,7 @@ setup(
     packages=['pysimulators'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
-    cmdclass={'build_ext': build_ext},
+    cmdclass={'build_ext': build_ext, 'coverage': CoverageCommand, 'test': TestCommand},
     license='CeCILL-B',
     classifiers=[
         'Programming Language :: Python',
