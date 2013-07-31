@@ -651,7 +651,8 @@ class WCSToPixelOperator(_WCSOperator):
 
     """
     def __init__(self, wcs, origin=0, **keywords):
-        _WCSOperator.__init__(self, wcs, origin, **keywords)
+        _WCSOperator.__init__(self, wcs, origin, classin=np.ndarray,
+                              classout=np.ndarray, **keywords)
         self.set_rule('.I', lambda s: WCSToWorldOperator(s.wcs, s.origin))
     __init__.__doc__ = _WCSOperator.__init__.__doc__
 
@@ -675,7 +676,8 @@ class WCSToWorldOperator(_WCSOperator):
 
     """
     def __init__(self, wcs, origin=0, **keywords):
-        _WCSOperator.__init__(self, wcs, origin, **keywords)
+        _WCSOperator.__init__(self, wcs, origin, classin=np.ndarray,
+                              classout=np.ndarray, **keywords)
         self.set_rule('.I', lambda s: WCSToPixelOperator(s.wcs, s.origin))
     __init__.__doc__ = _WCSOperator.__init__.__doc__
 
