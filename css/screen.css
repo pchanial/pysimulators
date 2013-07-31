@@ -96,6 +96,13 @@ code, pre {
   line-height: 100%;
 }
 
+code.has-jax {
+  font: inherit;
+  font-size: 100%;
+  background: inherit;
+  border: inherit;
+}
+
 ul, ol {
   margin: 0 0 0 3em;
 }
