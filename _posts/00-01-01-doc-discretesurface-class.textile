@@ -58,6 +58,10 @@ where <code>\( P_j \)</code> denotes the fraction of pixel <code>\( j \)</code> 
 >>> ax = fig.add_subplot(111)
 >>> ax.add_patch(Polygon(plane.topixel(polygon), closed=True, alpha=0.2,
                          color='k'))
+>>> indices = np.arange(nx * ny)
+>>> for (x, y), s in zip(plane.toNd(indices), indices):
+>>>     text(x, y, s, horizontalalignment='center',
+             verticalalignment='center', alpha=0.2)
 >>> ax.set_xlabel('Pixel X-coordinate')
 >>> ax.set_ylabel('Pixel Y-coordinate')
 >>> for i in range(nx-1):
