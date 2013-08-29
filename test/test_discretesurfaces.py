@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 from pyoperators.utils import product
 from pyoperators.utils.testing import assert_same
-from pysimulators import Quantity, create_fitsheader, Plane
+from pysimulators import Quantity, create_fitsheader, DiscreteSurface
 from pysimulators.geometry import create_grid_squares
 
 
@@ -24,12 +24,12 @@ def test_spatial_integration():
     header = create_fitsheader(plane_shape, ctype=['X---CAR', 'Y---CAR'],
                                cdelt=[pixsize, pixsize],
                                crval=(0, 0), cunit=['um', 'um'])
-    plane = Plane(header)
+    plane = DiscreteSurface.fromfits(header)
 
     def func(center, npps, expected):
         detectors = create_grid_squares((2, 2), Quantity(pixsize, 'um'),
                                         center=center)
-        proj = plane.get_spatial_integration_operator(detectors)
+        proj = plane.get_integration_operator(detectors)
         x = np.arange(product(plane_shape), dtype=float).reshape(plane_shape)
         y = proj(x)
 
