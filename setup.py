@@ -35,7 +35,11 @@ def version_sdist():
     return version
 
 
-version = version_sdist() if 'sdist' in sys.argv[1:] else VERSION
+version = version_sdist()
+if 'install' in sys.argv[1:]:
+    if '-' in version:
+        version = VERSION + '-dev'
+
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
