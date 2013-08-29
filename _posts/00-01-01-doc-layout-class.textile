@@ -147,7 +147,7 @@ h2. 1.2.4. More on the special attributes
 For memory efficiency, only the packed arrays are stored in memory, which implies the following limitations:
 
 * the removed mask cannot be updated once the layout is created.
-* only packed arrays can be modified. To enforce it, the unpacked arrays are set as non-writeable.
+* only modifications to the packed arrays are persistent.
 
 Special attributes can also be set using a function in order to decrease the memory footprint. In this case, the function is called each time the attribute is accessed. For instance, the @LayoutGridSquares@ class uses such a mechanism for the @center@ and @vertex@ special attributes and as a consequences, such instances do not hold the component centers and vertices in memory. In the following example, continuing the previous one, the special attribute @subarray@ specifies to which subarray a detector belongs. It is set using a function to minimise the memory overhead.
 
