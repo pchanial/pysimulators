@@ -137,18 +137,22 @@ if np.__version__ >= '1.4':
     assert np.minimum(Quantity(10,'m'),Quantity(1,'km')) == 10
 
 def test_function():
-    a=Quantity([1.3,2,3], unit='Jy')
-    def func(f):
+    arrays = ([1.3, 2, 3], [[1., 2, 3], [4, 5, 6]])
+    def func(array, f):
+        a = Quantity(array, unit='Jy')
         b = f(a)
+        if f not in (np.round,):
+            assert np.isscalar(b)
         assert_array_equal(b, f(a.view(np.ndarray)))
-        assert_equal(b.unit, 'Jy' if f is not np.var else 'Jy^2')
-        if f in (np.round,):
+        if f in (np.round,) or a.ndim == 1:
             return
         b = f(a, axis=0)
         assert_array_equal(b, f(a.view(np.ndarray), axis=0))
         assert_equal(b.unit, 'Jy' if f is not np.var else 'Jy^2')
-    for f in np.min, np.max, np.mean, np.ptp, np.round, np.sum, np.std, np.var:
-        yield func, f
+    for array in arrays:
+        for f in (np.min, np.max, np.mean, np.ptp, np.round, np.sum, np.std,
+                  np.var):
+            yield func, array, f
 
 def test_dtype():
     assert_is(Quantity(1).dtype, np.dtype(float))
@@ -203,8 +207,9 @@ def test_derived_units4():
     _ = slice(None)
     def func_leftward(a, key):
         b = a[key]
-        
-        print key, b.derived_units
+        if np.isscalar(b):
+            assert b.dtype == np.float64
+            return
         if key is Ellipsis:
             assert_eq(b.derived_units['r[leftward]'],
                       a.derived_units['r[leftward]'])
@@ -223,6 +228,9 @@ def test_derived_units4():
                       a.derived_units['r[leftward]'][key[-3:]])
     def func_rightward(a, key):
         b = a[key]        
+        if np.isscalar(b):
+            assert b.dtype == np.float64
+            return
         if key is Ellipsis:
             assert_eq(b.derived_units['r[rightward]'],
                       a.derived_units['r[rightward]'])

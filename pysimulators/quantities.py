@@ -395,9 +395,9 @@ class Quantity(np.ndarray):
 
         item = np.ndarray.__getitem__(self, key)
         if not isinstance(item, np.ndarray):
-            item = Quantity(item, self._unit, self._derived_units, copy=False)
-        elif self.dtype.kind == 'V' and isinstance(key, str):
-            return Quantity(item, '', {}, copy=False)
+            return item
+        if self.dtype.kind == 'V' and isinstance(key, str):
+            return Quantity(item, '', {}, copy=False, dtype=item.dtype)
 
         if isinstance(key, list):
             key = tuple(key)
@@ -733,8 +733,7 @@ class Quantity(np.ndarray):
     def _wrap_func(self, func, unit, *args, **kw):
         result = func(self.magnitude, *args, **kw).view(type(self))
         if not isinstance(result, np.ndarray):
-            return type(self)(result, unit=unit, derived_units=
-                              self.derived_units)
+            return result
         result.__array_finalize__(self)
         if unit is not None:
             result.unit = unit
