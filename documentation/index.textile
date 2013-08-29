@@ -9,7 +9,7 @@ h1. {{ page.title }}
 # Building the instrument model
 ## The Instrument class
 ## "The Layout class":{{site.baseurl}}/2000/doc-layout-class
-## "The Plane class":{{site.baseurl}}/2000/doc-plane-class
+## "The DiscreteSurface class":{{site.baseurl}}/2000/doc-discretesurface-class
 # Building the acquisition model
 ## The Acquisition class
 ## Operators
