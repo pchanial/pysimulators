@@ -14,7 +14,7 @@ from .layouts import *
 from .discretesurfaces import *
 from .instruments import *
 #from .mpiutils import *
-from .configurations import *
+from .acquisitions import *
 from .pointings import *
 #from .processing import *
 from .quantities import *

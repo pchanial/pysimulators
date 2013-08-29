@@ -19,13 +19,13 @@ from .pointings import Pointing
 from .wcsutils import (RotationBoresightEquatorialOperator, barycenter_lonlat,
                        combine_fitsheader, create_fitsheader, fitsheader2shape)
 
-__all__ = ['Configuration', 'ConfigurationImager', 'MaskPolicy']
+__all__ = ['Acquisition', 'AcquisitionImager', 'MaskPolicy']
 
 
-class Configuration(object):
+class Acquisition(object):
     """
-    The Configuration class, which represents the instrument and
-    pointing setups.
+    The Acquisition class, which represents the instrument and
+    pointing configurations.
 
     """
     def __init__(self, instrument, pointing, block_id=None, selection=None,
@@ -219,9 +219,9 @@ class Configuration(object):
         return block
 
 
-class ConfigurationImager(Configuration):
+class AcquisitionImager(Acquisition):
     """
-    The ConfigurationImager class, which represents the setups of an imager
+    The AcquisitionImager class, which represents the setups of an imager
     instrument and the pointing.
 
     """
@@ -245,7 +245,7 @@ class ConfigurationImager(Configuration):
         if not isinstance(instrument, Imager):
             raise TypeError("The instrument has an invalid type '{}'.".format(
                             type(instrument).__name__))
-        Configuration.__init__(self, instrument, pointing, block_id=block_id,
+        Acquisition.__init__(self, instrument, pointing, block_id=block_id,
                                selection=selection)
         self.object2world = RotationBoresightEquatorialOperator(self.pointing)
 
@@ -373,7 +373,7 @@ class ConfigurationImager(Configuration):
             percentile of the minimum and maximum values to be displayed.
 
         """
-        image = Configuration.plot(
+        image = Acquisition.plot(
             self, map=map, header=header, new_figure=new_figure,
             percentile=percentile, **keywords)
         if not instrument:
