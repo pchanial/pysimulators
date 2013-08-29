@@ -85,7 +85,7 @@ where <code>\( P_j \)</code> denotes the fraction of pixel <code>\( j \)</code> 
 <img src="{{site.baseurl}}/documentation/figures/discretesurface-polygon.png">
 </div>
 
-The sparse matrix <code>\( P \)</code> can be accessed through the @matrix@ attribute. It is a structured @ndarray@ containing information on the intersected pixels, whose field @index@ is the 1-dimensional pixel index and whose field @value@ is the fraction of the pixel intersected by the polygon, ranging from 0 if there is no overlap to 1 if the polygon encompasses the surface pixel).
+The sparse matrix <code>\( P \)</code> can be accessed through the @matrix@ attribute. It is a structured @ndarray@ containing information on the intersected pixels, whose field @index@ is the 1-dimensional pixel index and whose field @value@ is the fraction of the pixel intersected by the polygon, ranging from 0 if there is no overlap to 1 if the polygon encompasses the surface pixel.
 
 {% highlight python %}
 >>> proj = plane.get_integration_operator(polygon)
@@ -129,5 +129,5 @@ The reason why an @Operator@ is obtained from the @DiscreteSurface@ instance (in
 
 {% highlight python %}
 >>> proj(np.ones((ny, nx)))
-10.392303
+10.392304763197899
 {% endhighlight %}
