@@ -12,11 +12,11 @@ from . import geometry
 from .acquisitionmodels import *
 from .datatypes import *
 from .layouts import *
+from .discretesurfaces import *
 from .instruments import *
 
 # from .mpiutils import *
 from .configurations import *
-from .planes import *
 from .pointings import *
 
 # from .processing import *
