@@ -12,7 +12,7 @@ from pyoperators import (
 )
 from pyoperators.utils import all_eq, isscalar
 from pyoperators.utils.testing import assert_is_instance
-from pysimulators.acquisitionmodels import (
+from pysimulators.operators import (
     BlackBodyOperator,
     PowerLawOperator,
     RollOperator,

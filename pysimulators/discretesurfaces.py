@@ -11,7 +11,7 @@ from pyoperators import (
 )
 
 from . import _flib as flib
-from .acquisitionmodels import PointingMatrix, ProjectionInMemoryOperator
+from .operators import PointingMatrix, ProjectionInMemoryOperator
 from .wcsutils import fitsheader2shape, WCSToPixelOperator
 
 __all__ = ['DiscreteSurface']
