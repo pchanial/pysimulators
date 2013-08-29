@@ -248,9 +248,9 @@ def test_ndarray_funcs():
                 ref = np.ma.MaskedArray(ref)
         else:
             ref = func(array.magnitude, **keywords_func)
-            if not isinstance(ref, np.ndarray):
-                ref = np.array(ref)
         assert_eq(result, ref)
+        if np.isscalar(result):
+            return
         if func is np.var:
             assert result._unit == {'u': 2}
         else:
