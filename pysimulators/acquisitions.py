@@ -31,13 +31,13 @@ from .wcsutils import (
     fitsheader2shape,
 )
 
-__all__ = ['Configuration', 'ConfigurationImager', 'MaskPolicy']
+__all__ = ['Acquisition', 'AcquisitionImager', 'MaskPolicy']
 
 
-class Configuration(object):
+class Acquisition(object):
     """
-    The Configuration class, which represents the instrument and
-    pointing setups.
+    The Acquisition class, which represents the instrument and
+    pointing configurations.
 
     """
 
@@ -279,9 +279,9 @@ class Configuration(object):
         return block
 
 
-class ConfigurationImager(Configuration):
+class AcquisitionImager(Acquisition):
     """
-    The ConfigurationImager class, which represents the setups of an imager
+    The AcquisitionImager class, which represents the setups of an imager
     instrument and the pointing.
 
     """
@@ -316,7 +316,7 @@ class ConfigurationImager(Configuration):
                     type(instrument).__name__
                 )
             )
-        Configuration.__init__(
+        Acquisition.__init__(
             self, instrument, pointing, block_id=block_id, selection=selection
         )
         self.object2world = RotationBoresightEquatorialOperator(self.pointing)
@@ -483,7 +483,7 @@ class ConfigurationImager(Configuration):
             percentile of the minimum and maximum values to be displayed.
 
         """
-        image = Configuration.plot(
+        image = Acquisition.plot(
             self,
             map=map,
             header=header,
