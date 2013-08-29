@@ -6,7 +6,7 @@ from numpy.testing import assert_equal, assert_raises
 from pyoperators import Operator, CompositionOperator, BlockDiagonalOperator, MultiplicationOperator, decorators
 from pyoperators.utils import all_eq, isscalar
 from pyoperators.utils.testing import assert_is_instance
-from pysimulators.acquisitionmodels import BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal
+from pysimulators.operators import BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal
 
 def test_partitioning_chunk():
 

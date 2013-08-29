@@ -8,7 +8,7 @@ del locale
 
 from . import _flib
 from . import geometry
-from .acquisitionmodels import *
+from .operators import *
 from .datatypes import *
 from .layouts import *
 from .discretesurfaces import *

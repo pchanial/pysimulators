@@ -12,7 +12,7 @@ from pyoperators.utils import (ifirst, isscalar, product, strelapsed, strenum,
                                strnbytes, strplural)
 
 from . import _flib as flib
-from .acquisitionmodels import PointingMatrix, ProjectionInMemoryOperator
+from .operators import PointingMatrix, ProjectionInMemoryOperator
 from .instruments import Instrument, Imager
 from .mpiutils import gather_fitsheader_if_needed
 from .pointings import Pointing
