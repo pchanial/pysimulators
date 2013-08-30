@@ -5,11 +5,24 @@ from numpy.testing import assert_almost_equal
 from pyoperators.utils import product
 from pyoperators.utils.testing import assert_same
 from pysimulators.geometry import (
-    create_circle, create_grid, create_grid_squares, create_rectangle,
-    create_regular_polygon, create_square, rotate, surface_simple_polygon)
+    convex_hull, create_circle, create_grid, create_grid_squares,
+    create_rectangle, create_regular_polygon, create_square, rotate,
+    surface_simple_polygon)
 
 DTYPES = [np.float16, np.float32, np.float64, np.float128]
 SHAPES = [(), (1,), (1, 1), (1, 2), (2, 1), (2, 2)]
+
+
+def test_convex_hull():
+    p = np.array([[1., 1], [1, -1], [-1, -1], [-1, 1]])
+    expected = p[[0, 3, 2, 1]]
+    points = [p, np.vstack((p, [[0, 0]])), np.vstack((p, [[-1, 1]]))]
+
+    def func(point):
+        h = convex_hull(point)
+        assert_same(h, expected)
+    for point in points:
+        yield func, point
 
 
 def test_rotate():

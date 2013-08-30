@@ -12,10 +12,11 @@ from pyoperators.utils import (ifirst, isscalar, product, strelapsed, strenum,
                                strnbytes, strplural)
 
 from . import _flib as flib
-from .operators import PointingMatrix, ProjectionInMemoryOperator
+from .geometry import convex_hull
 from .instruments import Instrument, Imager
 from .layouts import Layout
 from .mpiutils import gather_fitsheader_if_needed
+from .operators import PointingMatrix, ProjectionInMemoryOperator
 from .pointings import Pointing
 from .wcsutils import (RotationBoresightEquatorialOperator, barycenter_lonlat,
                        combine_fitsheader, create_fitsheader, fitsheader2shape)
@@ -275,7 +276,7 @@ class AcquisitionImager(Acquisition):
             coords = self.instrument.detector.packed.vertex
         else:
             coords = self.instrument.detector.packed.center
-        #XXX we should only keep the convex hull
+        coords = convex_hull(coords)
         self.instrument.image2object(coords, out=coords)
 
         valid = ~self.pointing['removed'] & ~self.pointing['masked']

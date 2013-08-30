@@ -13,7 +13,32 @@ Angles are counted counter-clockwise.
 from __future__ import division
 
 import numpy as _np
+import scipy.spatial as _spatial
 from . import _flib
+
+
+def convex_hull(points):
+    """
+    Return the convex hull of 2-dimensional points. The points in the convex
+    hull are sorted counter-clockwise.
+
+    Parameters
+    ----------
+    points : array-like of shape (..., 2)
+        The 2-dimensional points for which the convex hull is computed.
+
+    """
+    points = _np.atleast_1d(points)
+    if points.shape[-1] != 2:
+        raise ValueError("Invalid last dimension of 2-dimensional points '{0}'"
+                         ".".format(points.shape[-1]))
+    points = points.reshape((-1, 2))
+
+    def arctan2(v):
+        return (_np.arctan2(v[:, 1], v[:, 0]) + 2 * _np.pi) % (2 * _np.pi)
+    ihull = list(set(_spatial.Delaunay(points).convex_hull.ravel()))
+    hull = points[ihull, :]
+    return hull[_np.argsort(arctan2(hull - hull.mean(axis=0))), :]
 
 
 def create_circle(radius, out=None, center=(0, 0), n=72, dtype=float):
