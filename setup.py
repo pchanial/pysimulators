@@ -43,7 +43,7 @@ long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
-if 'build' in sys.argv or 'config' in sys.argv or 'install' in sys.argv:
+if any(c in sys.argv for c in ('build', 'build_ext', 'config', 'install')):
     sys.argv += ['config_fc',
                  "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp'"]
 
@@ -86,7 +86,6 @@ def configuration(parent_package='', top_path=None):
                                 'src/module_fitstools.f90',
                                 'src/module_math.f90',
                                 'src/module_sort.f90',
-                                'src/module_stack.f90',
                                 'src/module_projection.f90',
                                 'src/module_wcs.f90',
                                 'src/module_pointingmatrix.f90'])
