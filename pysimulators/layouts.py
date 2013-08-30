@@ -115,6 +115,7 @@ class Layout(object):
         removed = np.array(removed, dtype=bool)
         if not isscalar(removed) and removed.shape != shape:
             raise ValueError('Invalid shape of the removed attribute.')
+        removed.flags.writeable = False
         if index is not None:
             index = np.asarray(index, np.int32)
             if index.shape != shape:
@@ -126,7 +127,7 @@ class Layout(object):
                                      'packed')
         self.shape = shape
         self.ndim = len(self.shape)
-        self.removed = removed
+        super(Layout, self).__setattr__('removed', removed)
         self.packed = _Packed(self)
         self.setattr_packed('index', self._pack_index(index, removed))
         keywords.update({'center': center, 'vertex': vertex, 'masked': masked})
@@ -162,9 +163,19 @@ class Layout(object):
             out = v()
         elif v is None:
             out = self.unpack(getattr(self.packed, key))
+            if out is not None:
+                out.flags.writeable = False
         else:
             return v
         return out
+
+    def __setattr__(self, key, value):
+        # make removed and special attributes not writeable
+        if key == 'removed':
+            raise RuntimeError('The removed mask is not writeable.')
+        if key in getattr(self, '_special_attributes', ()):
+            raise RuntimeError('An unpacked array is not writeable.')
+        super(Layout, self).__setattr__(key, value)
 
     def setattr_unpacked(self, key, value):
         """
@@ -198,7 +209,7 @@ class Layout(object):
                 pvalue = self.pack(value)
                 value = None
 
-        setattr(self, key, value)
+        super(Layout, self).__setattr__(key, value)
         super(_Packed, self.packed).__setattr__(key, pvalue)
 
     def setattr_packed(self, key, value):
@@ -232,8 +243,8 @@ class Layout(object):
             else:
                 uvalue = None
 
+        super(Layout, self).__setattr__(key, uvalue)
         super(_Packed, self.packed).__setattr__(key, value)
-        setattr(self, key, uvalue)
 
     def pack(self, x, out=None):
         """
