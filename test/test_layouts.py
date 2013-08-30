@@ -122,6 +122,28 @@ def test_error():
     assert_raises(ValueError, layout.unpack, [1, 2, 3, 4], out=np.array([1]))
     assert_raises(ValueError, LayoutGrid, shape, 0.1, layout_center=[1, 2])
 
+    def func1():
+        layout.removed = True
+
+    assert_raises(RuntimeError, func1)
+
+    def func2():
+        l = Layout(shape, removed=[True, False, False, True])
+        l.removed[1] = True
+
+    assert_raises(RuntimeError, func2)
+
+    def func3():
+        layout.index = [2, 3, 1, 0]
+
+    assert_raises(RuntimeError, func3)
+
+    def func4():
+        l = Layout(shape, index=[2, 3, 1, 0])
+        l.index[0] = -1
+
+    assert_raises(RuntimeError, func4)
+
 
 def test_zero_component():
     removeds = (True, (True, True, False, False), False)
