@@ -14,6 +14,7 @@ from pyoperators.utils import (ifirst, isscalar, product, strelapsed, strenum,
 from . import _flib as flib
 from .operators import PointingMatrix, ProjectionInMemoryOperator
 from .instruments import Instrument, Imager
+from .layouts import Layout
 from .mpiutils import gather_fitsheader_if_needed
 from .pointings import Pointing
 from .wcsutils import (RotationBoresightEquatorialOperator, barycenter_lonlat,
@@ -98,8 +99,11 @@ class Acquisition(object):
     __repr__ = __str__
 
     def get_ndetectors(self):
-        return self.instrument.get_ndetectors()
-    get_ndetectors.__doc__ = Instrument.get_ndetectors.__doc__
+        """
+        Return the number of non-removed detectors.
+
+        """
+        return len(self.instrument.detector.packed)
 
     def get_filter_uncorrelated(self):
         """
@@ -120,13 +124,13 @@ class Acquisition(object):
         return tuple(int(np.sum(~self.pointing[s.start:s.stop].removed))
                      for s in self.block)
 
-    def pack(self, x, masked=False):
-        return self.instrument.pack(x, masked=masked)
-    pack.__doc__ = Instrument.pack.__doc__
+    def pack(self, x):
+        return self.instrument.detector.pack(x)
+    pack.__doc__ = Layout.pack.__doc__
 
-    def unpack(self, x, masked=False):
-        return self.instrument.unpack(x, masked=masked)
-    unpack.__doc__ = Instrument.unpack.__doc__
+    def unpack(self, x):
+        return self.instrument.detector.unpack(x)
+    unpack.__doc__ = Layout.unpack.__doc__
 
     @classmethod
     def create_scan(cls, center, length, step, sampling_period, speed,
@@ -225,8 +229,7 @@ class AcquisitionImager(Acquisition):
     instrument and the pointing.
 
     """
-    def __init__(self, instrument, pointing, block_id=None, selection=None,
-                 comm_map=MPI.COMM_WORLD, comm_tod=MPI.COMM_WORLD):
+    def __init__(self, instrument, pointing, block_id=None, selection=None):
         """
         Parameters
         ----------
@@ -268,13 +271,12 @@ class AcquisitionImager(Acquisition):
         """
         if resolution is None:
             resolution = self.instrument.default_resolution
-        if self.instrument.nvertices > 0:
-            coords = self.instrument.get_vertices()
+        if self.instrument.detector.nvertices > 0:
+            coords = self.instrument.detector.packed.vertex
         else:
-            coords = self.instrument.get_centers()
-        self.instrument.image2object(coords, out=coords)
+            coords = self.instrument.detector.packed.center
         #XXX we should only keep the convex hull
-        coords = self.pack(coords, masked=True)
+        self.instrument.image2object(coords, out=coords)
 
         valid = ~self.pointing['removed'] & ~self.pointing['masked']
         if not np.any(valid):
@@ -413,7 +415,10 @@ class AcquisitionImager(Acquisition):
 
         """
         if method is None:
-            method = 'sharp' if self.instrument.nvertices > 0 else 'nearest'
+            if self.instrument.detector.nvertices > 0:
+                method = 'sharp'
+            else:
+                method = 'nearest'
         method = method.lower()
         choices = ('nearest', 'sharp')
         if method not in choices:
@@ -442,12 +447,12 @@ class AcquisitionImager(Acquisition):
         # compute the pointing matrix
         if method == 'sharp':
             coords = self.instrument.image2object(
-                self.pack(self.instrument.get_vertices()))
+                self.instrument.detector.packed.vertex)
             new_npps, outside = self._object2pmatrix_sharp_edges(
                 coords, pointing, header, pmatrix, npixels_per_sample)
         elif method == 'nearest':
             coords = self.instrument.image2object(
-                self.pack(self.instrument.get_centers()))
+                self.instrument.detector.packed.center)
             new_npps = 1
             outside = self._object2pmatrix_nearest_neighbour(
                 coords, pointing, header, pmatrix)
