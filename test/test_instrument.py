@@ -1,49 +1,30 @@
-import numpy as np
-
-from pyoperators.utils import product
-from pyoperators.utils.testing import assert_eq
-from pysimulators import Instrument
+from pyoperators import I
+from pyoperators.utils.testing import assert_raises, assert_same
+from pysimulators import Instrument, Imager, Layout
 
 
-class MyInstrument(Instrument):
-    def get_valid_detectors(self, masked=False):
-        coords = np.mgrid[tuple(slice(0, s) for s in self.detector.shape)]
-        coords[0] = (coords[0] + 1) % 2
-        coords = tuple(c.ravel() for c in coords)
-        mask = ~self.detector.removed
-        if masked:
-            mask &= ~self.detector.masked
-        return tuple(c[mask[coords]] for c in coords)
+def test_instrument():
+    def func(cls, keywords):
+        instrument = cls(name, Layout(shape), **keywords)
+        assert instrument.name == name
+        assert instrument.detector.shape == shape
+        assert len(instrument.detector) == len(instrument.detector.packed)
+        assert instrument
+
+    name = 'instrument'
+    shape = (3, 2)
+    yield func, Instrument, {}
+    yield func, Imager, {'object2image': I}
+    yield func, Imager, {'image2object': I}
 
 
-def assert_pack_unpack(instrument):
-    shape = instrument.detector.shape
-    u = np.arange(product(shape) * 2.0).reshape(shape + (2,))
-    u.T[...] *= ~instrument.detector.removed.T
-    p = instrument.pack(u)
-    u2 = instrument.unpack(p)
-    assert_eq(u, u2)
+def test_error():
+    assert_raises(ValueError, Imager, 'instrument', (3, 2))
 
 
-def test_pack_unpack1():
-    for ndim in range(1, 4):
-        shape = tuple(np.arange(2, 2 + ndim))
-        mask = np.random.random_integers(0, 1, size=shape).astype(bool)
-        instrument = MyInstrument(ndim + 1, shape, removed=mask)
-        yield assert_pack_unpack, instrument
-
-
-def test_pack_unpack2():
-    for ndim in range(1, 4):
-        shape = tuple(np.arange(2, 2 + ndim))
-        mask = np.zeros(shape, bool)
-        instrument = MyInstrument(ndim + 1, shape, removed=mask)
-        yield assert_pack_unpack, instrument
-
-
-def test_pack_unpack3():
-    for ndim in range(1, 4):
-        shape = tuple(np.arange(2, 2 + ndim))
-        mask = np.ones(shape, bool)
-        instrument = MyInstrument(ndim + 1, shape, removed=mask)
-        yield assert_pack_unpack, instrument
+def test_pack_unpack():
+    layout = Layout(4, removed=[False, True, False, False])
+    instrument = Instrument('instrument', layout)
+    v = [1, 2, 3, 4]
+    assert_same(instrument.pack(v), [1, 3, 4])
+    assert_same(instrument.unpack([1, 3, 4]), [1, -1, 3, 4])
