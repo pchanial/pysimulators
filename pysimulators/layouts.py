@@ -111,6 +111,7 @@ class Layout(object):
         a call to this function.
 
         """
+        shape = tointtuple(shape)
         removed = np.array(removed, dtype=bool)
         if not isscalar(removed) and removed.shape != shape:
             raise ValueError('Invalid shape of the removed attribute.')
@@ -123,7 +124,7 @@ class Layout(object):
         self._special_attributes = set()
         self._reserved_attributes = ('ndim', 'shape', 'nvertices', 'removed',
                                      'packed')
-        self.shape = tointtuple(shape)
+        self.shape = shape
         self.ndim = len(self.shape)
         self.removed = removed
         self.packed = _Packed(self)
