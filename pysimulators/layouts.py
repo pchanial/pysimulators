@@ -306,7 +306,7 @@ class Layout(object):
         np.take(x_, self.packed.index, axis=0, out=out)
         return out
 
-    def unpack(self, x, out=None, removed_value=np.nan):
+    def unpack(self, x, out=None, removed_value=None):
         """
         Convert a 1-dimensional array into a multi-dimensional array which
         includes the removed components, mimicking the multi-dimensional
@@ -319,6 +319,8 @@ class Layout(object):
             non-removed components.
         out : ndarray, optional
             Placeholder for the unpacked array.
+        removed_value : any
+            The value to be used for removed components.
 
         Returns
         -------
@@ -359,8 +361,8 @@ class Layout(object):
                 )
             out = out.view(np.ndarray)
         if len(self) > len(self.packed):
-            if removed_value != removed_value and x.dtype.kind in ('b', 'i'):
-                removed_value = -1 if x.dtype.kind == 'i' else False
+            if removed_value is None:
+                removed_value = self._get_default_removed_value(x.dtype)
             out[...] = removed_value
         elif self.packed.index is None:
             out[...] = x.reshape(unpacked_shape)
@@ -418,6 +420,23 @@ class Layout(object):
             mp.autoscale()
 
         mp.show()
+
+    def _get_default_removed_value(self, dtype):
+        value = np.empty((), dtype)
+        if dtype.kind == 'V':
+            for f, (dt, junk) in dtype.fields.items():
+                value[f] = self._get_default_removed_value(dt)
+            return value
+        return {
+            'b': False,
+            'i': -1,
+            'u': 0,
+            'f': np.nan,
+            'c': np.nan,
+            'S': '',
+            'U': u'',
+            'O': None,
+        }[dtype.kind]
 
     @staticmethod
     def _pack_index(index, removed):
