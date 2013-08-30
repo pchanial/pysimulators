@@ -4,7 +4,6 @@ module wcsutils
     use module_math,    only : PI, DEG2RAD, RAD2DEG, NaN, mInf, pInf
     use module_fitstools,      only : ft_read_keyword
     use module_pointingmatrix, only : PointingElement, xy2pmatrix, xy2roi, roi2pmatrix_cartesian
-    use module_projection,     only : convex_hull
     use module_wcs,            only : ad2xy_gnomonic, ad2xys_gnomonic, init_astrometry
     implicit none
 
@@ -199,7 +198,7 @@ contains
         ! 
         ! The routine is not accurate at the poles.
 
-        integer, intent(in)    :: ncoords           ! number of coordinates
+        integer*8, intent(in)    :: ncoords           ! number of coordinates
         real(p), intent(in)    :: input(2,ncoords)  ! input coordinates in instrument object plane
         real(p), intent(inout) :: output(2,ncoords) ! output in celestial coordinates
         real(p), intent(in)    :: ra, dec, pa       ! pointing direction is (0,0) in the local frame
@@ -233,16 +232,11 @@ contains
         real(p), intent(out)                       :: xmin, ymin, xmax, ymax  ! min and max values of the map coordinates
         integer, intent(out)                       :: status                  ! status flag
 
-        real(p), allocatable :: hull_instrument(:,:), hull(:,:)
-        integer, allocatable :: ihull(:)
-        integer*8            :: ipointing
+        real(p)   :: xy(2,ncoords)
+        integer*8 :: ipointing
 
         call init_astrometry(header, status=status)
         if (status /= 0) return
-
-        call convex_hull(coords, ihull)
-        allocate (hull_instrument(2,size(ihull)), hull(2,size(ihull)))
-        hull_instrument = coords(:,ihull)
 
         xmin = pInf
         xmax = mInf
@@ -250,16 +244,16 @@ contains
         ymax = mInf
 
 #ifndef IFORT
-        !$omp parallel do reduction(min:xmin,ymin) reduction(max:xmax,ymax) private(hull)
+        !$omp parallel do reduction(min:xmin,ymin) reduction(max:xmax,ymax) private(xy)
 #endif
         do ipointing = 1, npointings
 
-            call object2ad(hull_instrument, hull, size(ihull), ra(ipointing), dec(ipointing), pa(ipointing))
-            call ad2xy_gnomonic(hull(1,:), hull(2,:))
-            xmin = min(xmin, minval(hull(1,:)))
-            ymin = min(ymin, minval(hull(2,:)))
-            xmax = max(xmax, maxval(hull(1,:)))
-            ymax = max(ymax, maxval(hull(2,:)))
+            call object2ad(coords, xy, ncoords, ra(ipointing), dec(ipointing), pa(ipointing))
+            call ad2xy_gnomonic(xy(1,:), xy(2,:))
+            xmin = min(xmin, minval(xy(1,:)))
+            ymin = min(ymin, minval(xy(2,:)))
+            xmax = max(xmax, maxval(xy(1,:)))
+            ymax = max(ymax, maxval(xy(2,:)))
 
         end do
 #ifndef IFORT
@@ -308,7 +302,7 @@ contains
                 cycle
             end if
 
-            call object2ad(coords, coords2, int(ncoords), ra(isample), dec(isample), pa(isample))
+            call object2ad(coords, coords2, ncoords, ra(isample), dec(isample), pa(isample))
             
             call ad2xys_gnomonic(coords2, x, y, s)
 
@@ -367,7 +361,7 @@ contains
                 cycle
             end if
 
-            call object2ad(coords, coords2, int(ncoords*nvertices), ra(isample), dec(isample), pa(isample))
+            call object2ad(coords, coords2, ncoords*nvertices, ra(isample), dec(isample), pa(isample))
             call ad2xy_gnomonic(coords2(1,:,:), coords2(2,:,:))
             roi = xy2roi(coords2)
             call roi2pmatrix_cartesian(roi, coords2, nx, ny, new_npixels_per_sample, out, pmatrix(:,isample,:))
