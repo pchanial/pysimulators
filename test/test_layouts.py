@@ -157,31 +157,35 @@ def test_packunpack():
     recvertex.x, recvertex.y = vertex[..., 0], vertex[..., 1]
     valb = (np.arange(size, dtype=int) % 2).astype(bool).reshape(shape)
     vali = np.arange(size, dtype=int).reshape(shape)
+    valu = np.arange(size, dtype=np.uint64).reshape(shape)
     valf = np.arange(size, dtype=float).reshape(shape)
     valb2 = (np.arange(size * 2, dtype=int) % 2).astype(bool).reshape(
         shape + (2,))
     vali2 = np.arange(size * 2, dtype=int).reshape(shape + (2,))
+    valu2 = np.arange(size * 2, dtype=np.uint64).reshape(shape + (2,))
     valf2 = np.arange(size * 2, dtype=float).reshape(shape + (2,))
     valb3 = (np.arange(size * 2 * 3, dtype=int) % 2).astype(bool).reshape(
-        shape + (2,3))
+        shape + (2, 3))
     vali3 = np.arange(size * 2 * 3, dtype=int).reshape(shape + (2, 3))
+    valu3 = np.arange(size * 2 * 3, dtype=np.uint64).reshape(shape + (2, 3))
     valf3 = np.arange(size * 2 * 3, dtype=float).reshape(shape + (2, 3))
-    data = (valb, vali, valf, valb2, vali2, valf2, valb3, vali3, valf3, center,
-            reccenter, vertex, recvertex)
-
-    def iseq(a, b):
-        if a.dtype.kind == 'V':
-            return (a.x == b.x) & (a.y == b.y)
-        return a == b
+    data = (valb, vali, valu, valf, valb2, vali2, valu2, valf2, valb3, vali3,
+            valu3, valf3, center, reccenter, vertex, recvertex)
 
     def missing(x):
-        if x.dtype.kind == 'b':
+        kind = x.dtype.kind
+        if kind == 'b':
             return ~x
-        if x.dtype.kind == 'V':
-            return ~np.isfinite(x.x) | ~np.isfinite(x.y)
-        if x.dtype == float:
+        if kind == 'i':
+            return x == -1
+        if kind == 'u':
+            return x == 0
+        if kind == 'f':
             return ~np.isfinite(x)
-        return x == -1
+        if kind == 'V':
+            if x.dtype.names == ('x', 'y'):
+                return ~np.isfinite(x.x) & ~np.isfinite(x.y)
+        assert False
 
     def func(r, i, d):
         layout = Layout(shape, vertex=vertex, center=center, removed=r,
@@ -190,19 +194,19 @@ def test_packunpack():
         assert_equal(packed.shape, (len(layout.packed),) + d.shape[2:])
         d_ = layout.unpack(packed)
         assert_equal(d_.shape, d.shape)
-        assert np.all(iseq(d, d_) | missing(d_))
+        assert np.all((d == d_) | missing(d_))
         out_packed = np.empty((len(layout.packed),) + d.shape[2:],
                               d.dtype).view(type(d))
         out_unpacked = np.empty(d.shape, d.dtype).view(type(d))
         layout.pack(d, out=out_packed)
         layout.unpack(out_packed, out=out_unpacked)
-        assert np.all(iseq(d, out_unpacked) | missing(out_unpacked))
+        assert np.all((d == out_unpacked) | missing(out_unpacked))
         out_unpacked = np.empty((6,)+d.shape[1:], d.dtype)[::2].view(type(d))
         out_packed = np.empty((out_packed.shape[0]*2,)+out_packed.shape[1:],
                               d.dtype)[::2].view(type(d))
         layout.pack(d, out=out_packed)
         layout.unpack(out_packed, out=out_unpacked)
-        assert np.all(iseq(d, out_unpacked) | missing(out_unpacked))
+        assert np.all((d == out_unpacked) | missing(out_unpacked))
 
     for r, i in ((False, None), (False, index1), (False, index2),
                  (removed, None), (removed, index1), (removed, index2)):
