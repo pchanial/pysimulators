@@ -9,6 +9,7 @@ del locale
 
 from . import _flib
 from . import geometry
+from . import interfaces
 from .operators import *
 from .datatypes import *
 from .layouts import *
