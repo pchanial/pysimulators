@@ -12,6 +12,7 @@ from pyoperators.utils import (ifirst, isscalar, product, strelapsed, strenum,
                                strnbytes, strplural)
 
 from . import _flib as flib
+from .datatypes import Map, Tod
 from .geometry import convex_hull
 from .instruments import Instrument, Imager
 from .layouts import Layout
@@ -132,6 +133,61 @@ class Acquisition(object):
     def unpack(self, x):
         return self.instrument.detector.unpack(x)
     unpack.__doc__ = Layout.unpack.__doc__
+
+    def get_projection_operator(self, header, npixels_per_sample=0,
+                                method=None, units=None, derived_units=None):
+        if method == 'nearest':
+            npixels_per_sample = 1
+        time0 = time.time()
+        info = []
+        pmatrices = [
+            self.get_projection_matrix(header, b.start, b.stop,
+                                       npixels_per_sample=npixels_per_sample,
+                                       method=method) for b in self.block]
+        npps_min = max(p.header['min_npixels_per_sample'] for p in pmatrices)
+
+        if npps_min == 0:
+            info += ['Warning, all detectors fall outside the map.']
+
+        elif npixels_per_sample < npps_min:
+            if npixels_per_sample > 0:
+                info += ["Warning, the value 'npixels_per_sample' is not large"
+                         " enough. Set it to '{0}' instead of '{1}' to avoid r"
+                         "ecomputation of the pointing matrix.".format(
+                         npps_min, npixels_per_sample)]
+            else:
+                info += ["Set the keyword 'npixels_per_sample' to '{0}' to avo"
+                         "id recomputation of the pointing matrix.".format(
+                         npps_min)]
+            npixels_per_sample = npps_min
+            del pmatrices
+            pmatrices = [
+                self.get_projection_matrix(
+                    header, b.start, b.stop,
+                    npixels_per_sample=npixels_per_sample,
+                    method=method) for b in self.block]
+
+        elif npixels_per_sample > npps_min:
+            info += ["Warning, the value 'npixels_per_sample' is too large. Se"
+                     "t it to '{0}' instead of '{1}' for better memory perform"
+                     "ance.".format(npps_min, npixels_per_sample)]
+
+        if any(p.header['outside'] for p in pmatrices):
+            info += ['Warning, some detectors fall outside the map.']
+
+        info.insert(0, strnbytes(sum(p.nbytes for p in pmatrices)))
+        print(strelapsed(time0, 'Computing the projector') + ' ({0})'.
+              format(' '.join(info)))
+
+        return BlockColumnOperator(
+            [ProjectionInMemoryOperator(p, attrin={'_header': header},
+                                        classin=Map, classout=Tod, units=units,
+                                        derived_units=derived_units)
+             for p in pmatrices], axisout=-1)
+
+    def get_projection_matrix(self, header, start, stop, npixels_per_sample=0,
+                              method=None):
+        raise NotImplementedError()
 
     @classmethod
     def create_scan(cls, center, length, step, sampling_period, speed,
@@ -309,98 +365,19 @@ class AcquisitionImager(Acquisition):
         headers = self.comm_map.allgather(header)
         return combine_fitsheader(headers)
 
-    def get_projection_operator(self, header, npixels_per_sample=0,
-                                method=None, units=None, derived_units=None):
-        if method == 'nearest':
-            npixels_per_sample = 1
-        time0 = time.time()
-        info = []
-        pmatrices = [
-            self._get_pointing_matrix(header, self.pointing[b.start:b.stop],
-                                      npixels_per_sample=npixels_per_sample,
-                                      method=method) for b in self.block]
-        npps_min = max(p.header['min_npixels_per_sample'] for p in pmatrices)
-
-        if npps_min == 0:
-            info += ['Warning, all detectors fall outside the map.']
-
-        elif npixels_per_sample < npps_min:
-            if npixels_per_sample > 0:
-                info += ["Warning, the value 'npixels_per_sample' is not large"
-                         " enough. Set it to '{0}' instead of '{1}' to avoid r"
-                         "ecomputation of the pointing matrix.".format(
-                         npps_min, npixels_per_sample)]
-            else:
-                info += ["Set the keyword 'npixels_per_sample' to '{0}' to avo"
-                         "id recomputation of the pointing matrix.".format(
-                         npps_min)]
-            npixels_per_sample = npps_min
-            del pmatrices
-            pmatrices = [
-                self._get_pointing_matrix(
-                    header, self.pointing[b.start:b.stop],
-                    npixels_per_sample=npixels_per_sample,
-                    method=method) for b in self.block]
-
-        elif npixels_per_sample > npps_min:
-            info += ["Warning, the value 'npixels_per_sample' is too large. Se"
-                     "t it to '{0}' instead of '{1}' for better memory perform"
-                     "ance.".format(npps_min, npixels_per_sample)]
-
-        if any(p.header['outside'] for p in pmatrices):
-            info += ['Warning, some detectors fall outside the map.']
-
-        info.insert(0, strnbytes(sum(p.nbytes for p in pmatrices)))
-        print(strelapsed(time0, 'Computing the projector') + ' ({0})'.
-              format(' '.join(info)))
-
-        return BlockColumnOperator(
-            [ProjectionInMemoryOperator(p, attrin={'_header': header},
-                                        units=units,
-                                        derived_units=derived_units)
-             for p in pmatrices], axisout=-1)
-
-    def plot(self, map=None, header=None, instrument=True, new_figure=True,
-             percentile=0.01, **keywords):
-        """
-        map : ndarray of dim 2
-            The optional map to be displayed as background.
-        header : pyfits.Header
-            The optional map's FITS header.
-        instrument : boolean
-            If true, plot the instrument's footprint on the sky.
-        new_figure : boolean
-            If true, plot the scan in a new window.
-        percentile : float, tuple of two floats
-            As a float, percentile of values to be discarded, otherwise,
-            percentile of the minimum and maximum values to be displayed.
-
-        """
-        image = Acquisition.plot(
-            self, map=map, header=header, new_figure=new_figure,
-            percentile=percentile, **keywords)
-        if not instrument:
-            return image
-
-        valid = ~self.pointing.removed & ~self.pointing.masked
-        p = self.pointing[ifirst(valid, True)]
-        t = RotationBoresightEquatorialOperator(p) * \
-            self.instrument.image2object
-        f = lambda x: image.projection.topixel(t(x))
-        self.instrument.plot(transform=f, autoscale=False)
-        return image
-
-    def _get_pointing_matrix(self, header, pointing, npixels_per_sample=0,
-                             method=None):
+    def get_projection_matrix(self, header, start, stop, npixels_per_sample=0,
+                              method=None):
         """
         Return the pointing matrix for a given set of pointings.
 
         Parameters
         ----------
-        pointing : Pointing
-            The pointing containing the astrometry of the array center.
         header : pyfits.Header
             The map FITS header
+        start : int
+            The starting index of the pointings.
+        stop : int
+            The last index of the pointings (not included).
         npixels_per_sample : int
             Maximum number of sky pixels intercepted by a detector.
             By setting 0 (the default), the actual value will be determined
@@ -433,6 +410,7 @@ class AcquisitionImager(Acquisition):
                                'stored using 32 bits: {0}>{1}'.format(product(
                                shape_input), np.iinfo(np.int32).max))
 
+        pointing = self.pointing[start:stop]
         mask = ~pointing['removed']
         pointing = pointing[mask]
         nvalids = pointing.size
@@ -465,6 +443,36 @@ class AcquisitionImager(Acquisition):
         pmatrix.header['HIERARCH min_npixels_per_sample'] = new_npps
 
         return pmatrix
+
+    def plot(self, map=None, header=None, instrument=True, new_figure=True,
+             percentile=0.01, **keywords):
+        """
+        map : ndarray of dim 2
+            The optional map to be displayed as background.
+        header : pyfits.Header
+            The optional map's FITS header.
+        instrument : boolean
+            If true, plot the instrument's footprint on the sky.
+        new_figure : boolean
+            If true, plot the scan in a new window.
+        percentile : float, tuple of two floats
+            As a float, percentile of values to be discarded, otherwise,
+            percentile of the minimum and maximum values to be displayed.
+
+        """
+        image = Acquisition.plot(
+            self, map=map, header=header, new_figure=new_figure,
+            percentile=percentile, **keywords)
+        if not instrument:
+            return image
+
+        valid = ~self.pointing.removed & ~self.pointing.masked
+        p = self.pointing[ifirst(valid, True)]
+        t = RotationBoresightEquatorialOperator(p) * \
+            self.instrument.image2object
+        f = lambda x: image.projection.topixel(t(x))
+        self.instrument.plot(transform=f, autoscale=False)
+        return image
 
     @staticmethod
     def _object2ad(coords, pointing):
