@@ -19,6 +19,7 @@ from pyoperators.utils import (
 )
 
 from . import _flib as flib
+from .datatypes import Map, Tod
 from .geometry import convex_hull
 from .instruments import Instrument, Imager
 from .layouts import Layout
@@ -158,6 +159,91 @@ class Acquisition(object):
         return self.instrument.detector.unpack(x)
 
     unpack.__doc__ = Layout.unpack.__doc__
+
+    def get_projection_operator(
+        self, header, npixels_per_sample=0, method=None, units=None, derived_units=None
+    ):
+        if method == 'nearest':
+            npixels_per_sample = 1
+        time0 = time.time()
+        info = []
+        pmatrices = [
+            self.get_projection_matrix(
+                header,
+                b.start,
+                b.stop,
+                npixels_per_sample=npixels_per_sample,
+                method=method,
+            )
+            for b in self.block
+        ]
+        npps_min = max(p.header['min_npixels_per_sample'] for p in pmatrices)
+
+        if npps_min == 0:
+            info += ['Warning, all detectors fall outside the map.']
+
+        elif npixels_per_sample < npps_min:
+            if npixels_per_sample > 0:
+                info += [
+                    "Warning, the value 'npixels_per_sample' is not large"
+                    " enough. Set it to '{0}' instead of '{1}' to avoid r"
+                    "ecomputation of the pointing matrix.".format(
+                        npps_min, npixels_per_sample
+                    )
+                ]
+            else:
+                info += [
+                    "Set the keyword 'npixels_per_sample' to '{0}' to avo"
+                    "id recomputation of the pointing matrix.".format(npps_min)
+                ]
+            npixels_per_sample = npps_min
+            del pmatrices
+            pmatrices = [
+                self.get_projection_matrix(
+                    header,
+                    b.start,
+                    b.stop,
+                    npixels_per_sample=npixels_per_sample,
+                    method=method,
+                )
+                for b in self.block
+            ]
+
+        elif npixels_per_sample > npps_min:
+            info += [
+                "Warning, the value 'npixels_per_sample' is too large. Se"
+                "t it to '{0}' instead of '{1}' for better memory perform"
+                "ance.".format(npps_min, npixels_per_sample)
+            ]
+
+        if any(p.header['outside'] for p in pmatrices):
+            info += ['Warning, some detectors fall outside the map.']
+
+        info.insert(0, strnbytes(sum(p.nbytes for p in pmatrices)))
+        print(
+            strelapsed(time0, 'Computing the projector')
+            + ' ({0})'.format(' '.join(info))
+        )
+
+        return BlockColumnOperator(
+            [
+                ProjectionInMemoryOperator(
+                    p,
+                    attrin={'_header': header},
+                    classin=Map,
+                    classout=Tod,
+                    units=units,
+                    derived_units=derived_units,
+                )
+                for p in pmatrices
+            ],
+            axisout=-1,
+        )
+
+    def get_projection_matrix(
+        self, header, start, stop, npixels_per_sample=0, method=None
+    ):
+        raise NotImplementedError()
 
     @classmethod
     def create_scan(
@@ -379,81 +465,94 @@ class AcquisitionImager(Acquisition):
         headers = self.comm_map.allgather(header)
         return combine_fitsheader(headers)
 
-    def get_projection_operator(
-        self, header, npixels_per_sample=0, method=None, units=None, derived_units=None
+    def get_projection_matrix(
+        self, header, start, stop, npixels_per_sample=0, method=None
     ):
+        """
+        Return the pointing matrix for a given set of pointings.
+
+        Parameters
+        ----------
+        header : pyfits.Header
+            The map FITS header
+        start : int
+            The starting index of the pointings.
+        stop : int
+            The last index of the pointings (not included).
+        npixels_per_sample : int
+            Maximum number of sky pixels intercepted by a detector.
+            By setting 0 (the default), the actual value will be determined
+            automatically.
+        method : string
+            'sharp' : the intersection of the sky pixels and the detectors
+                      is computed assuming that the transmission outside
+                      the detector is zero and one otherwise (sharp edge
+                      geometry)
+            'nearest' : the value of the sky pixel closest to the detector
+                        center is taken as the sample value, assuming
+                        surface brightness conservation.
+
+        """
+        if method is None:
+            if self.instrument.detector.nvertices > 0:
+                method = 'sharp'
+            else:
+                method = 'nearest'
+        method = method.lower()
+        choices = ('nearest', 'sharp')
+        if method not in choices:
+            raise ValueError(
+                "Invalid method '" + method + "'. Expected values"
+                " are " + strenum(choices) + '.'
+            )
+
+        header = gather_fitsheader_if_needed(header, comm=self.comm_map)
+        shape_input = fitsheader2shape(header)
+        if product(shape_input) > np.iinfo(np.int32).max:
+            raise RuntimeError(
+                'The map is too large: pixel indices cannot be '
+                'stored using 32 bits: {0}>{1}'.format(
+                    product(shape_input), np.iinfo(np.int32).max
+                )
+            )
+
+        pointing = self.pointing[start:stop]
+        mask = ~pointing['removed']
+        pointing = pointing[mask]
+        nvalids = pointing.size
+
         if method == 'nearest':
             npixels_per_sample = 1
-        time0 = time.time()
-        info = []
-        pmatrices = [
-            self._get_pointing_matrix(
-                header,
-                self.pointing[b.start : b.stop],
-                npixels_per_sample=npixels_per_sample,
-                method=method,
+
+        # allocate memory for the pointing matrix
+        ndetectors = self.get_ndetectors()
+        shape = (ndetectors, nvalids, npixels_per_sample)
+        pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
+
+        # compute the pointing matrix
+        if method == 'sharp':
+            coords = self.instrument.image2object(
+                self.instrument.detector.packed.vertex
             )
-            for b in self.block
-        ]
-        npps_min = max(p.header['min_npixels_per_sample'] for p in pmatrices)
+            new_npps, outside = self._object2pmatrix_sharp_edges(
+                coords, pointing, header, pmatrix, npixels_per_sample
+            )
+        elif method == 'nearest':
+            coords = self.instrument.image2object(
+                self.instrument.detector.packed.center
+            )
+            new_npps = 1
+            outside = self._object2pmatrix_nearest_neighbour(
+                coords, pointing, header, pmatrix
+            )
+        else:
+            raise NotImplementedError()
 
-        if npps_min == 0:
-            info += ['Warning, all detectors fall outside the map.']
+        pmatrix.header['method'] = method
+        pmatrix.header['outside'] = bool(outside)
+        pmatrix.header['HIERARCH min_npixels_per_sample'] = new_npps
 
-        elif npixels_per_sample < npps_min:
-            if npixels_per_sample > 0:
-                info += [
-                    "Warning, the value 'npixels_per_sample' is not large"
-                    " enough. Set it to '{0}' instead of '{1}' to avoid r"
-                    "ecomputation of the pointing matrix.".format(
-                        npps_min, npixels_per_sample
-                    )
-                ]
-            else:
-                info += [
-                    "Set the keyword 'npixels_per_sample' to '{0}' to avo"
-                    "id recomputation of the pointing matrix.".format(npps_min)
-                ]
-            npixels_per_sample = npps_min
-            del pmatrices
-            pmatrices = [
-                self._get_pointing_matrix(
-                    header,
-                    self.pointing[b.start : b.stop],
-                    npixels_per_sample=npixels_per_sample,
-                    method=method,
-                )
-                for b in self.block
-            ]
-
-        elif npixels_per_sample > npps_min:
-            info += [
-                "Warning, the value 'npixels_per_sample' is too large. Se"
-                "t it to '{0}' instead of '{1}' for better memory perform"
-                "ance.".format(npps_min, npixels_per_sample)
-            ]
-
-        if any(p.header['outside'] for p in pmatrices):
-            info += ['Warning, some detectors fall outside the map.']
-
-        info.insert(0, strnbytes(sum(p.nbytes for p in pmatrices)))
-        print(
-            strelapsed(time0, 'Computing the projector')
-            + ' ({0})'.format(' '.join(info))
-        )
-
-        return BlockColumnOperator(
-            [
-                ProjectionInMemoryOperator(
-                    p,
-                    attrin={'_header': header},
-                    units=units,
-                    derived_units=derived_units,
-                )
-                for p in pmatrices
-            ],
-            axisout=-1,
-        )
+        return pmatrix
 
     def plot(
         self,
@@ -495,90 +594,6 @@ class AcquisitionImager(Acquisition):
         f = lambda x: image.projection.topixel(t(x))
         self.instrument.plot(transform=f, autoscale=False)
         return image
-
-    def _get_pointing_matrix(self, header, pointing, npixels_per_sample=0, method=None):
-        """
-        Return the pointing matrix for a given set of pointings.
-
-        Parameters
-        ----------
-        pointing : Pointing
-            The pointing containing the astrometry of the array center.
-        header : pyfits.Header
-            The map FITS header
-        npixels_per_sample : int
-            Maximum number of sky pixels intercepted by a detector.
-            By setting 0 (the default), the actual value will be determined
-            automatically.
-        method : string
-            'sharp' : the intersection of the sky pixels and the detectors
-                      is computed assuming that the transmission outside
-                      the detector is zero and one otherwise (sharp edge
-                      geometry)
-            'nearest' : the value of the sky pixel closest to the detector
-                        center is taken as the sample value, assuming
-                        surface brightness conservation.
-
-        """
-        if method is None:
-            if self.instrument.detector.nvertices > 0:
-                method = 'sharp'
-            else:
-                method = 'nearest'
-        method = method.lower()
-        choices = ('nearest', 'sharp')
-        if method not in choices:
-            raise ValueError(
-                "Invalid method '" + method + "'. Expected values"
-                " are " + strenum(choices) + '.'
-            )
-
-        header = gather_fitsheader_if_needed(header, comm=self.comm_map)
-        shape_input = fitsheader2shape(header)
-        if product(shape_input) > np.iinfo(np.int32).max:
-            raise RuntimeError(
-                'The map is too large: pixel indices cannot be '
-                'stored using 32 bits: {0}>{1}'.format(
-                    product(shape_input), np.iinfo(np.int32).max
-                )
-            )
-
-        mask = ~pointing['removed']
-        pointing = pointing[mask]
-        nvalids = pointing.size
-
-        if method == 'nearest':
-            npixels_per_sample = 1
-
-        # allocate memory for the pointing matrix
-        ndetectors = self.get_ndetectors()
-        shape = (ndetectors, nvalids, npixels_per_sample)
-        pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
-
-        # compute the pointing matrix
-        if method == 'sharp':
-            coords = self.instrument.image2object(
-                self.instrument.detector.packed.vertex
-            )
-            new_npps, outside = self._object2pmatrix_sharp_edges(
-                coords, pointing, header, pmatrix, npixels_per_sample
-            )
-        elif method == 'nearest':
-            coords = self.instrument.image2object(
-                self.instrument.detector.packed.center
-            )
-            new_npps = 1
-            outside = self._object2pmatrix_nearest_neighbour(
-                coords, pointing, header, pmatrix
-            )
-        else:
-            raise NotImplementedError()
-
-        pmatrix.header['method'] = method
-        pmatrix.header['outside'] = bool(outside)
-        pmatrix.header['HIERARCH min_npixels_per_sample'] = new_npps
-
-        return pmatrix
 
     @staticmethod
     def _object2ad(coords, pointing):
