@@ -58,15 +58,7 @@ class Acquisition(object):
 
     """
 
-    def __init__(
-        self,
-        instrument,
-        pointing,
-        block_id=None,
-        selection=None,
-        comm_map=MPI.COMM_WORLD,
-        comm_tod=MPI.COMM_WORLD,
-    ):
+    def __init__(self, instrument, pointing, block_id=None, selection=None):
         """
         Parameters
         ----------
@@ -80,10 +72,6 @@ class Acquisition(object):
         selection : integer or sequence of, optional
            The indices of the pointing sequence to be selected to construct
            the pointing configuration.
-        comm_map : mpi4py.MPI.Comm
-            The map MPI communicator.
-        comm_tod : mpi4py.MPI.Comm
-            The Time-Ordered-Data MPI communicator.
 
         """
         if not isinstance(instrument, Instrument):
@@ -125,8 +113,8 @@ class Acquisition(object):
         self.instrument = instrument
         self.pointing = np.concatenate(pointing).view(type(pointing[0]))
         self.block = self._get_block(pointing, block_id)
-        self.comm_map = comm_map
-        self.comm_tod = comm_tod
+        self.commin = instrument.commin
+        self.commout = instrument.commout
 
     def __str__(self):
         return 'Pointings:\n    {} in {}\n\n'.format(
@@ -667,7 +655,7 @@ class AcquisitionImager(Acquisition):
         )
 
         # gather and combine the FITS headers
-        headers = self.comm_map.allgather(header)
+        headers = self.commin.allgather(header)
         return combine_fitsheader(headers)
 
     def get_projection_matrix(
@@ -711,7 +699,7 @@ class AcquisitionImager(Acquisition):
                 " are " + strenum(choices) + '.'
             )
 
-        header = gather_fitsheader_if_needed(header, comm=self.comm_map)
+        header = gather_fitsheader_if_needed(header, comm=self.commin)
         shape_input = fitsheader2shape(header)
         if product(shape_input) > np.iinfo(np.int32).max:
             raise RuntimeError(
