@@ -7,3 +7,4 @@ MANIFEST
 .coverage
 .f2py_f2cmap
 pysimulators/_flib.so
+pysimulators/__init__.py
