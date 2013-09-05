@@ -641,10 +641,12 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
 
     @staticmethod
     def _rule_diagonal(d, self):
-        if self.matrix.shape[-1] != 1:
+        # rightward broadcasting can fail with structured arrays (np 1.7)
+        if self.matrix.shape[-1] != 1 or d.broadcast == 'rightward':
             return
-        result = ProjectionInMemoryOperator(copy.deepcopy(self.matrix))
-        result.matrix.value.T[...] *= d.get_data().T
+        matrix = self.matrix.copy()
+        result = ProjectionInMemoryOperator(matrix)
+        matrix.value *= d.get_data()
         return result
 
 
