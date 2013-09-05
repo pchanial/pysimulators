@@ -11,7 +11,6 @@ from pyoperators import (
     BlockDiagonalOperator,
     DiagonalOperator,
     SymmetricBandToeplitzOperator,
-    MPI,
 )
 from pyoperators.memory import empty
 from pyoperators.utils import (

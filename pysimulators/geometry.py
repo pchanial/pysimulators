@@ -1,5 +1,6 @@
 """
-This module provides coordinates for 
+This module provides utilities for the cartesian 2-d geometry.
+
 The coordinates of the geometric object provided by this module refer
 to a cartesian referential (X, Y). To state it explicitly, for a given array
 of coordinates a, a[..., 0] refers to the X-axis and a[..., 1] to the Y-axis.
@@ -344,7 +345,8 @@ def surface_simple_polygon(coords, out=None, dtype=float):
 
     Example
     -------
-    >>> from pysimulators.geometry import create_square, create_regular_polygon, surface_simple_polygon
+    >>> from pysimulators.geometry import (
+    ...     create_square, create_regular_polygon, surface_simple_polygon)
     >>> c = create_square([1, 2])
     >>> surface_simple_polygon(c)
     array([ 1.,  4.])

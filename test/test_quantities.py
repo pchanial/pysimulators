@@ -8,10 +8,6 @@ from pyoperators.utils.testing import assert_eq, assert_is, assert_is_instance
 from pysimulators.quantities import Quantity, UnitError
 
 
-class TestFailure(Exception):
-    pass
-
-
 def assert_quantity(q, m, u):
     assert_is_instance(q, Quantity)
     assert_array_equal(q.magnitude, m)
@@ -62,22 +58,22 @@ def test_add2():
         yield check_unit_add, other, q, 2, {'m': 1.0}
 
 
-if np.__version__ >= '1.4':
+def test_add3():
+    q = Quantity(1.0)
+    q2 = Quantity(1.0, 'km')
+    yield check_unit_add, q, q2, 2, {'km': 1.0}
 
-    def test_add3():
-        q = Quantity(1.0)
-        q2 = Quantity(1.0, 'km')
-        yield check_unit_add, q, q2, 2, {'km': 1.0}
 
-    def test_add4():
-        q = Quantity(1.0, 'm')
-        q2 = Quantity(1.0, 'km')
-        yield check_unit_add, q, q2, 1001, {'m': 1.0}
+def test_add4():
+    q = Quantity(1.0, 'm')
+    q2 = Quantity(1.0, 'km')
+    yield check_unit_add, q, q2, 1001, {'m': 1.0}
 
-    def test_add5():
-        q = Quantity(1.0, 'km')
-        q2 = Quantity(1.0, 'm')
-        yield check_unit_add, q, q2, 1.001, {'km': 1.0}
+
+def test_add5():
+    q = Quantity(1.0, 'km')
+    q2 = Quantity(1.0, 'm')
+    yield check_unit_add, q, q2, 1.001, {'km': 1.0}
 
 
 def test_add6():
@@ -85,11 +81,6 @@ def test_add6():
 
 
 def check_unit_sub(x, y, v, u):
-    if np.__version__ < '1.4':
-        if getattr(x, '_unit', {}) is not {} and getattr(y, '_unit', {}) is not {}:
-            if x._unit != y._unit:
-                print('Disabling operation on Quantities for Numpy < 1.4')
-                return
     c = x - y
     assert_quantity(c, v, u)
 
@@ -148,17 +139,15 @@ def test_conversion_sr2():
     assert_equal(a.unit, '')
 
 
-if np.__version__ >= '1.4':
-
-    def test_array_prepare():
-        assert Quantity(10, 'm') <= Quantity(1, 'km')
-        assert Quantity(10, 'm') < Quantity(1, 'km')
-        assert Quantity(1, 'km') >= Quantity(10, 'm')
-        assert Quantity(1, 'km') > Quantity(10, 'm')
-        assert Quantity(1, 'km') != Quantity(1, 'm')
-        assert Quantity(1, 'km') == Quantity(1000, 'm')
-        assert np.maximum(Quantity(10, 'm'), Quantity(1, 'km')) == 1000
-        assert np.minimum(Quantity(10, 'm'), Quantity(1, 'km')) == 10
+def test_array_prepare():
+    assert Quantity(10, 'm') <= Quantity(1, 'km')
+    assert Quantity(10, 'm') < Quantity(1, 'km')
+    assert Quantity(1, 'km') >= Quantity(10, 'm')
+    assert Quantity(1, 'km') > Quantity(10, 'm')
+    assert Quantity(1, 'km') != Quantity(1, 'm')
+    assert Quantity(1, 'km') == Quantity(1000, 'm')
+    assert np.maximum(Quantity(10, 'm'), Quantity(1, 'km')) == 1000
+    assert np.minimum(Quantity(10, 'm'), Quantity(1, 'km')) == 10
 
 
 def test_function():

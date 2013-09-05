@@ -15,6 +15,7 @@ from pysimulators.wcsutils import (
     get_cdelt_pa,
     has_wcs,
     mean_degrees,
+    WCSToWorldOperator,
 )
 
 
@@ -160,8 +161,6 @@ def test_wcsoperator_kapteyn():
 
 
 def test_wcsoperator():
-    from pysimulators.wcsutils import WCSToWorldOperator
-
     path = os.path.join(os.path.dirname(__file__), 'data/header_gnomonic.fits')
     header = pyfits.open(path)[0].header
 

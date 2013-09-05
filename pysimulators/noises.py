@@ -4,7 +4,6 @@ from __future__ import division
 
 import numpy as np
 import multiprocessing
-import pyfftw
 import pyfftw.interfaces.numpy_fft as fft
 from pyoperators.memory import empty
 

@@ -67,7 +67,7 @@ def test_partitioning_chunk():
             return
         if nn != max(n1, n2) and (not isscalar(v) or not isscalar(k)):
             # the partition is incompatible with the partitioned arguments
-            return  # test assert_raises(ValueError)
+            return  # XXX test assert_raises(ValueError)
 
         op = cls(arg1, v, arg3, mykey=k, partitionin=n)
         if nn == 1:

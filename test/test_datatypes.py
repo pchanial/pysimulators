@@ -260,7 +260,7 @@ def test_ndarray_funcs():
             assert_is_none(result.error)
         elif cls is Tod:
             if result.mask is None:
-                assert ref.mask == False
+                assert not ref.mask
             else:
                 assert_eq(result.mask, ref.mask)
 
