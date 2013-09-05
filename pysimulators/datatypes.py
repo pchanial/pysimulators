@@ -215,7 +215,7 @@ class FitsArray(Quantity):
 
     @classmethod
     def ones(cls, shape, header=None, unit=None, derived_units=None,
-              dtype=None, order=None, **keywords):
+             dtype=None, order=None, **keywords):
         if dtype is None:
             dtype = cls.default_dtype
         return cls(np.ones(shape, dtype, order), header=header, unit=unit,

@@ -12,7 +12,8 @@ def test_mask_policy1():
     good_policy = ['kEep', 'removE', 'MASK']
     mask_policy = MaskPolicy(flags, good_policy)
     assert_eq(np.array(mask_policy), (0, 2, 1))
-    assert mask_policy.bad == 'keep' and mask_policy.u1 == 'remove' and mask_policy.u2 == 'mask'
+    assert mask_policy.bad == 'keep' and mask_policy.u1 == 'remove' and \
+        mask_policy.u2 == 'mask'
 
 
 def test_mask_policy2():

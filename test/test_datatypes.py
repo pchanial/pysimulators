@@ -21,19 +21,22 @@ keywords_t.update({'mask': True})
 keywords_types = (keywords_q, keywords_f, keywords_m, keywords_t)
 dtypes = (bool, int, np.float32, np.float64, np.complex64, np.complex128)
 
+
 def teardown():
     for file in glob.glob(filename+'*'):
         os.remove(file)
 
-a = np.ones((4,3))
-a[1,2] = 4
+a = np.ones((4, 3))
+a[1, 2] = 4
 q = Quantity(a, unit='myunit', derived_units={'myunit': Quantity(2., 'Jy')})
-f = FitsArray(q, header=create_fitsheader(fromdata=q, cdelt=0.5, crval=(4.,8.)))
+f = FitsArray(q,
+              header=create_fitsheader(fromdata=q, cdelt=0.5, crval=(4., 8.)))
 m = Map(f, origin='upper', error=a*2, coverage=a*3)
-mask = np.zeros((4,3), np.bool8)
-mask[0,2] = True
+mask = np.zeros((4, 3), np.bool8)
+mask[0, 2] = True
 t = Tod(f, mask=mask)
 del mask
+
 
 def test_copy_false_subok_true():
     def func(obj1, t):
@@ -47,6 +50,7 @@ def test_copy_false_subok_true():
         for ty in types:
             yield func, obj, ty
 
+
 def test_copy_false_subok_false():
     def func(obj1, t):
         obj2 = t(obj1, copy=False, subok=False)
@@ -58,6 +62,7 @@ def test_copy_false_subok_false():
     for obj in [q, f, m, t]:
         for ty in types:
             yield func, obj, ty
+
 
 def test_copy_true_subok_true():
     def func(obj1, ty):
@@ -72,6 +77,7 @@ def test_copy_true_subok_true():
         for ty in types:
             yield func, obj1, ty
 
+
 def test_copy_true_subok_false():
     def func(obj1, ty):
         obj2 = ty(obj1, copy=True, subok=False)
@@ -82,6 +88,7 @@ def test_copy_true_subok_false():
         for ty in types:
             yield func, obj1, ty
 
+
 def test_input1():
     def func(t, i):
         d = t(i)
@@ -90,6 +97,7 @@ def test_input1():
     for t in types:
         for i in [(2,), [2], np.array([2])]:
             yield func, t, i
+
 
 def test_input2():
     def func(t, i):
@@ -100,6 +108,7 @@ def test_input2():
         for i in [2, np.array(2)]:
             yield func, t, i
 
+
 def test_input3():
     def func(t):
         d = t([])
@@ -107,17 +116,20 @@ def test_input3():
     for t in types:
         yield func, t
 
+
 def test_view():
-    array = np.ones((10,32))
+    array = np.ones((10, 32))
     aq = ['unit', 'derived_units']
     af = aq + ['header']
     attrs = [aq, af, af + ['coverage', 'error', 'origin'], af + ['mask']]
+
     def func(t, attr):
         d = array.view(t)
         for a in attr:
             assert hasattr(d, a)
     for t, attr in zip(types, attrs):
         yield func, t, attr
+
 
 def test_operation():
     def func(t):
@@ -162,12 +174,13 @@ def test_empty_ones_zeros():
 
 
 def test_tod_save():
-    m = np.ndarray((10,2,10), dtype='int8')
+    m = np.ndarray((10, 2, 10), dtype='int8')
     m.flat = np.random.random(m.size)*2
-    a = Tod(np.random.random_sample((10,2,10)), mask=m, unit='Jy')
+    a = Tod(np.random.random_sample((10, 2, 10)), mask=m, unit='Jy')
     a.save(filename+'_tod.fits')
     b = Tod(filename+'_tod.fits')
     assert_array_equal(a, b)
+
 
 def test_map():
     class MAP(Map):
@@ -177,14 +190,17 @@ def test_map():
     assert sorted(m.__dict__) == ['_derived_units', '_header', '_unit',
                                   'coverage', 'error', 'info', 'origin']
 
+
 def test_pickling():
-    objs = (q,f,m,t)
+    objs = (q, f, m, t)
+
     def func1(v, o):
-        o2 = pickle.loads(pickle.dumps(o,v))
+        o2 = pickle.loads(pickle.dumps(o, v))
         assert_eq(o, o2)
     for v in range(pickle.HIGHEST_PROTOCOL):
         for o in objs:
             yield func1, v, o
+
     def func2(o):
         o.save(filename+'_obj.fits')
         o2 = type(o)(filename+'_obj.fits')
@@ -192,18 +208,19 @@ def test_pickling():
     for o in objs[1:]:
         yield func2, o
 
+
 def test_ndarray_funcs():
-    data = [[1,2,3,4],[5,6,7,8]]
-    mask = [[True,False,False,False],[False,True,True,False]]
+    data = [[1, 2, 3, 4], [5, 6, 7, 8]]
+    mask = [[True, False, False, False], [False, True, True, False]]
     funcs = np.min, np.max, np.sum, np.mean, np.ptp, np.round, np.std, np.var
     axes = (None, 0, 1)
 
     def f(cls, func, axis, m):
-        keywords_array = {'unit':'u'}
+        keywords_array = {'unit': 'u'}
         if cls is Tod:
             keywords_array['mask'] = m
         array = cls(data, **keywords_array)
-        keywords_func = {'axis':axis} if func is not np.round else {}
+        keywords_func = {'axis': axis} if func is not np.round else {}
         result = func(array, **keywords_func)
         if cls is Tod:
             ref = func(np.ma.MaskedArray(array.magnitude, mask=m),
@@ -216,15 +233,15 @@ def test_ndarray_funcs():
         if np.isscalar(result):
             return
         if func is np.var:
-            assert result._unit == {'u':2}
+            assert result._unit == {'u': 2}
         else:
-            assert result._unit == {'u':1}
+            assert result._unit == {'u': 1}
         if cls is Map:
             assert_is_none(result.coverage)
             assert_is_none(result.error)
         elif cls is Tod:
             if result.mask is None:
-                assert ref.mask == False
+                assert not ref.mask
             else:
                 assert_eq(result.mask, ref.mask)
 
@@ -238,11 +255,13 @@ def test_ndarray_funcs():
                 for m in masks:
                     yield f, cls, func, axis, m
 
+
 def test_astype():
     dtypes = np.int8, np.int32, np.int64, np.float32, np.float64
+
     def func(d, e):
-        m = Map(np.array([1,2,3], dtype=d), coverage=np.array([0,1,0], dtype=d),
-                error=np.array([2,2,2], dtype=d))
+        m = Map(np.array([1, 2, 3], dtype=d), coverage=np.array([0, 1, 0],
+                dtype=d), error=np.array([2, 2, 2], dtype=d))
         m2 = m.astype(e)
         assert m2.dtype == e
         assert m2.coverage.dtype == e

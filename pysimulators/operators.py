@@ -1,6 +1,5 @@
 from __future__ import division
 
-import copy
 import functools
 import inspect
 import numpy as np
@@ -17,9 +16,9 @@ from pyoperators.utils import (isscalar, operation_assignment, product,
                                tointtuple)
 
 from . import _flib as flib
-from .datatypes import FitsArray, Map, Tod
+from .datatypes import FitsArray, Map
 from .quantities import Quantity, _divide_unit, _multiply_unit
-from .wcsutils import create_fitsheader, fitsheader2shape
+from .wcsutils import create_fitsheader
 
 __all__ = [
     'BlackBodyOperator',

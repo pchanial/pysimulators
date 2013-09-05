@@ -7,7 +7,7 @@ import numpy as np
 import time
 import types
 from pyoperators import (BlockColumnOperator, BlockDiagonalOperator,
-                         DiagonalOperator, SymmetricBandToeplitzOperator, MPI)
+                         DiagonalOperator, SymmetricBandToeplitzOperator)
 from pyoperators.memory import empty
 from pyoperators.utils import (ifirst, isscalar, product, strelapsed, strenum,
                                strnbytes, strplural)
@@ -97,7 +97,6 @@ class Acquisition(object):
             str(self.instrument)
 
     __repr__ = __str__
-
 
     def pack(self, x):
         return self.instrument.detector.pack(x)
@@ -467,7 +466,7 @@ class AcquisitionImager(Acquisition):
             raise TypeError("The instrument has an invalid type '{}'.".format(
                             type(instrument).__name__))
         Acquisition.__init__(self, instrument, pointing, block_id=block_id,
-                               selection=selection)
+                             selection=selection)
         self.object2world = RotationBoresightEquatorialOperator(self.pointing)
 
     def get_map_header(self, resolution=None):

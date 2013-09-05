@@ -41,7 +41,6 @@ def test_spatial_integration():
     expecteds = [[[9, 10],
                   [5, 6]],
                  [[0.25*(8+9+12+13), 0.25*(9+10+13+14)],
-                  [0.25*(4+5+8+9),   0.25*(5+6+9+10)]]
-                ]
+                  [0.25*(4+5+8+9),   0.25*(5+6+9+10)]]]
     for center, npps, expected in zip(centers, nppss, expecteds):
         yield func, center, npps, expected

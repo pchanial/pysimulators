@@ -134,8 +134,8 @@ def distribute_observation(detectors, observations, rank=None,
         idetector = slice(0, 0)
         iobservation = slice(0, 0)
     else:
-        idetector    = slice(iy * yblocksize * nthreads, (iy+1) * yblocksize *
-                             nthreads)
+        idetector = slice(iy * yblocksize * nthreads, (iy+1) * yblocksize *
+                          nthreads)
         iobservation = slice(ix * xblocksize, (ix+1) * xblocksize)
 
     detectors_ = detectors.copy()

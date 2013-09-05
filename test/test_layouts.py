@@ -123,6 +123,7 @@ def test_error():
         l.index[0] = -1
     assert_raises(RuntimeError, func4)
 
+
 def test_zero_component():
     removeds = (True, (True, True, False, False), False)
     indexs = (None, (1, 4, -1, -1), (-1, -1, -1, -1))

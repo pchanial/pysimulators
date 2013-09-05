@@ -88,7 +88,7 @@ def _power_unit(unit, power):
 
 def _multiply_unit(unit1, unit2):
     """
-    Multiplication of units as dictionary. 
+    Multiplication of units as dictionary.
 
     """
     unit = unit1.copy()

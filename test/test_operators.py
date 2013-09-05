@@ -3,10 +3,14 @@ import scipy
 import scipy.constants
 
 from numpy.testing import assert_equal, assert_raises
-from pyoperators import Operator, CompositionOperator, BlockDiagonalOperator, MultiplicationOperator, decorators
+from pyoperators import (
+    Operator, CompositionOperator, BlockDiagonalOperator,
+    MultiplicationOperator, decorators)
 from pyoperators.utils import all_eq, isscalar
 from pyoperators.utils.testing import assert_is_instance
-from pysimulators.operators import BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal
+from pysimulators.operators import (
+    BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal)
+
 
 def test_partitioning_chunk():
 
@@ -19,6 +23,7 @@ def test_partitioning_chunk():
             self.value = value
             self.arg3 = arg3
             self.mykey = mykey
+
         def direct(self, input, output):
             output[...] = self.value * input
         __str__ = Operator.__repr__
@@ -32,6 +37,7 @@ def test_partitioning_chunk():
             self.value = value
             self.arg3 = arg3
             self.mykey = mykey
+
     class MySubOp(MySupOp):
         def direct(self, input, output):
             output[...] = self.value * input
@@ -43,7 +49,7 @@ def test_partitioning_chunk():
     def func(cls, n, v, k):
         n1 = 1 if isscalar(v) else len(v)
         n2 = 1 if isscalar(k) else len(k)
-        nn = max(n1,n2) if n is None else 1 if isscalar(n) else len(n)
+        nn = max(n1, n2) if n is None else 1 if isscalar(n) else len(n)
         if not isscalar(v) and not isscalar(k) and n1 != n2:
             # the partitioned arguments do not have the same length
             assert_raises(ValueError, lambda: cls(arg1, v, arg3, mykey=k,
@@ -51,7 +57,7 @@ def test_partitioning_chunk():
             return
         if nn != max(n1, n2) and (not isscalar(v) or not isscalar(k)):
             # the partition is incompatible with the partitioned arguments
-            return # test assert_raises(ValueError)
+            return #XXX test assert_raises(ValueError)
 
         op = cls(arg1, v, arg3, mykey=k, partitionin=n)
         if nn == 1:
@@ -69,7 +75,7 @@ def test_partitioning_chunk():
             k = nn * [k] if isscalar(k) else k
             for op_, v_, k_ in zip(op.operands, v, k):
                 func2(cls, op_, v_, k_)
-            expected = np.hstack(n_*[v_] for n_, v_ in zip(n,v))
+            expected = np.hstack(n_*[v_] for n_, v_ in zip(n, v))
             input = np.ones(np.sum(n))
             output = op(input)
             assert_equal(output, expected)
@@ -86,10 +92,11 @@ def test_partitioning_chunk():
         assert_equal(output, v)
 
     for c in (MyOp, MySubOp):
-        for n in (None, 2, (2,), (4,2)):
+        for n in (None, 2, (2,), (4, 2)):
             for v in (2., (2.,), (2., 3)):
                 for k in (0., (0.,), (0., 1.)):
                     yield func, c, n, v, k
+
 
 def test_partitioning_stack():
 
@@ -102,6 +109,7 @@ def test_partitioning_stack():
             self.value = value
             self.arg3 = arg3
             self.mykey = mykey
+
         def direct(self, input, output):
             output[...] = self.value * input
         __str__ = Operator.__repr__
@@ -115,6 +123,7 @@ def test_partitioning_stack():
             self.value = value
             self.arg3 = arg3
             self.mykey = mykey
+
     class MySubOp(MySupOp):
         def direct(self, input, output):
             output[...] = self.value * input
@@ -126,7 +135,7 @@ def test_partitioning_stack():
     def func(cls, v, k):
         n1 = 1 if isscalar(v) else len(v)
         n2 = 1 if isscalar(k) else len(k)
-        nn = max(n1,n2)
+        nn = max(n1, n2)
         if not isscalar(v) and not isscalar(k) and n1 != n2:
             # the partitioned arguments do not have the same length
             assert_raises(ValueError, lambda: cls(arg1, v, arg3, mykey=k))
@@ -165,6 +174,7 @@ def test_partitioning_stack():
                 yield func, c, v, k
 
 def test_blackbody():
+
     def bb(w,T):
         c = 2.99792458e8
         h = 6.626068e-34
@@ -172,7 +182,7 @@ def test_blackbody():
         nu = c/w
         return 2*h*nu**3/c**2 / (np.exp(h*nu/(k*T))-1)
 
-    w = np.arange(90.,111) * 1e-6
+    w = np.arange(90., 111) * 1e-6
     T = 15.
     flux = bb(w, T) / bb(100e-6, T)
     ops = [BlackBodyOperator(T, wavelength=wave, wavelength0=100e-6)
@@ -180,14 +190,16 @@ def test_blackbody():
     flux2 = [op(1.) for op in ops]
     assert all_eq(flux, flux2)
 
-    w, T = np.ogrid[90:111,15:20]
+    w, T = np.ogrid[90:111, 15:20]
     w = w * 1.e-6
     flux = bb(w, T) / bb(100e-6, T)
-    ops = [BlackBodyOperator(T.squeeze(), wavelength=wave[0], wavelength0=100e-6)
+    ops = [BlackBodyOperator(T.squeeze(), wavelength=wave[0],
+                             wavelength0=100e-6)
            for wave in w]
     flux2 = np.array([op(np.ones(T.size)) for op in ops])
     assert all_eq(flux, flux2)
-    
+
+
 def test_power_law():
     c = scipy.constants.c
     nu = c / 120e-6
@@ -207,12 +219,14 @@ def test_power_law():
     for cls in CompositionOperator, MultiplicationOperator:
         yield func2, cls
 
+
 def test_roll():
-    shape = np.arange(2,6)
+    shape = np.arange(2, 6)
     v = np.arange(2*3*4*5).reshape(shape)
     for n in range(4):
-        for axis in ((0,),(1,),(2,),(3,),(0,1),(0,2),(0,3),(1,2),(1,3),(2,3),
-                     (0,1,2),(0,1,3),(0,2,3),(1,2,3),(1,2,3),(0,1,2,3)):
+        for axis in ((0,), (1,), (2,), (3,), (0, 1), (0, 2), (0, 3), (1, 2),
+                     (1, 3), (2, 3), (0, 1, 2), (0, 1, 3), (0, 2, 3),
+                     (1, 2, 3), (1, 2, 3), (0, 1, 2, 3)):
             expected = v.copy()
             for a in axis:
                 expected = np.roll(expected, n, a)
