@@ -1,3 +1,4 @@
+#encoding: utf-8
 from __future__ import division
 
 import functools
@@ -10,7 +11,8 @@ import scipy.constants
 from pyoperators import (Operator, BlockDiagonalOperator, CompositionOperator,
                          DiagonalOperator, DiagonalNumexprOperator,
                          MultiplicationOperator)
-from pyoperators.decorators import linear, orthogonal, real, inplace
+from pyoperators.decorators import (
+    contiguous_output, linear, orthogonal, real, inplace)
 from pyoperators.memory import empty
 from pyoperators.utils import (isscalar, operation_assignment, product,
                                tointtuple)
@@ -22,6 +24,8 @@ from .wcsutils import create_fitsheader
 
 __all__ = [
     'BlackBodyOperator',
+    'CartesianEquatorial2GalacticOperator',
+    'CartesianGalactic2EquatorialOperator',
     'PointingMatrix',
     'PowerLawOperator',
     'ProjectionInMemoryOperator',
@@ -725,3 +729,86 @@ class RollOperator(Operator):
         output[...] = np.roll(input, -self.n[0], axis=self.axis[0])
         for n, axis in zip(self.n, self.axis)[1:]:
             output[...] = np.roll(output, -n, axis=axis)
+
+
+@orthogonal
+class _CartesianEquatorialGalactic(DenseOperator):
+    _g2e = np.array([[-0.0548755604,  0.4941094279, -0.8676661490],
+                     [-0.8734370902, -0.4448296300, -0.1980763734],
+                     [-0.4838350155,  0.7469822445,  0.4559837762]])
+
+
+class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
+    """
+    ICRS-to-Galactic cartesian coordinate transform.
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0)
+        - the Earth North pol of coordinates (0, 0, 1)
+
+    The galactic direct referential is defined by:
+        - the Sun center as the origin
+        - the galactic center of coordinates (1, 0, 0)
+        - the galactic pole of coordinates (0, 0, 1)
+
+    Note that the equatorial-to-galactic conversion is considered to be
+    a rotation, so we neglect the Earth-to-Sun origin translation.
+
+    The galactic pole and center in the ICRS frame are defined by
+    (Hipparcos 1997):
+        αp = 192.85948°
+        δp = 27.12825°
+        αc = 266.40510°
+        δc = −28.936175°
+
+    The last dimension of the inputs/outputs must be 3.
+
+    Example
+    -------
+    >>> op = CartesianEquatorial2GalacticOperator()
+    >>> op([0, 0, 1])
+    array([-0.48383502,  0.74698224,  0.45598378])
+
+    """
+    def __init__(self, **keywords):
+        _CartesianEquatorialGalactic.__init__(self, self._g2e.T, **keywords)
+        self.set_rule('.I', lambda s: CartesianGalactic2EquatorialOperator())
+
+
+class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
+    """
+    Galactic-to-ICRS cartesian coordinate transform.
+
+    The galactic direct referential is defined by:
+        - the Sun center as the origin
+        - the galactic center of coordinates (1, 0, 0)
+        - the galactic pole of coordinates (0, 0, 1)
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0)
+        - the Earth North pol of coordinates (0, 0, 1)
+
+    Note that the galactic-to-equatorial conversion is considered to be
+    a rotation, so we neglect the Sun-to-Earth origin translation.
+
+    The galactic pole and center in the ICRS frame are defined by
+    (Hipparcos 1997):
+        αp = 192.85948°
+        δp = 27.12825°
+        αc = 266.40510°
+        δc = −28.936175°
+
+    The last dimension of the inputs/outputs must be 3.
+
+    Example
+    -------
+    >>> op = CartesianGalactic2EquatorialOperator()
+    >>> op([0, 0, 1])
+    array([-0.86766615, -0.19807637,  0.45598378])
+
+    """
+    def __init__(self, **keywords):
+        _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
+        self.set_rule('.I', lambda s: CartesianEquatorial2GalacticOperator())
