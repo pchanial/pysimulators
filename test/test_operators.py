@@ -1,15 +1,16 @@
 import numpy as np
 import scipy
 import scipy.constants
-
+from nose import SkipTest
 from numpy.testing import assert_equal, assert_raises
 from pyoperators import (
-    Operator, CompositionOperator, BlockDiagonalOperator,
+    Operator, CompositionOperator, BlockDiagonalOperator, IdentityOperator,
     MultiplicationOperator, decorators)
-from pyoperators.utils import all_eq, isscalar
-from pyoperators.utils.testing import assert_is_instance
+from pyoperators.utils import all_eq, isscalar, product
+from pyoperators.utils.testing import assert_is_instance, assert_same
 from pysimulators.operators import (
-    BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal)
+    BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal,
+    CartesianGalactic2EquatorialOperator, CartesianEquatorial2GalacticOperator)
 
 
 def test_partitioning_chunk():
@@ -233,3 +234,33 @@ def test_roll():
                 expected = np.roll(expected, n, a)
             result = RollOperator(axis=axis, n=n)(v)
             yield assert_equal, result, expected
+
+
+def test_equ2gal():
+    equ2gal = CartesianEquatorial2GalacticOperator()
+    gal2equ = CartesianGalactic2EquatorialOperator()
+
+    assert equ2gal.I is equ2gal.T
+    assert gal2equ.I is gal2equ.T
+    assert_same(equ2gal.todense(shapein=3), equ2gal.data)
+    assert_same(gal2equ.todense(shapein=3), equ2gal.data.T)
+
+    shapes = (3, (2, 3), (4, 2, 3))
+
+    def func(op, shape):
+        vec = np.arange(product(shape)).reshape(shape)
+        vec_ = vec.reshape((-1, 3))
+        expected = np.empty(shape)
+        expected_ = expected.reshape((-1, 3))
+        for i in range(expected.size // 3):
+            expected_[i] = op(vec_[i])
+        actual = op(vec)
+        assert_same(actual, expected)
+
+    for op in (equ2gal, gal2equ):
+        for shape in shapes:
+            yield func, op, shape
+
+    raise SkipTest()
+    assert_is_instance(equ2gal * gal2equ, IdentityOperator)
+    assert_is_instance(gal2equ * equ2gal, IdentityOperator)
