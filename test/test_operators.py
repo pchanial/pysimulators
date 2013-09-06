@@ -173,9 +173,10 @@ def test_partitioning_stack():
             for k in (0., (0.,), (0., 1.)):
                 yield func, c, v, k
 
+
 def test_blackbody():
 
-    def bb(w,T):
+    def bb(w, T):
         c = 2.99792458e8
         h = 6.626068e-34
         k = 1.380658e-23
