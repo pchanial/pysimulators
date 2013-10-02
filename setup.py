@@ -63,6 +63,7 @@ class NewCommand(Command):
     def finalize_options(self):
         pass
 
+
 class CoverageCommand(NewCommand):
     description = "run the package coverage"
 
