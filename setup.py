@@ -125,7 +125,7 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
-    install_requires=['pyoperators>=0.8', 'astropy>=0.2'],
+    install_requires=['pyoperators>=0.9', 'astropy>=0.2'],
     packages=['pysimulators', 'pysimulators/interfaces'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
