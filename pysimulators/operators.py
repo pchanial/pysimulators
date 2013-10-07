@@ -8,14 +8,14 @@ import operator
 import pyoperators
 import scipy.constants
 
-from pyoperators import (Operator, BlockDiagonalOperator, CompositionOperator,
-                         DiagonalOperator, DiagonalNumexprOperator,
-                         MultiplicationOperator)
-from pyoperators.decorators import (
-    contiguous_output, linear, orthogonal, real, inplace)
+from pyoperators import (
+    Operator, BlockDiagonalOperator, CompositionOperator, ConstantOperator,
+    DenseOperator, DiagonalOperator, DiagonalNumexprOperator,
+    HomothetyOperator, MultiplicationOperator)
+from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty
-from pyoperators.utils import (isscalar, operation_assignment, product,
-                               tointtuple)
+from pyoperators.utils import (
+    isscalar, operation_assignment, product, tointtuple)
 
 from . import _flib as flib
 from .datatypes import FitsArray, Map
@@ -324,9 +324,9 @@ class PowerLawOperator(DiagonalNumexprOperator):
         self.x = x
         self.x0 = x0
         self.scalar = scalar
-        self.set_rule('{HomothetyOperator}.', lambda o, s: PowerLawOperator(
+        self.set_rule((HomothetyOperator, '.'), lambda o, s: PowerLawOperator(
                       alpha, x, x0, o.data * s.scalar), CompositionOperator)
-        self.set_rule('.{ConstantOperator}', lambda s, o: PowerLawOperator(
+        self.set_rule(('.', ConstantOperator), lambda s, o: PowerLawOperator(
                       alpha, x, x0, o.data * s.scalar) if o.broadcast ==
                       'scalar' else None, MultiplicationOperator)
 
@@ -621,7 +621,7 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
                                         **keywords)
         self.matrix = matrix
         self.set_rule('.T.', self._rule_ptp, CompositionOperator)
-        self.set_rule('{DiagonalOperator}.', self._rule_diagonal,
+        self.set_rule((DiagonalOperator, '.'), self._rule_diagonal,
                       CompositionOperator)
 
     def apply_mask(self, mask):
@@ -774,6 +774,8 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e.T, **keywords)
         self.set_rule('.I', lambda s: CartesianGalactic2EquatorialOperator())
+        self.set_rule(('.', CartesianGalactic2EquatorialOperator), '1',
+                      CompositionOperator)
 
 
 class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
@@ -812,3 +814,5 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
         self.set_rule('.I', lambda s: CartesianEquatorial2GalacticOperator())
+        self.set_rule(('.', CartesianEquatorial2GalacticOperator), '1',
+                      CompositionOperator)
