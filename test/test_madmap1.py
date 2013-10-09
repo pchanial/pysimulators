@@ -6,7 +6,8 @@ from numpy.testing import assert_allclose
 from pyoperators import DiagonalOperator, PackOperator, pcg
 from pyoperators.utils.testing import assert_same, assert_eq
 from pysimulators import Map
-from pysimulators.interfaces.madmap1 import MadMap1Observation, _read_filters
+from pysimulators.interfaces.madmap1 import MadMap1Observation
+from pysimulators.interfaces.madmap1.acquisition import _read_filters
 
 
 def mapper_naive(tod, H):

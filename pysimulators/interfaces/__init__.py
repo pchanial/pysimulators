@@ -1,1 +1,1 @@
-from .madmap1 import *
+from . import madmap1

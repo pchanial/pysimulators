@@ -11,12 +11,12 @@ import re
 from pyoperators import (
     BlockColumnOperator, BlockDiagonalOperator, SymmetricBandToeplitzOperator,
     MPI)
-from ..acquisitions import Acquisition
-from ..datatypes import Map, Tod
-from ..instruments import Instrument
-from ..layouts import Layout
-from ..operators import PointingMatrix, ProjectionInMemoryOperator
-from ..wcsutils import create_fitsheader
+from ...acquisitions import Acquisition
+from ...datatypes import Map, Tod
+from ...instruments import Instrument
+from ...layouts import Layout
+from ...operators import PointingMatrix, ProjectionInMemoryOperator
+from ...wcsutils import create_fitsheader
 
 __all__ = ['MadMap1Observation']
 
