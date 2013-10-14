@@ -15,7 +15,7 @@ from pyoperators import (
 from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty
 from pyoperators.utils import (
-    isscalar, operation_assignment, product, tointtuple)
+    float_dtype, isscalar, operation_assignment, product, strenum, tointtuple)
 
 from . import _flib as flib
 from .datatypes import FitsArray, Map
@@ -26,6 +26,8 @@ __all__ = [
     'BlackBodyOperator',
     'CartesianEquatorial2GalacticOperator',
     'CartesianGalactic2EquatorialOperator',
+    'CartesianEquatorial2HorizontalOperator',
+    'CartesianHorizontal2EquatorialOperator',
     'PointingMatrix',
     'PowerLawOperator',
     'ProjectionInMemoryOperator',
@@ -812,3 +814,169 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
         self.set_rule('.I', lambda s: CartesianEquatorial2GalacticOperator())
+
+
+class _CartesianEquatorialHorizontal(DenseOperator):
+    def __init__(self, convention, time, latitude, longitude, transpose,
+                 dtype=None, **keywords):
+        conventions = ('NE',)  # 'SW', 'SE')
+        if convention not in conventions:
+            raise ValueError(
+                "Invalid azimuth angle convention '{0}'. Expected values are {"
+                "1}.".format(convention, strenum(conventions)))
+        lst = self._gst2lst(self._jd2gst(time.jd), longitude)
+        lst = np.radians(lst * 15)
+        latitude = np.radians(latitude)
+        if dtype is None:
+            dtype = np.find_common_type([float_dtype(lst.dtype),
+                                         float_dtype(latitude.dtype)], [])
+        slat = np.sin(latitude)
+        clat = np.cos(latitude)
+        slst = np.sin(lst)
+        clst = np.cos(lst)
+        m = np.empty(np.broadcast(latitude, lst).shape + (3, 3), dtype)
+        m[..., 0, 0] = -slat * clst
+        m[..., 0, 1] = -slat * slst
+        m[..., 0, 2] = clat
+        m[..., 1, 0] = -slst
+        m[..., 1, 1] = clst
+        m[..., 1, 2] = 0
+        m[..., 2, 0] = clat * clst
+        m[..., 2, 1] = clat * slst
+        m[..., 2, 2] = slat
+        if transpose:
+            m = m.swapaxes(-1, -2)
+        if m.ndim == 2:
+            keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
+                                                    orthogonal=True)
+        DenseOperator.__init__(self, m, dtype=dtype, **keywords)
+
+    @staticmethod
+    def _jd2gst(jd):
+        """
+        Convert Julian Dates into Greenwich Sidereal Time.
+
+        From Duffett-Smith, P. : 1988, Practical astronomy with your
+        calculator, Cambridge University Press, third edition
+
+        """
+        jd0 = np.floor(jd - 0.5) + 0.5
+        T = (jd0 - 2451545) / 36525
+        T0 = 6.697374558 + 2400.051336 * T + 0.000025862 * T**2
+        T0 %= 24
+        ut = (jd - jd0) * 24
+        T0 += ut * 1.002737909
+        T0 %= 24
+        return T0
+
+    @staticmethod
+    def _gst2lst(gst, longitude):
+        """
+        Convert Greenwich Sidereal Time into Local Sidereal Time.
+        longitude : Geographic longitude EAST in degrees.
+        """
+        return (gst + longitude / 15) % 24
+
+
+class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
+    """
+    Conversion between equatorial-to-horizontal cartesian coordinates.
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0)
+        - the Earth North pol of coordinates (0, 0, 1)
+    The horizontal referential is defined by:
+        - the observer geographic position as the origin
+        - the azimuth reference (North or South) of coordinates (1, 0, 0)
+        - whether the azimuth is measured towards the East or West
+        - the zenith of coordinates (0, 0, 1)
+
+    Example
+    -------
+    >>> from astropy.time import Time, TimeDelta
+    >>> t0 = Time(['2000-01-01 00:00:00.0'], scale='utc')
+    >>> dt = TimeDelta(np.arange(1000)/10, format='sec')
+    >>> lat, lon = 48.853291, 2.348751
+    >>> op = CartesianEquatorial2HorizontalOperator('NE', t0 + dt, lat, lon)
+
+    """
+    def __init__(self, convention, time, latitude, longitude, **keywords):
+        """
+        time : astropy.time.Time
+            The observer's time.
+        latitude : array-like
+            The observer's latitude, in degrees.
+        longitude : array-like
+            The observation's longitude counted positively eastward,
+            in degrees.
+        convention : 'NE', 'SW', 'SE'
+            The azimuth angle convention:
+                - 'NE' : measured from the North towards the East (indirect)
+                - 'SW' : from the South towards the West (indirect)
+                - 'SE' : from the South towards the East (direct)
+            But so far, only the 'NE' convention is implemented.
+        block_diagonal : boolean
+            If more than one observer's time, latitude or longitude is
+            specified, the operator can behave like a block diagonal operator
+            (input and output have the same dimensions) if this keyword is set
+            to True, or a block column operator (the output has extra
+            dimensions) otherwise.
+        roll_input : boolean
+            See DenseOperator's docstring.
+
+        """
+        _CartesianEquatorialHorizontal.__init__(
+            self, convention, time, latitude, longitude, False, **keywords)
+
+
+class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
+    """
+    Conversion between horizontal-to-equatorial cartesian coordinates.
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0)
+        - the Earth North pol of coordinates (0, 0, 1)
+    The horizontal referential is defined by:
+        - the observer geographic position as the origin
+        - the azimuth reference (North or South) of coordinates (1, 0, 0)
+        - whether the azimuth is measured towards the East or West
+        - the zenith of coordinates (0, 0, 1)
+
+    Example
+    -------
+    >>> from astropy.time import Time, TimeDelta
+    >>> t0 = Time(['2000-01-01 00:00:00.0'], scale='utc')
+    >>> dt = TimeDelta(np.arange(1000)/10, format='sec')
+    >>> lat, lon = 48.853291, 2.348751
+    >>> op = CartesianHorizontal2EquatorialOperator('NE', t0 + dt, lat, lon)
+
+    """
+    def __init__(self, convention, time, latitude, longitude, **keywords):
+        """
+        time : astropy.time.Time
+            The observer's time.
+        latitude : array-like
+            The observer's latitude, in degrees.
+        longitude : array-like
+            The observation's longitude counted positively eastward,
+            in degrees.
+        convention : 'NE', 'SW', 'SE'
+            The azimuth angle convention:
+                - 'NE' : measured from the North towards the East (indirect)
+                - 'SW' : from the South towards the West (indirect)
+                - 'SE' : from the South towards the East (direct)
+            But so far, only the 'NE' convention is implemented.
+        block_diagonal : boolean
+            If more than one observer's time, latitude or longitude is
+            specified, the operator can behave like a block diagonal operator
+            (input and output have the same dimensions) if this keyword is set
+            to True, or a block column operator (the output has extra
+            dimensions) otherwise.
+        roll_input : boolean
+            See DenseOperator's docstring.
+
+        """
+        _CartesianEquatorialHorizontal.__init__(
+            self, convention, time, latitude, longitude, True, **keywords)

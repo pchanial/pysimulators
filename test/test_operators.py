@@ -1,14 +1,20 @@
+# coding: utf-8
+from __future__ import division
+
 import numpy as np
 import scipy
 import scipy.constants
+from astropy.coordinates.angles import Angle
+from astropy.time import Time
 from nose import SkipTest
-from numpy.testing import assert_equal, assert_raises
+from numpy.testing import assert_allclose, assert_equal, assert_raises
 from pyoperators import (
     Operator,
     CompositionOperator,
     BlockDiagonalOperator,
     IdentityOperator,
     MultiplicationOperator,
+    Spherical2CartesianOperator,
     decorators,
 )
 from pyoperators.utils import all_eq, isscalar, product
@@ -18,8 +24,10 @@ from pysimulators.operators import (
     PowerLawOperator,
     RollOperator,
     block_diagonal,
-    CartesianGalactic2EquatorialOperator,
     CartesianEquatorial2GalacticOperator,
+    CartesianGalactic2EquatorialOperator,
+    CartesianEquatorial2HorizontalOperator,
+    CartesianHorizontal2EquatorialOperator,
 )
 
 
@@ -293,3 +301,29 @@ def test_equ2gal():
     raise SkipTest()
     assert_is_instance(equ2gal * gal2equ, IdentityOperator)
     assert_is_instance(gal2equ * equ2gal, IdentityOperator)
+
+
+def test_equ2hor():
+    lat = 52
+    lon = -64
+    date = Time('1980-04-22 14:36:51.67', scale='ut1')
+    E2h = CartesianEquatorial2HorizontalOperator
+    gst = E2h._jd2gst(date.jd)
+    lst = E2h._gst2lst(gst, lon)
+
+    # Duffett-Smith §21
+    assert_allclose(gst, 4.668119)
+    assert_allclose(lst, 0.401453, rtol=1e-6)
+
+    ra = Angle(lst - 5.862222, unit='hour').radians
+    dec = Angle((23, 13, 10), unit='degree').radians
+    s2c = Spherical2CartesianOperator('azimuth,elevation')
+    op = CartesianEquatorial2HorizontalOperator('NE', date, lat, lon)
+    incoords = s2c([ra, dec])
+    outcoords = op(incoords)
+    assert_same(op.I(outcoords), incoords)
+    az, el = np.degrees(s2c.I(outcoords))
+
+    # Duffett-Smith §25
+    assert_allclose(az % 360, 283.271027)
+    assert_allclose(el, 19.334345, rtol=1e-6)
