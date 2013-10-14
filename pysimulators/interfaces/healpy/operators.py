@@ -54,7 +54,7 @@ class Healpix2CartesianOperator(_HealPixCartesian):
             reshapein=self._reshapehealpix,
             reshapeout=self._reshapecartesian,
             validateout=self._validatecartesian, **keywords)
-        self.set_rule('.I', lambda s:
+        self.set_rule('I', lambda s:
                       Cartesian2HealpixOperator(s.nside, nest=s.nest))
 
     def direct(self, input, output):
@@ -82,7 +82,7 @@ class Cartesian2HealpixOperator(_HealPixCartesian):
             reshapein=self._reshapecartesian,
             reshapeout=self._reshapehealpix,
             validatein=self._validatecartesian, **keywords)
-        self.set_rule('.I', lambda s:
+        self.set_rule('I', lambda s:
                       Healpix2CartesianOperator(s.nside, nest=s.nest))
 
     def direct(self, input, output):
@@ -158,7 +158,7 @@ class Healpix2SphericalOperator(_HealPixSpherical):
             reshapein=self._reshapehealpix,
             reshapeout=self._reshapespherical,
             validateout=self._validatespherical, **keywords)
-        self.set_rule('.I', lambda s:
+        self.set_rule('I', lambda s:
                       Spherical2HealpixOperator(s.nside, s.convention,
                                                 nest=s.nest))
 
@@ -206,7 +206,7 @@ class Spherical2HealpixOperator(_HealPixSpherical):
             reshapein=self._reshapespherical,
             reshapeout=self._reshapehealpix,
             validatein=self._validatespherical, **keywords)
-        self.set_rule('.I', lambda s:
+        self.set_rule('I', lambda s:
                       Healpix2SphericalOperator(s.nside, s.convention,
                                                 nest=s.nest))
 

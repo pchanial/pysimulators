@@ -622,7 +622,7 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
                                         derived_units=derived_units,
                                         **keywords)
         self.matrix = matrix
-        self.set_rule('.T.', self._rule_ptp, CompositionOperator)
+        self.set_rule('T,.', self._rule_ptp, CompositionOperator)
         self.set_rule((DiagonalOperator, '.'), self._rule_diagonal,
                       CompositionOperator)
 
@@ -775,7 +775,7 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
     """
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e.T, **keywords)
-        self.set_rule('.I', lambda s: CartesianGalactic2EquatorialOperator())
+        self.set_rule('I', lambda s: CartesianGalactic2EquatorialOperator())
 
 
 class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
@@ -813,7 +813,7 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     """
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
-        self.set_rule('.I', lambda s: CartesianEquatorial2GalacticOperator())
+        self.set_rule('I', lambda s: CartesianEquatorial2GalacticOperator())
 
 
 class _CartesianEquatorialHorizontal(DenseOperator):

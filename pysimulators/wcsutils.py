@@ -496,7 +496,7 @@ class DistortionOperator(Operator):
         Operator.__init__(self, **keywords)
         self.interp0 = interp.CloughTocher2DInterpolator(xin, xout[..., 0])
         self.interp1 = interp.CloughTocher2DInterpolator(xin, xout[..., 1])
-        self.set_rule('.I', lambda s: DistortionOperator(xout, xin))
+        self.set_rule('I', lambda s: DistortionOperator(xout, xin))
 
     def direct(self, input, output):
         output[..., 0] = self.interp0(input)
@@ -581,7 +581,7 @@ class WCSKapteynToPixelOperator(_WCSKapteynOperator):
     """
     def __init__(self, wcs, **keywords):
         _WCSKapteynOperator.__init__(self, wcs, **keywords)
-        self.set_rule('.I', lambda s: WCSKapteynToWorldOperator(s.wcs))
+        self.set_rule('I', lambda s: WCSKapteynToWorldOperator(s.wcs))
     __init__.__doc__ = _WCSKapteynOperator.__init__.__doc__
 
     def direct(self, input, output, operation=operation_assignment):
@@ -602,7 +602,7 @@ class WCSKapteynToWorldOperator(_WCSKapteynOperator):
     """
     def __init__(self, wcs, **keywords):
         _WCSKapteynOperator.__init__(self, wcs, **keywords)
-        self.set_rule('.I', lambda s: WCSKapteynToPixelOperator(s.wcs))
+        self.set_rule('I', lambda s: WCSKapteynToPixelOperator(s.wcs))
     __init__.__doc__ = _WCSKapteynOperator.__init__.__doc__
 
     def direct(self, input, output, operation=operation_assignment):
@@ -653,7 +653,7 @@ class WCSToPixelOperator(_WCSOperator):
     def __init__(self, wcs, origin=0, **keywords):
         _WCSOperator.__init__(self, wcs, origin, classin=np.ndarray,
                               classout=np.ndarray, **keywords)
-        self.set_rule('.I', lambda s: WCSToWorldOperator(s.wcs, s.origin))
+        self.set_rule('I', lambda s: WCSToWorldOperator(s.wcs, s.origin))
     __init__.__doc__ = _WCSOperator.__init__.__doc__
 
     def direct(self, input, output, operation=operation_assignment):
@@ -678,7 +678,7 @@ class WCSToWorldOperator(_WCSOperator):
     def __init__(self, wcs, origin=0, **keywords):
         _WCSOperator.__init__(self, wcs, origin, classin=np.ndarray,
                               classout=np.ndarray, **keywords)
-        self.set_rule('.I', lambda s: WCSToPixelOperator(s.wcs, s.origin))
+        self.set_rule('I', lambda s: WCSToPixelOperator(s.wcs, s.origin))
     __init__.__doc__ = _WCSOperator.__init__.__doc__
 
     def direct(self, input, output, operation=operation_assignment):
