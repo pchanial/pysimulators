@@ -95,7 +95,7 @@ contains
         do isample = 1, nsamples
             do ipixel = 1, npixels
                 if (pmatrix(ipixel,isample)%index == -1) exit
-                !$omp atomic update
+                !$omp atomic
                 map(pmatrix(ipixel,isample)%index) = map(pmatrix(ipixel,isample)%index) +                                          &
                     pmatrix(ipixel,isample)%value * timeline(isample)
             end do
@@ -119,7 +119,7 @@ contains
         !$omp parallel do
         do isample = 1, nsamples
             if (pmatrix(isample)%index >= 0) then
-                !$omp atomic update
+                !$omp atomic
                 map(pmatrix(isample)%index) = map(pmatrix(isample)%index) + pmatrix(isample)%value * timeline(isample)
             end if
         end do
@@ -152,7 +152,7 @@ contains
                     if (pmatrix(jpixel,isample)%index == -1) exit
                     j  = pmatrix(jpixel,isample)%index
                     pj = pmatrix(jpixel,isample)%value
-                    !$omp atomic update
+                    !$omp atomic
                     ptp(i,j) = ptp(i,j) + pi * pj
                 end do
             end do
@@ -261,9 +261,9 @@ contains
             do ipixel = 1, npixels
                 imap = pmatrix(ipixel,isample)%index
                 if (imap == -1) exit
-                !$omp atomic update
+                !$omp atomic
                 map(imap) = map(imap) + pmatrix(ipixel,isample)%value * timeline(isample)
-                !$omp atomic update
+                !$omp atomic
                 weight(imap) = weight(imap) + pmatrix(ipixel,isample)%value
             end do
         end do
