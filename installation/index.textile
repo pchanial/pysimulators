@@ -76,7 +76,7 @@ To upgrade the PySimulators package if it is already installed in the user site:
 $ pip install --user --upgrade pysimulators 
 {% endhighlight %}
 
-Note that the @--upgrade@ option will attempt to uninstall the previously install version. The whole process may fail if you don't have the proper permissions to do so.
+Note that the @--upgrade@ option will attempt to uninstall the previously installed version. The whole process may fail if you don't have the proper permissions to do so.
 
 h2. The Git way
 
