@@ -6,7 +6,6 @@ import sys
 import subprocess
 
 from distutils.util import get_platform
-from glob import glob
 from numpy.distutils.core import setup, Command
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import Configuration
@@ -47,7 +46,8 @@ platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
 if any(c in sys.argv for c in ('build', 'build_ext', 'config', 'install')):
     sys.argv += ['config_fc',
-                 "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp'"]
+                 "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp "
+                 "-fpack-derived'"]
 
 # write f2py's type mapping file
 with open(os.path.join(os.path.dirname(__file__), '.f2py_f2cmap'), 'w') as f:
@@ -96,7 +96,11 @@ def configuration(parent_package='', top_path=None):
     # how to get the build base ?
     temp_dir = 'build/temp.' + get_platform() + '-%s.%s' % sys.version_info[:2]
     config.add_extension('pysimulators._flib',
-                         sources=glob('pysimulators/module_*f90'),
+                         sources=['pysimulators/module_datautils.f90',
+                                  'pysimulators/module_geometry.f90',
+                                  'pysimulators/module_pointingmatrix.f90',
+                                  'pysimulators/module_sparse.f90.src',
+                                  'pysimulators/module_wcsutils.f90'],
                          include_dirs=['.', np.get_include(), temp_dir],
                          libraries=['fmod', 'gomp'])
     return config
