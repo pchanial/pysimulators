@@ -1,3 +1,4 @@
 include .coveragerc
 include README.rst
+include pysimulators/__init__.py.in
 graft test/data
