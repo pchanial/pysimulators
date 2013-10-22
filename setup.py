@@ -12,7 +12,7 @@ from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import Configuration
 from subprocess import Popen, PIPE
 
-VERSION = '0.6'
+VERSION = '0.6.2'
 
 
 def version_sdist():
@@ -41,7 +41,7 @@ if 'install' in sys.argv[1:]:
 
 if any(c in sys.argv[1:] for c in ('install', 'sdist')):
     init = open('pysimulators/__init__.py.in').readlines()
-    init += ['\n', '__version__ = ' + version + '\n']
+    init += ['\n', "__version__ = '" + version + "'\n"]
     open('pysimulators/__init__.py', 'w').writelines(init)
 
 long_description = open('README.rst').read()
