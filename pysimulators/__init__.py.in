@@ -20,4 +20,5 @@ from .pointings import *
 #from .processing import *
 from .quantities import *
 from .datautils import *
+from .sparse import *
 from .wcsutils import *

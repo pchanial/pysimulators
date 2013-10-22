@@ -584,8 +584,6 @@ class ProjectionBaseOperator(Operator):
         return out
 
 
-@real
-@linear
 class ProjectionInMemoryOperator(ProjectionBaseOperator):
     """
     Projection operator that stores the pointing matrix in memory.
@@ -655,8 +653,6 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         return result
 
 
-@real
-@linear
 class ProjectionOnFlyOperator(ProjectionBaseOperator):
     """
     Projection operator that recomputes the pointing matrix on the fly.
