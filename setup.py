@@ -49,6 +49,11 @@ if any(c in sys.argv for c in ('build', 'build_ext', 'config', 'install')):
                  "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp "
                  "-fpack-derived'"]
 
+if 'coverage' in sys.argv:
+    index = sys.argv.index('coverage') + 1
+    coverage_extra = sys.argv[index:]
+    sys.argv = sys.argv[:index]
+
 # write f2py's type mapping file
 with open(os.path.join(os.path.dirname(__file__), '.f2py_f2cmap'), 'w') as f:
     f.write("{'real':{'p':'double'}, 'complex':{'p':'complex_double'}}\n")
@@ -69,7 +74,7 @@ class CoverageCommand(NewCommand):
 
     def run(self):
         subprocess.call(['nosetests', '--with-coverage', '--cover-package',
-                         'pysimulators'])
+                         'pysimulators'] + coverage_extra)
         subprocess.call(['coverage', 'html'])
 
 
