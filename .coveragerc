@@ -21,6 +21,7 @@ exclude_lines =
     if __name__ == .__main__.:
     def imshow
     def plot
+    return NotImplemented
 
 [html]
 title = PySimulators Coverage Report
