@@ -9,8 +9,11 @@ Patch PyOperator's SparseOperator to include another four formats:
 from __future__ import division
 
 import numpy as np
+import operator
 import pyoperators
 import scipy.sparse as sp
+from pyoperators import operation_assignment
+from pyoperators.memory import empty
 from pyoperators.utils import isscalar, product
 from pysimulators._flib import sparse as fsp
 
@@ -42,7 +45,7 @@ class _FSMatrix(object):
                     'The maximum number of non-zero {0}s per {1} '
                     'is not specified.'.format(*straxes)
                 )
-            shape_data = (shape[1 - sparse_axis], n)
+            shape_data = (shape[1 - sparse_axis] // block_size, n)
             if dtype is None:
                 dtype = float
             if dtype_index is None:
@@ -50,7 +53,7 @@ class _FSMatrix(object):
             dtype_data = [('index', dtype_index)] + [
                 (name, dtype) for name in dtype_names
             ]
-            data = np.recarray(shape_data, dtype_data)
+            data = empty(shape_data, dtype_data, verbose=True).view(np.recarray)
         elif data.dtype.names != ('index',) + dtype_names:
             raise TypeError('The fields of the structured array are invalid.')
         elif any(s % block_size != 0 for s in shape):
@@ -80,7 +83,7 @@ class _FSMatrix(object):
             if n is None:
                 n = data.shape[-1]
             dtype = data[dtype_names[0]].dtype
-        self.dtype = dtype
+        self.dtype = np.dtype(dtype)
         self.data = data
         self.ndim = 2
         self.shape = shape
@@ -127,7 +130,7 @@ class FSCMatrix(_FSMatrix):
                 "e is '{1}'.".format(v.shape, self.shape[1])
             )
         if out is None:
-            out = np.empty(
+            out = np.zeros(
                 self.shape[0], np.find_common_type([self.dtype, v.dtype], [])
             )
         elif not isinstance(out, np.ndarray):
@@ -140,7 +143,6 @@ class FSCMatrix(_FSMatrix):
         else:
             out = out.ravel()
 
-        out[...] = 0
         tm = self.dtype.type
         tv = v.dtype.type
         to = out.dtype.type
@@ -205,7 +207,7 @@ class FSRMatrix(_FSMatrix):
                 "e is '{1}'.".format(v.shape, self.shape[1])
             )
         if out is None:
-            out = np.empty(
+            out = np.zeros(
                 self.shape[0], np.find_common_type([self.dtype, v.dtype], [])
             )
         elif not isinstance(out, np.ndarray):
@@ -218,7 +220,6 @@ class FSRMatrix(_FSMatrix):
         else:
             out = out.ravel()
 
-        out[...] = 0
         tm = self.dtype.type
         tv = v.dtype.type
         to = out.dtype.type
@@ -312,7 +313,7 @@ class FSCRotation3dMatrix(_FSRotation3dMatrix):
                 "e is '{1}'.".format(v.shape, (self.shape[1] // 3, 3))
             )
         if out is None:
-            out = np.empty(
+            out = np.zeros(
                 (self.shape[0] // 3, 3), np.find_common_type([self.dtype, v.dtype], [])
             )
         elif not isinstance(out, np.ndarray):
@@ -326,7 +327,6 @@ class FSCRotation3dMatrix(_FSRotation3dMatrix):
             out = out.reshape((-1, 3))
         out_ = out.ravel()
 
-        out[...] = 0
         tm = self.dtype.type
         tv = v.dtype.type
         to = out.dtype.type
@@ -390,7 +390,7 @@ class FSRRotation3dMatrix(_FSRotation3dMatrix):
                 "e is '{1}'.".format(v.shape, (self.shape[1] // 3, 3))
             )
         if out is None:
-            out = np.empty(
+            out = np.zeros(
                 (self.shape[0] // 3, 3), np.find_common_type([self.dtype, v.dtype], [])
             )
         elif not isinstance(out, np.ndarray):
@@ -404,7 +404,6 @@ class FSRRotation3dMatrix(_FSRotation3dMatrix):
             out = out.reshape((-1, 3))
         out_ = out.ravel()
 
-        out[...] = 0
         tm = self.dtype.type
         tv = v.dtype.type
         to = out.dtype.type
@@ -463,7 +462,11 @@ class SparseOperator(pyoperators.core.SparseBase):
             if 'shapeout' not in keywords:
                 keywords['shapeout'] = (arg.shape[0] // 3, 3)
 
-        def direct(input, output):
+        def direct(input, output, operation=operation_assignment):
+            if operation is operation_assignment:
+                output[...] = 0
+            elif operation is not operator.iadd:
+                raise ValueError('Invalid reduction operation: {0}.'.format(operation))
             self.matrix._matvec(input, output)
 
         pyoperators.core.SparseBase.__init__(

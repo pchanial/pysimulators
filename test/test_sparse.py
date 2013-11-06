@@ -84,7 +84,7 @@ def test_fsc2():
         mat = get_mat(itype, ftype)
         out = mat * input_fsc_
         assert_same(out, exp)
-        out[...] = 1
+        out[...] = 0
         mat._matvec(input_fsc_, out=out)
         assert_same(out, exp)
         out = input_fsr_ * mat
@@ -139,7 +139,7 @@ def test_fsc_error():
     mat._matvec(np.ones(3))
     assert_raises(ValueError, mat._matvec, np.ones(7))
     assert_raises(TypeError, mat._matvec, np.ones(3), out=1)
-    assert_raises(ValueError, mat._matvec, np.ones(3), out=np.empty(7))
+    assert_raises(ValueError, mat._matvec, np.ones(3), out=np.zeros(7))
 
 
 def test_fsr1():
@@ -207,7 +207,7 @@ def test_fsr2():
         mat = get_mat(itype, ftype)
         out = mat * input_fsr_
         assert_same(out, exp)
-        out[...] = 1
+        out[...] = 0
         mat._matvec(input_fsr_, out=out)
         assert_same(out, exp)
         out = input_fsc_ * mat
@@ -262,7 +262,7 @@ def test_fsr_error():
     mat._matvec(np.ones(8))
     assert_raises(ValueError, mat._matvec, np.ones(7))
     assert_raises(TypeError, mat._matvec, np.ones(8), out=1)
-    assert_raises(ValueError, mat._matvec, np.ones(8), out=np.empty(4))
+    assert_raises(ValueError, mat._matvec, np.ones(8), out=np.zeros(4))
 
 
 def test_rot3d():
@@ -305,7 +305,7 @@ def test_rot3d():
         assert_same(op.T.todense(), dense)
         ref = mat_fsc._matvec(input_fsc.astype(np.float128))
         for ftype2 in ftypes[:-1]:
-            out = np.empty_like(ref, ftype2)
+            out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
             assert_same(out, ref)
         ref = (3 * (mat_fsc * input_fsc)).astype(ftype)
@@ -320,7 +320,7 @@ def test_rot3d():
         assert_same(op.T.todense(), dense.T)
         ref = mat_fsr._matvec(input_fsr.astype(np.float128))
         for ftype2 in ftypes[:-1]:
-            out = np.empty_like(ref, ftype2)
+            out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
             assert_same(out, ref)
         ref = (3 * (mat_fsr * input_fsr)).astype(ftype)
@@ -361,7 +361,7 @@ def test_fsc_rot3d_error():
     assert_raises(ValueError, mat._matvec, np.ones(25))
     assert_raises(ValueError, mat._matvec, np.ones((8, 3)))
     assert_raises(TypeError, mat._matvec, np.ones((3, 3)), out=1)
-    assert_raises(ValueError, mat._matvec, np.ones((3, 3)), out=np.empty(7))
+    assert_raises(ValueError, mat._matvec, np.ones((3, 3)), out=np.zeros(7))
 
 
 def test_fsr_rot3d_error():
@@ -392,7 +392,7 @@ def test_fsr_rot3d_error():
     assert_raises(ValueError, mat._matvec, np.ones(25))
     assert_raises(ValueError, mat._matvec, np.ones((3, 3)))
     assert_raises(TypeError, mat._matvec, np.ones((8, 3)), out=1)
-    assert_raises(ValueError, mat._matvec, np.ones((8, 3)), out=np.empty(7))
+    assert_raises(ValueError, mat._matvec, np.ones((8, 3)), out=np.zeros(7))
 
 
 def test_sparse_operator():
