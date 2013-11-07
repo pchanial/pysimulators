@@ -537,7 +537,7 @@ class LayoutGrid(Layout):
         xreflection=False,
         yreflection=False,
         angle=0,
-        layout_center=(0, 0),
+        origin=(0, 0),
         **keywords,
     ):
         """
@@ -551,7 +551,7 @@ class LayoutGrid(Layout):
             Reflection along the Y-axis (before rotation).
         angle : float, optional
             Counter-clockwise rotation angle in degrees (before translation).
-        layout_center : array-like of shape (2,), optional
+        origin : array-like of shape (2,), optional
             The (X, Y) coordinates of the grid center
         nvertices : int, optional
             The component number of vertices. If not specified, it is deduced
@@ -579,27 +579,27 @@ class LayoutGrid(Layout):
         def center():
             out = create_grid(
                 self.shape,
-                self._spacing,
-                xreflection=self._xreflection,
-                yreflection=self._yreflection,
-                center=self._layout_center,
-                angle=self._angle,
+                self.spacing,
+                xreflection=self.xreflection,
+                yreflection=self.yreflection,
+                center=self.origin,
+                angle=self.angle,
             )
             if self._unit:
                 out = Quantity(out, self._unit, copy=False)
             return out
 
-        unit = getattr(spacing, 'unit', '') or getattr(layout_center, 'unit', '')
+        unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
         if unit:
             spacing = Quantity(spacing).tounit(unit)
-            layout_center = Quantity(layout_center).tounit(unit)
-        if len(layout_center) != len(shape):
+            origin = Quantity(origin).tounit(unit)
+        if len(origin) != len(shape):
             raise ValueError('Invalid dimensions of the layout center.')
-        self._spacing = spacing
-        self._layout_center = layout_center
-        self._xreflection = xreflection
-        self._yreflection = yreflection
-        self._angle = angle
+        self.spacing = spacing
+        self.origin = origin
+        self.xreflection = xreflection
+        self.yreflection = yreflection
+        self.angle = angle
         self._unit = unit
         Layout.__init__(self, shape, center=center, **keywords)
 
@@ -650,7 +650,7 @@ class LayoutGridCircles(LayoutGrid):
             Reflection along the Y-axis (before rotation).
         angle : float
             Counter-clockwise rotation angle in degrees (before translation).
-        layout_center : array-like of shape (2,)
+        origin : array-like of shape (2,)
             The (X, Y) coordinates of the grid center
         removed : array-like of bool, optional
             The mask that specifies the removed components (either because they
@@ -729,7 +729,7 @@ class LayoutGridSquares(LayoutGrid):
             Reflection along the Y-axis (before rotation).
         angle : float
             Counter-clockwise rotation angle in degrees (before translation).
-        layout_center : array-like of shape (2,)
+        origin : array-like of shape (2,)
             The (X, Y) coordinates of the grid center
         removed : array-like of bool, optional
             The mask that specifies the removed components (either because they
@@ -749,18 +749,18 @@ class LayoutGridSquares(LayoutGrid):
         def vertex():
             out = create_grid_squares(
                 self.shape,
-                self._spacing,
-                filling_factor=self._filling_factor,
-                xreflection=self._xreflection,
-                yreflection=self._yreflection,
-                center=self._layout_center,
-                angle=self._angle,
+                self.spacing,
+                filling_factor=self.filling_factor,
+                xreflection=self.xreflection,
+                yreflection=self.yreflection,
+                center=self.origin,
+                angle=self.angle,
             )
             if self._unit:
                 out = Quantity(out, self._unit, copy=False)
             return out
 
-        self._filling_factor = filling_factor
+        self.filling_factor = filling_factor
         LayoutGrid.__init__(
             self, shape, spacing, vertex=vertex, nvertices=4, **keywords
         )

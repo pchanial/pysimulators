@@ -120,7 +120,7 @@ def test_error():
     assert_raises(TypeError, layout.unpack, [1, 2, 3, 4], out=[])
     assert_raises(ValueError, layout.pack, [1, 2, 3, 4], out=np.array([1]))
     assert_raises(ValueError, layout.unpack, [1, 2, 3, 4], out=np.array([1]))
-    assert_raises(ValueError, LayoutGrid, shape, 0.1, layout_center=[1, 2])
+    assert_raises(ValueError, LayoutGrid, shape, 0.1, origin=[1, 2])
 
     def func1():
         layout.removed = True
@@ -457,7 +457,7 @@ def test_index3():
     assert_equal(layout.packed.index, expected)
 
 
-def test_layout_center():
+def test_origin():
     shape = (3, 1)
     center = create_grid(shape, 0.1)
     layout = Layout(shape, center=center)
@@ -484,12 +484,12 @@ def test_layout_grid():
     spacing = Quantity(0.1, 'mm')
     xreflection = True
     yreflection = True
-    layout_center = (1, 1)
+    origin = (1, 1)
     angle = 10
     center = create_grid(
         shape,
         spacing,
-        center=layout_center,
+        center=origin,
         xreflection=xreflection,
         yreflection=yreflection,
         angle=angle,
@@ -497,7 +497,7 @@ def test_layout_grid():
     layout = LayoutGrid(
         shape,
         spacing,
-        layout_center=layout_center,
+        origin=origin,
         xreflection=xreflection,
         yreflection=yreflection,
         angle=angle,
@@ -514,12 +514,12 @@ def test_layout_grid_circles():
     spacing = 0.1
     xreflection = True
     yreflection = True
-    layout_center = (1, 1)
+    origin = (1, 1)
     angle = 10
     center = create_grid(
         shape,
         spacing,
-        center=layout_center,
+        center=origin,
         xreflection=xreflection,
         yreflection=yreflection,
         angle=angle,
@@ -527,7 +527,7 @@ def test_layout_grid_circles():
     layout = LayoutGridCircles(
         shape,
         spacing,
-        layout_center=layout_center,
+        origin=origin,
         xreflection=xreflection,
         yreflection=yreflection,
         angle=angle,
@@ -599,13 +599,13 @@ def test_layout_grid_squares():
     filling_factor = 0.9
     xreflection = True
     yreflection = True
-    layout_center = (1, 1)
+    origin = (1, 1)
     angle = 10
     vertex = create_grid_squares(
         shape,
         spacing,
         filling_factor=filling_factor,
-        center=layout_center,
+        center=origin,
         xreflection=xreflection,
         yreflection=yreflection,
         angle=angle,
@@ -614,7 +614,7 @@ def test_layout_grid_squares():
         shape,
         spacing,
         filling_factor=filling_factor,
-        layout_center=layout_center,
+        origin=origin,
         xreflection=xreflection,
         yreflection=yreflection,
         angle=angle,
@@ -640,7 +640,7 @@ def test_layout_grid_squares_unit():
     )
 
     def func(s, l):
-        layout = LayoutGridSquares(shape, s, removed=removed, layout_center=l)
+        layout = LayoutGridSquares(shape, s, removed=removed, origin=l)
         if (
             (not isinstance(s, Quantity) or s.unit == '')
             and isinstance(l, Quantity)
