@@ -308,7 +308,7 @@ def test_origin():
     assert layout.nvertices == 0
     assert_same(layout.center, center)
     assert_same(layout.masked, False)
-    assert_same(layout.removed, False)
+    assert_same(layout.removed, np.zeros(shape, bool))
 
 
 def test_layout_vertex():
@@ -320,7 +320,7 @@ def test_layout_vertex():
     assert_same(layout.center, center)
     assert_same(layout.vertex, vertex)
     assert_same(layout.masked, False)
-    assert_same(layout.removed, False)
+    assert_same(layout.removed, np.zeros(shape, bool))
 
 
 def test_layout_grid():
@@ -340,7 +340,7 @@ def test_layout_grid():
     assert not isinstance(layout.__dict__['center'], np.ndarray)
     assert_same(layout.center, center)
     assert_same(layout.masked, False)
-    assert_same(layout.removed, False)
+    assert_same(layout.removed, np.zeros(shape, bool))
 
 
 def test_layout_grid_circles():
@@ -361,7 +361,7 @@ def test_layout_grid_circles():
     assert not isinstance(layout.__dict__['center'], np.ndarray)
     assert_same(layout.center, center)
     assert_same(layout.masked, False)
-    assert_same(layout.removed, False)
+    assert_same(layout.removed, np.zeros(shape, bool))
 
 
 def test_layout_grid_circles_unit():
@@ -424,7 +424,7 @@ def test_layout_grid_squares():
     assert_same(layout.center, np.mean(vertex, axis=-2))
     assert_same(layout.vertex, vertex)
     assert_same(layout.masked, False)
-    assert_same(layout.removed, False)
+    assert_same(layout.removed, np.zeros(shape, bool))
 
 
 def test_layout_grid_squares_unit():
