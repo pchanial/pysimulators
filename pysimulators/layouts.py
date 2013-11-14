@@ -5,7 +5,6 @@ try:
 except:  # pragma: no coverage
     pass
 import numpy as np
-from pyoperators import I, asoperator
 from pyoperators.utils import isalias, isscalar, product, strenum, tointtuple
 
 from .geometry import create_circle, create_grid, create_grid_squares
@@ -384,7 +383,7 @@ class Layout(object):
             out[...] = out_.reshape(out.shape)
         return out
 
-    def plot(self, transform=None, autoscale=True, **keywords):
+    def plot(self, transform=None, **keywords):
         """
         Plot the layout.
 
@@ -393,18 +392,8 @@ class Layout(object):
         transform : Operator
             Operator to be used to transform the input coordinates into
             the data coordinate system.
-        autoscale : boolean
-            If true, the axes of the plot will be updated to match the
-            boundaries of the detectors.
 
         """
-        a = mp.gca()
-
-        if transform is None:
-            transform = I
-        else:
-            transform = asoperator(transform)
-
         if self.nvertices > 0:
             coords = self.packed.vertex
         else:
@@ -412,12 +401,15 @@ class Layout(object):
             if hasattr(self, 'radius'):
                 coords = create_circle(self.packed.radius, center=coords)
 
-        transform(coords, out=coords)
+        if transform is not None:
+            coords = transform(coords)
 
         if self.nvertices > 0 or hasattr(self, 'radius'):
+            a = mp.gca()
             patches = coords.reshape((-1,) + coords.shape[-2:])
             for p in patches:
                 a.add_patch(mp.Polygon(p, closed=True, fill=False, **keywords))
+            a.autoscale_view()
         else:
             if 'color' not in keywords:
                 keywords['color'] = 'black'
@@ -426,9 +418,6 @@ class Layout(object):
             if 'linestyle' not in keywords:
                 keywords['linestyle'] = ''
             mp.plot(coords[..., 0], coords[..., 1], **keywords)
-
-        if autoscale:
-            mp.autoscale()
 
         mp.show()
 
