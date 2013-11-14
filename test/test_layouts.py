@@ -133,17 +133,6 @@ def test_error():
 
     assert_raises(RuntimeError, func2)
 
-    def func3():
-        layout.index = [2, 3, 1, 0]
-
-    assert_raises(RuntimeError, func3)
-
-    def func4():
-        l = Layout(shape, index=[2, 3, 1, 0])
-        l.index[0] = -1
-
-    assert_raises(RuntimeError, func4)
-
 
 def test_zero_component():
     removeds = (True, (True, True, False, False), False)

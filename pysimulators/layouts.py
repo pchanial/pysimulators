@@ -172,8 +172,6 @@ class Layout(object):
             out = v()
         elif v is None:
             out = self.unpack(getattr(self.packed, key))
-            if out is not None:
-                out.flags.writeable = False
         else:
             return v
         return out
@@ -183,8 +181,9 @@ class Layout(object):
         if key == 'removed':
             raise RuntimeError('The removed mask is not writeable.')
         if key in getattr(self, '_special_attributes', ()):
-            raise RuntimeError('An unpacked array is not writeable.')
-        super(Layout, self).__setattr__(key, value)
+            self.setattr_packed(key, self.pack(value))
+        else:
+            super(Layout, self).__setattr__(key, value)
 
     def setattr_unpacked(self, key, value):
         """
