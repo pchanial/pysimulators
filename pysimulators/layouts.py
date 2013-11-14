@@ -129,6 +129,8 @@ class Layout(object):
         super(Layout, self).__setattr__('removed', removed)
         self.packed = _Packed(self)
         self.setattr_packed('index', self._pack_index(index, removed))
+        if vertex is not None:
+            center = None
         keywords.update({'center': center, 'vertex': vertex, 'masked': masked})
         for k, v in keywords.items():
             if v is not None:
@@ -170,6 +172,9 @@ class Layout(object):
         # make removed and special attributes not writeable
         if key == 'removed':
             raise RuntimeError('The removed mask is not writeable.')
+        if key == 'center' and self.nvertices > 0:
+            raise RuntimeError('The vertices should be set instead of the cent'
+                               'ers.')
         if key in getattr(self, '_special_attributes', ()):
             self.setattr_packed(key, self.pack(value))
         else:
@@ -187,7 +192,7 @@ class Layout(object):
             raise KeyError('A special layout attribute cannot be {0}.'.format(
                            strenum(self._reserved_attributes)))
         self._special_attributes.add(key)
-        if key == 'vertex' and 'center' not in self._special_attributes:
+        if key == 'vertex':
             self.setattr_unpacked('center',
                                   lambda: np.mean(self.vertex, axis=-2))
 
@@ -222,7 +227,7 @@ class Layout(object):
             raise KeyError('A special layout attribute cannot be {0}.'.format(
                            strenum(self._reserved_attributes)))
         self._special_attributes.add(key)
-        if key == 'vertex' and 'center' not in self._special_attributes:
+        if key == 'vertex':
             self.setattr_packed('center',
                                 lambda: np.mean(self.packed.vertex, axis=-2))
 
