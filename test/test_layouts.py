@@ -114,15 +114,6 @@ def test_error():
         l.removed[1] = True
     assert_raises(RuntimeError, func2)
 
-    def func3():
-        layout.index = [2, 3, 1, 0]
-    assert_raises(RuntimeError, func3)
-
-    def func4():
-        l = Layout(shape, index=[2, 3, 1, 0])
-        l.index[0] = -1
-    assert_raises(RuntimeError, func4)
-
 
 def test_zero_component():
     removeds = (True, (True, True, False, False), False)
@@ -438,7 +429,7 @@ def test_layout_grid_squares():
 
 def test_layout_grid_squares_unit():
     shape = (3, 2)
-    removed = [[False, False ],
+    removed = [[False, False],
                [False, False],
                [False, False]]
     spacing = (1., Quantity(1.), Quantity(1., 'mm'))
