@@ -112,15 +112,18 @@ class Layout(object):
         """
         shape = tointtuple(shape)
         removed = np.array(removed, dtype=bool)
-        if not isscalar(removed) and removed.shape != shape:
+        if isscalar(removed):
+            removed = np.lib.stride_tricks.as_strided(
+                removed, shape, len(shape) * (0,))
+        elif removed.shape != shape:
             raise ValueError('Invalid shape of the removed attribute.')
-        removed.flags.writeable = False
         if index is not None:
             index = np.asarray(index, np.int32)
             if index.shape != shape:
                 raise ValueError('Invalid shape of the index attribute.')
             if np.any(index < 0):
-                removed = removed | (index < 0)  # no |= because of broadcast
+                removed = removed | (index < 0)  # no |= because of 0 strides
+        removed.flags.writeable = False
         self._special_attributes = set()
         self._reserved_attributes = ('ndim', 'shape', 'nvertices', 'removed',
                                      'packed')
@@ -426,16 +429,14 @@ class Layout(object):
 
     @staticmethod
     def _pack_index(index, removed):
-        if isscalar(removed) and removed:
+        if np.all(removed):
             return np.array([], int)
         if index is None:
-            if isscalar(removed) and not removed:
+            if not np.any(removed):
                 return None
             return np.where(~np.ravel(removed))[0]
-        index = np.asarray(index)
-        if not isscalar(removed):
-            index = index.copy()
-            index[removed] = -1
+        index = np.array(index)
+        index[removed] = -1
         index = index.ravel()
         npacked = np.sum(index >= 0)
         if npacked == 0:
