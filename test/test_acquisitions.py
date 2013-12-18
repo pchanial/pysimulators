@@ -29,7 +29,6 @@ def test_get_noise():
     fsamp = 5
     sigma = 0.3
     p = Pointing.zeros(2e4)
-    p.removed[5000:10000] = True
     pointings = (p, (p, Pointing.zeros(3e4)))
     shapes = ((1,), (2, 3))
     np.random.seed(0)
