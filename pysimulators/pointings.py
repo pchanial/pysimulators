@@ -6,143 +6,200 @@ except ImportError:
     km = None
 import numpy as np
 import matplotlib.pyplot as mp
-
+from astropy.time import Time
+from pyoperators import (
+    DifferenceOperator, NormalizeOperator, RadiansOperator,
+    Spherical2CartesianOperator)
+from pyoperators.memory import empty, zeros
+from pyoperators.utils import strenum
 from .datatypes import FitsArray, Map
 from .quantities import Quantity
 from .wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
 
-__all__ = ['Pointing']
+__all__ = ['Pointing', 'PointingEquatorial', 'PointingHorizontal']
 
 
 class Pointing(FitsArray):
-    INSCAN     = 1
-    TURNAROUND = 2
-    OTHER      = 3
-    default_dtype = [('ra', float), ('dec', float), ('pa', float),
-                     ('time', float), ('info', np.int64), ('masked', np.bool8),
-                     ('removed', np.bool8)]
+    MANDATORY_NAMES = 'latitude', 'longitude'
+    DEFAULT_DATE_OBS = '2000-01-01 00:00:00'
+    DEFAULT_DTYPE = [(n, float) for n in MANDATORY_NAMES + ('time',)]
+    DEFAULT_SAMPLING_PERIOD = 1  # [s]
+    DEFAULT_VELOCITY_UNIT = 'arcsec/s'
 
-    def __new__(cls, coords, time=None, info=None, masked=None, removed=None,
-                header=None, unit=None, derived_units=None, dtype=None,
-                copy=True, order='C', subok=False, ndmin=0):
+    def __new__(cls, x=None, date_obs=None, sampling_period=None, header=None,
+                unit=None, derived_units=None, dtype=None, copy=True,
+                order='C', subok=False, ndmin=0, **keywords):
 
-        if isinstance(coords, np.ndarray) and coords.dtype.kind == 'V':
-            if dtype is None or dtype == coords.dtype:
+        if dtype is None:
+            dtype = np.dtype(cls.DEFAULT_DTYPE)
+        dtype = np.dtype(dtype)
+        if dtype.kind != 'V':
+            raise TypeError('The default dtype is not structured.')
+        elif any(n not in dtype.names for n in cls.MANDATORY_NAMES):
+            raise TypeError(
+                'The default structured dtype does not contain the names {0}.'.
+                format(strenum(cls.MANDATORY_NAMES)))
+        if date_obs is None:
+            date_obs = cls.DEFAULT_DATE_OBS
+        if isinstance(date_obs, str):
+            # XXX astropy.time bug needs []
+            date_obs = Time([date_obs], scale='utc')
+        elif not isinstance(date_obs, Time):
+            raise TypeError('The observation start date is invalid.')
+        elif date_obs.is_scalar:  # work around astropy.time bug
+            date_obs = Time([str(date_obs)], scale='utc')
+        if sampling_period is None:
+            sampling_period = cls.DEFAULT_SAMPLING_PERIOD
+
+        if isinstance(x, np.ndarray) and x.dtype.kind == 'V':
+            if dtype == x.dtype:
                 result = FitsArray.__new__(
-                    cls, coords, header=header, unit=unit,
+                    cls, x, header=header, unit=unit,
                     derived_units=derived_units, dtype=dtype, copy=copy,
                     order=order, subok=True, ndmin=ndmin)
-                if not subok and type(coords) is not cls:
+                if not subok and type(x) is not cls:
                     result = result.view(cls)
-            else:
-                result = FitsArray.zeros(
-                    coords.shape, header=header, unit=unit,
-                    derived_units=derived_units, dtype=dtype, order=order)
-                result = result.view(type(coords) if subok else Pointing)
-                result.ra = coords.ra
-                result.dec = coords.dec
-                result.pa = coords.pa
-                if time is None:
-                    time = coords.time
-                if info is None:
-                    info = coords.info
-                if masked is None:
-                    masked = coords.masked
-                if removed is None:
-                    removed = coords.removed
-        else:
-            if isinstance(coords, np.ndarray):
-                s = coords.shape[-1]
-                if s not in (2, 3):
-                    raise ValueError('Invalid number of dimensions.')
-                ra = coords[..., 0]
-                dec = coords[..., 1]
-                if s == 3:
-                    pa = coords[..., 2]
-                else:
-                    pa = 0
-            elif isinstance(coords, (list, tuple)):
-                s = len(coords)
-                if s not in (2, 3):
-                    raise ValueError('Invalid number of dimensions.')
-                ra = coords[0]
-                dec = coords[1]
-                if s == 3:
-                    pa = coords[2]
-                else:
-                    pa = 0
-            elif isinstance(coords, dict):
-                if 'ra' not in coords or 'dec' not in coords:
-                    raise ValueError("The input pointing does have keywords 'r"
-                                     "a' and 'dec'.")
-                ra = coords['ra']
-                dec = coords['dec']
-                pa = coords.get('pa', 0)
-            else:
-                raise TypeError('The input pointing type is invalid.')
-            ra = np.asarray(ra)
-            dec = np.asarray(dec)
-            pa = np.asarray(pa)
-            shape = ra.shape
-            if any(x.shape not in ((), shape) for x in [dec, pa]):
+                result.date_obs = date_obs
+                result.sampling_period = sampling_period
+                return result
+
+            for n in x.dtype.names:
+                if n in dtype.names and n not in keywords:
+                    keywords[n] = x[n]
+
+        elif isinstance(x, (list, tuple)):
+            if len(x) < len(cls.MANDATORY_NAMES):
                 raise ValueError(
-                    'The pointing inputs do not have the same size.')
-            result = cls.zeros(shape, dtype=dtype or cls.default_dtype)
-            result.ra = ra
-            result.dec = dec
-            result.pa = pa
+                    "The number of inputs '{0}' is incompatible with the numbe"
+                    "r of mandatory names '{1}' ({2}).".format(
+                        len(x), len(cls.MANDATORY_NAMES), strenum(
+                            cls.MANDATORY_NAMES, 'and')))
+            if len(x) > len(dtype.names):
+                raise ValueError(
+                    "The number of inputs '{0}' is larger than the number of n"
+                    "ames '{1}' ({2}).".format(
+                        len(x), len(dtype.names), strenum(dtype.names, 'and')))
+            for n, v in zip(dtype.names, x):
+                if n in keywords:
+                    raise ValueError(
+                        "The name '{0}' is ambiguously specified via arguments"
+                        " and keywords.".format(n))
+                keywords[n] = v
 
-        if time is None:
-            time = np.arange(result.size, dtype=float).reshape(result.shape)
+        elif isinstance(x, dict):
+            for k, v in x.items():
+                if k not in keywords:
+                    keywords[k] = v
 
-        if info is None:
-            info = Pointing.INSCAN
+        elif x is not None:
+            x = np.asarray(x)
+            s = x.shape[-1]
+            if s < len(cls.MANDATORY_NAMES):
+                raise ValueError(
+                    "The last dimension of the input '{0}' is incompatible wit"
+                    "h the number of mandatory names '{1}' ({2}).".format(
+                        s, len(cls.MANDATORY_NAMES), strenum(
+                            cls.MANDATORY_NAMES, 'and')))
+            if s > len(dtype.names):
+                raise ValueError(
+                    "The last dimension of the input '{0}' is larger than the "
+                    "number of names '{1}' ({2}).".format(
+                        s, len(dtype.names), strenum(dtype.names, 'and')))
+            for i, n in enumerate(dtype.names):
+                if i >= s:
+                    break
+                if n not in keywords:
+                    keywords[n] = x[..., i]
 
-        if masked is None:
-            masked = False
+        for k, v in keywords.items():
+            keywords[k] = np.asarray(v)
 
-        if removed is None:
-            removed = False
+        for n in cls.MANDATORY_NAMES:
+            if n not in keywords:
+                raise ValueError(
+                    "The mandatory name '{0}' is not specified.".format(n))
 
-        time = np.asarray(time)
-        info = np.asarray(info)
-        masked = np.asarray(masked)
-        removed = np.asarray(removed)
-        if any(x.shape not in ((), result.shape)
-               for x in [time, info, masked, removed]):
-            raise ValueError('The pointing inputs do not have the same size.')
-        result.time = time
-        result.info = info
-        result.masked = masked
-        result.removed = removed
+        try:
+            shape = np.broadcast(*keywords.values()).shape
+        except ValueError:
+            raise ValueError('The pointing inputs do not have the same shape.')
+
+        if 'time' in dtype.names and ('time' not in keywords or
+                                      keywords['time'] is None):
+            keywords['time'] = (np.arange(shape[-1], dtype=float)
+                                if len(shape) > 0 else 0) * sampling_period
+
+        result = FitsArray.zeros(
+            shape, header=header, unit=unit, derived_units=derived_units,
+            dtype=dtype, order=order)
+        result = result.view(type(x) if subok and isinstance(x, cls) else cls)
+        for k, v in keywords.items():
+            result[k] = v
+
         return result
+
+    @classmethod
+    def empty(cls, shape, dtype=None, date_obs=None, sampling_period=None):
+        if dtype is None:
+            dtype = cls.DEFAULT_DTYPE
+        result = cls(empty(shape, dtype), date_obs=date_obs,
+                     sampling_period=sampling_period, dtype=dtype, copy=False)
+        if 'time' in result.dtype.names:
+            result.time = (np.arange(result.shape[-1], dtype=float)
+                           if len(result.shape) > 0
+                           else 0) * result.sampling_period
+        return result
+
+    @classmethod
+    def zeros(cls, shape, dtype=None, date_obs=None, sampling_period=None):
+        print 'Pointing', cls
+        if dtype is None:
+            dtype = cls.DEFAULT_DTYPE
+        result = cls(zeros(shape, dtype), date_obs=date_obs,
+                     sampling_period=sampling_period, dtype=dtype, copy=False)
+        if 'time' in result.dtype.names:
+            result.time = (np.arange(result.shape[-1], dtype=float)
+                           if len(result.shape) > 0
+                           else 0) * result.sampling_period
+        return result
+
+    def tocartesian(self):
+        op = Spherical2CartesianOperator('elevation,azimuth') * \
+             RadiansOperator()
+        return op(np.array([self.latitude, self.longitude]).T)
 
     @property
     def velocity(self):
-        if self.size == 0:
-            return Quantity([], 'arcsec/s')
-        elif self.size == 1:
-            return Quantity([np.nan], 'arcsec/s')
-        ra = Quantity(self.ra, 'deg')
-        dec = Quantity(self.dec, 'deg')
-        dra = np.diff(ra)
-        ddec = np.diff(dec)
-        dtime = Quantity(np.diff(self.time), 's')
-        vel = np.sqrt((dra * np.cos(dec[0:-1].tounit('rad')))**2 + ddec**2) \
-              / dtime
-        vel.inunit('arcsec/s')
-        u = vel._unit
-        vel = np.append(vel, vel[-1])
-        # BUG: append eats the unit...
-        vel._unit = u
-        return vel
+        op = NormalizeOperator() * DifferenceOperator(axis=-2) / \
+             self.sampling_period
+        velocity = Quantity(op(self.tocartesian()), 'rad/s')
+        return velocity.tounit(self.DEFAULT_VELOCITY_UNIT)
+
+    def get_valid(self):
+        valid = np.ones(self.shape, bool)
+        if 'masked' in self.dtype.names:
+            valid &= ~self.masked
+        if 'removed' in self.dtype.names:
+            valid &= ~self.removed
+        return valid
+
+
+class PointingEquatorial(Pointing):
+    MANDATORY_NAMES = 'ra', 'dec'
+    DEFAULT_DTYPE = [('ra', float), ('dec', float), ('pa', float),
+                     ('time', float)]
+
+    def tocartesian(self):
+        op = Spherical2CartesianOperator('azimuth,elevation') * \
+             RadiansOperator()
+        return op(np.array([self.ra, self.dec]).T)
 
     def get_map_header(self, resolution=None, naxis=None):
         """
         Returns a FITS header that encompasses all non-removed and
         non-masked pointings.
         """
-        mask = ~self.masked & ~self.removed
+        mask = self.get_valid()
         ra = self.ra[mask]
         dec = self.dec[mask]
         crval = barycenter_lonlat(ra, dec)
@@ -186,7 +243,7 @@ class Pointing(FitsArray):
         """
         if km is None:
             raise RuntimeError('The kapteyn library is required.')
-        invalid = self.masked | self.removed
+        invalid = ~self.get_valid()
         ra, dec = self.ra.copy(), self.dec.copy()
         ra[invalid] = np.nan
         dec[invalid] = np.nan
@@ -223,6 +280,66 @@ class Pointing(FitsArray):
         mp.show()
         _plot_scan(image, ra, dec, linewidth=linewidth, **kw)
         return image
+
+
+class PointingHorizontal(Pointing):
+    MANDATORY_NAMES = 'azimuth', 'elevation'
+    DEFAULT_DTYPE = [('azimuth', float), ('elevation', float),
+                     ('pitch', float), ('time', float)]
+    DEFAULT_LATITUDE = None
+    DEFAULT_LONGITUDE = None
+
+    def __new__(cls, x=None, date_obs=None, sampling_period=None,
+                latitude=None, longitude=None, copy=True, **keywords):
+        if latitude is None:
+            latitude = cls.DEFAULT_LATITUDE
+        if latitude is None:
+            raise ValueError('The reference latitude is not specified.')
+        if longitude is None:
+            longitude = cls.DEFAULT_LONGITUDE
+        if longitude is None:
+            raise ValueError('The reference longitude is not specified.')
+        result = Pointing.__new__(
+            cls, x=x, date_obs=date_obs, sampling_period=sampling_period,
+            copy=copy, **keywords)
+        result.latitude = np.asarray(latitude)
+        result.longitude = np.asarray(longitude)
+        return result
+
+    @classmethod
+    def empty(cls, shape, dtype=None, date_obs=None, sampling_period=None,
+              latitude=None, longitude=None):
+        if dtype is None:
+            dtype = cls.DEFAULT_DTYPE
+        result = cls(empty(shape, dtype), dtype=dtype, date_obs=date_obs,
+                     sampling_period=sampling_period,
+                     latitude=latitude, longitude=longitude, copy=False)
+        if 'time' in result.dtype.names:
+            result.time = (np.arange(result.shape[-1], dtype=float)
+                           if len(result.shape) > 0
+                           else 0) * result.sampling_period
+        return result
+
+    @classmethod
+    def zeros(cls, shape, dtype=None, date_obs=None, sampling_period=None,
+              latitude=None, longitude=None):
+        if dtype is None:
+            dtype = cls.DEFAULT_DTYPE
+        result = cls(zeros(shape, dtype), dtype=dtype, date_obs=date_obs,
+                     sampling_period=sampling_period,
+                     latitude=latitude, longitude=longitude, copy=False)
+        if 'time' in result.dtype.names:
+            result.time = (np.arange(result.shape[-1], dtype=float)
+                           if len(result.shape) > 0
+                           else 0) * result.sampling_period
+        return result
+
+
+class PointingScanEquatorial(PointingEquatorial):
+    INSCAN = 0
+    TURNAROUND = 1
+    OTHER = 2
+    DEFAULT_DTYPE = PointingEquatorial.DEFAULT_DTYPE + [('info', int)]
 
 
 def _plot_scan(image, ra, dec, linewidth=None, **kw):
