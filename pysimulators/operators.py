@@ -772,6 +772,8 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e.T, **keywords)
         self.set_rule('I', lambda s: CartesianGalactic2EquatorialOperator())
+        self.set_rule(('.', CartesianGalactic2EquatorialOperator), '1',
+                      CompositionOperator)
 
 
 class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
@@ -810,6 +812,8 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
         self.set_rule('I', lambda s: CartesianEquatorial2GalacticOperator())
+        self.set_rule(('.', CartesianEquatorial2GalacticOperator), '1',
+                      CompositionOperator)
 
 
 class _CartesianEquatorialHorizontal(DenseOperator):
