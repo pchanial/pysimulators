@@ -6,7 +6,6 @@ import scipy
 import scipy.constants
 from astropy.coordinates.angles import Angle
 from astropy.time import Time
-from nose import SkipTest
 from numpy.testing import assert_allclose, assert_equal, assert_raises
 from pyoperators import (
     Operator,
@@ -298,7 +297,6 @@ def test_equ2gal():
         for shape in shapes:
             yield func, op, shape
 
-    raise SkipTest()
     assert_is_instance(equ2gal * gal2equ, IdentityOperator)
     assert_is_instance(gal2equ * equ2gal, IdentityOperator)
 
