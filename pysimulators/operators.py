@@ -9,10 +9,12 @@ import pyoperators
 import scipy.constants
 
 from pyoperators import (
-    Operator, BlockDiagonalOperator, CompositionOperator, ConstantOperator,
-    DenseOperator, DenseBlockColumnOperator, DenseBlockDiagonalOperator,
+    Operator, BlockDiagonalOperator, Cartesian2SphericalOperator,
+    CompositionOperator, ConstantOperator, DenseOperator,
+    DenseBlockColumnOperator, DenseBlockDiagonalOperator,
     DiagonalOperator, DiagonalNumexprOperator, HomothetyOperator,
-    MultiplicationOperator)
+    MultiplicationOperator, Spherical2CartesianOperator)
+from pyoperators.core import DenseBase
 from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty
 from pyoperators.utils import (
@@ -34,6 +36,10 @@ __all__ = [
     'ProjectionInMemoryOperator',
     'ProjectionOnFlyOperator',
     'RollOperator',
+    'SphericalEquatorial2GalacticOperator',
+    'SphericalGalactic2EquatorialOperator',
+    'SphericalEquatorial2HorizontalOperator',
+    'SphericalHorizontal2EquatorialOperator',
 ]
 
 
@@ -744,7 +750,7 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
     The ICRS equatorial direct referential is defined by:
         - the Earth center as the origin
         - the vernal equinox of coordinates (1, 0, 0)
-        - the Earth North pol of coordinates (0, 0, 1)
+        - the Earth North pole of coordinates (0, 0, 1)
 
     The galactic direct referential is defined by:
         - the Sun center as the origin
@@ -759,7 +765,7 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
         αp = 192.85948°
         δp = 27.12825°
         αc = 266.40510°
-        δc = −28.936175°
+        δc = -28.936175°
 
     The last dimension of the inputs/outputs must be 3.
 
@@ -789,7 +795,7 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     The ICRS equatorial direct referential is defined by:
         - the Earth center as the origin
         - the vernal equinox of coordinates (1, 0, 0)
-        - the Earth North pol of coordinates (0, 0, 1)
+        - the Earth North pole of coordinates (0, 0, 1)
 
     Note that the galactic-to-equatorial conversion is considered to be
     a rotation, so we neglect the Sun-to-Earth origin translation.
@@ -799,7 +805,7 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
         αp = 192.85948°
         δp = 27.12825°
         αc = 266.40510°
-        δc = −28.936175°
+        δc = -28.936175°
 
     The last dimension of the inputs/outputs must be 3.
 
@@ -888,7 +894,8 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
     The ICRS equatorial direct referential is defined by:
         - the Earth center as the origin
         - the vernal equinox of coordinates (1, 0, 0)
-        - the Earth North pol of coordinates (0, 0, 1)
+        - the Earth North pole of coordinates (0, 0, 1)
+
     The horizontal referential is defined by:
         - the observer geographic position as the origin
         - the azimuth reference (North or South) of coordinates (1, 0, 0)
@@ -906,6 +913,12 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
     """
     def __init__(self, convention, time, latitude, longitude, **keywords):
         """
+        convention : 'NE', 'SW', 'SE'
+            The azimuth angle convention:
+                - 'NE' : measured from the North towards the East (indirect)
+                - 'SW' : from the South towards the West (indirect)
+                - 'SE' : from the South towards the East (direct)
+            But so far, only the 'NE' convention is implemented.
         time : astropy.time.Time
             The observer's time.
         latitude : array-like
@@ -913,20 +926,12 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
         longitude : array-like
             The observation's longitude counted positively eastward,
             in degrees.
-        convention : 'NE', 'SW', 'SE'
-            The azimuth angle convention:
-                - 'NE' : measured from the North towards the East (indirect)
-                - 'SW' : from the South towards the West (indirect)
-                - 'SE' : from the South towards the East (direct)
-            But so far, only the 'NE' convention is implemented.
         block_column : boolean
             If more than one observer's time, latitude or longitude is
             specified, the operator can behave like a block column operator
             (the output has extra dimensions) if this keyword is set or a
             block diagonal operator (input and output have the same dimensions)
             otherwise.
-        roll_input : boolean
-            See DenseOperator's docstring.
 
         """
         _CartesianEquatorialHorizontal.__init__(
@@ -940,7 +945,8 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
     The ICRS equatorial direct referential is defined by:
         - the Earth center as the origin
         - the vernal equinox of coordinates (1, 0, 0)
-        - the Earth North pol of coordinates (0, 0, 1)
+        - the Earth North pole of coordinates (0, 0, 1)
+
     The horizontal referential is defined by:
         - the observer geographic position as the origin
         - the azimuth reference (North or South) of coordinates (1, 0, 0)
@@ -958,6 +964,12 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
     """
     def __init__(self, convention, time, latitude, longitude, **keywords):
         """
+        convention : 'NE', 'SW', 'SE'
+            The azimuth angle convention:
+                - 'NE' : measured from the North towards the East (indirect)
+                - 'SW' : from the South towards the West (indirect)
+                - 'SE' : from the South towards the East (direct)
+            But so far, only the 'NE' convention is implemented.
         time : astropy.time.Time
             The observer's time.
         latitude : array-like
@@ -965,21 +977,266 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
         longitude : array-like
             The observation's longitude counted positively eastward,
             in degrees.
-        convention : 'NE', 'SW', 'SE'
-            The azimuth angle convention:
-                - 'NE' : measured from the North towards the East (indirect)
-                - 'SW' : from the South towards the West (indirect)
-                - 'SE' : from the South towards the East (direct)
-            But so far, only the 'NE' convention is implemented.
         block_column : boolean
             If more than one observer's time, latitude or longitude is
             specified, the operator can behave like a block column operator
             (the output has extra dimensions) if this keyword is set or a
             block diagonal operator (input and output have the same dimensions)
             otherwise.
-        roll_input : boolean
-            See DenseOperator's docstring.
 
         """
         _CartesianEquatorialHorizontal.__init__(
             self, convention, time, latitude, longitude, True, **keywords)
+
+
+class SphericalEquatorial2GalacticOperator(CompositionOperator):
+    """
+    ICRS-to-Galactic cartesian coordinate transform.
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0) (zenith=pi/2, az=0)
+        - the Earth North pole of coordinates (0, 0, 1) (zenith=0)
+
+    The galactic direct referential is defined by:
+        - the Sun center as the origin
+        - the galactic center of coordinates (1, 0, 0) (zenith=pi/2, az=0)
+        - the galactic pole of coordinates (0, 0, 1) (zenith=0)
+
+    Note that the equatorial-to-galactic conversion is considered to be
+    a rotation, so we neglect the Earth-to-Sun origin translation.
+
+    The galactic pole and center in the ICRS frame are defined by
+    (Hipparcos 1997):
+        αp = 192.85948°
+        δp = 27.12825°
+        αc = 266.40510°
+        δc = -28.936175°
+
+    The last dimension of the inputs/outputs must be 2.
+
+    Example
+    -------
+    >>> op = SphericalEquatorial2GalacticOperator(degrees=True)
+    >>> op([266.40510, -28.936175])
+    array([  4.70832664e-05,  -7.91258821e-05])
+
+    """
+    def __init__(self, conventionin='azimuth,elevation',
+                 conventionout='azimuth,elevation', degrees=False,
+                 **keywords):
+        """
+        Parameters
+        ----------
+        conventionin : str
+            One of the following spherical coordinate conventions for
+            the input equatorial angles: 'zenith,azimuth', 'azimuth,zenith',
+            'elevation,azimuth' and 'azimuth,elevation'.
+        conventionout : str
+            The spherical coordinate convention for the output galactic angles.
+        degrees : boolean, optional
+            If true, the angle units are degrees (radians otherwise).
+
+        """
+        operands = [
+            Cartesian2SphericalOperator(conventionout, degrees=degrees),
+            CartesianEquatorial2GalacticOperator(),
+            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+        CompositionOperator.__init__(self, operands, **keywords)
+
+
+class SphericalGalactic2EquatorialOperator(CompositionOperator):
+    """
+    Galactic-to-ICRS cartesian coordinate transform.
+
+    The galactic direct referential is defined by:
+        - the Sun center as the origin
+        - the galactic center of coordinates (1, 0, 0) (zenith=pi/2, az=0)
+        - the galactic pole of coordinates (0, 0, 1) (zenith=0)
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0) (zenith=pi/2, az=0)
+        - the Earth North pole of coordinates (0, 0, 1) (zenith=0)
+
+    Note that the galactic-to-equatorial conversion is considered to be
+    a rotation, so we neglect the Sun-to-Earth origin translation.
+
+    The galactic pole and center in the ICRS frame are defined by
+    (Hipparcos 1997):
+        αp = 192.85948°
+        δp = 27.12825°
+        αc = 266.40510°
+        δc = -28.936175°
+
+    The last dimension of the inputs/outputs must be 2.
+
+    Example
+    -------
+    >>> op = SphericalGalactic2EquatorialOperator(degrees=True)
+    >>> op([0, 0])
+    array([266.4049948, -28.93617396])
+
+    """
+    def __init__(self, conventionin='azimuth,elevation',
+                 conventionout='azimuth,elevation', degrees=False,
+                 **keywords):
+        """
+        Parameters
+        ----------
+        conventionin : str
+            One of the following spherical coordinate conventions for
+            the input galactic angles: 'zenith,azimuth', 'azimuth,zenith',
+            'elevation,azimuth' and 'azimuth,elevation'.
+        conventionout : str
+            The spherical coordinate convention for the output equatorial
+            angles.
+        degrees : boolean, optional
+            If true, the angle units are degrees (radians otherwise).
+
+        """
+        operands = [
+            Cartesian2SphericalOperator(conventionout, degrees=degrees),
+            CartesianGalactic2EquatorialOperator(),
+            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+        CompositionOperator.__init__(self, operands, **keywords)
+
+
+class SphericalEquatorial2HorizontalOperator(CompositionOperator):
+    """
+    Conversion between equatorial-to-horizontal cartesian coordinates.
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0) (zenith=pi/2, az=0)
+        - the Earth North pole of coordinates (0, 0, 1) (zenith=0)
+
+    The horizontal referential is defined by:
+        - the observer geographic position as the origin
+        - the azimuth reference (North or South) (1, 0, 0) (zenith=pi/2, az=0)
+        - whether the azimuth is measured towards the East or West
+        - the zenith of coordinates (0, 0, 1) (zenith=0)
+
+    The last dimension of the inputs/outputs must be 2.
+
+    Example
+    -------
+    >>> from astropy.time import Time, TimeDelta
+    >>> t0 = Time(['2000-01-01 00:00:00.0'], scale='utc')
+    >>> dt = TimeDelta(np.arange(1000)/10, format='sec')
+    >>> lat, lon = 48.853291, 2.348751
+    >>> op = SphericalEquatorial2HorizontalOperator('NE', t0 + dt, lat, lon)
+
+    """
+    def __init__(self, convention_horizontal, time, latitude, longitude,
+                 conventionin='azimuth,elevation',
+                 conventionout='azimuth,elevation', degrees=False,
+                 block_column=False, **keywords):
+        """
+        convention_horizontal : 'NE', 'SW', 'SE'
+            The azimuth angle convention:
+                - 'NE' : measured from the North towards the East (indirect)
+                - 'SW' : from the South towards the West (indirect)
+                - 'SE' : from the South towards the East (direct)
+            But so far, only the 'NE' convention is implemented.
+        time : astropy.time.Time
+            The observer's time.
+        latitude : array-like
+            The observer's latitude, in degrees.
+        longitude : array-like
+            The observation's longitude counted positively eastward,
+            in degrees.
+        conventionin : str
+            One of the following spherical coordinate conventions for
+            the input equatorial angles: 'zenith,azimuth', 'azimuth,zenith',
+            'elevation,azimuth' and 'azimuth,elevation'.
+        conventionout : str
+            The spherical coordinate convention for the output horizontal
+            angles.
+        degrees : boolean, optional
+            If true, the angle units are degrees (radians otherwise).
+        block_column : boolean
+            If more than one observer's time, latitude or longitude is
+            specified, the operator can behave like a block column operator
+            (the output has extra dimensions) if this keyword is set or a
+            block diagonal operator (input and output have the same dimensions)
+            otherwise.
+
+        """
+        operands = [
+            Cartesian2SphericalOperator(conventionout, degrees=degrees),
+            CartesianEquatorial2HorizontalOperator(
+                convention_horizontal, time, latitude, longitude,
+                block_column=block_column),
+            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+        CompositionOperator.__init__(self, operands, **keywords)
+
+
+class SphericalHorizontal2EquatorialOperator(CompositionOperator):
+    """
+    Conversion between horizontal-to-equatorial cartesian coordinates.
+
+    The horizontal referential is defined by:
+        - the observer geographic position as the origin
+        - the azimuth reference (North or South) (1, 0, 0) (zenith=pi/2, az=0)
+        - whether the azimuth is measured towards the East or West
+        - the zenith of coordinates (0, 0, 1) (zenith=0)
+
+    The ICRS equatorial direct referential is defined by:
+        - the Earth center as the origin
+        - the vernal equinox of coordinates (1, 0, 0) (zenith=pi/2, az=0)
+        - the Earth North pole of coordinates (0, 0, 1) (zenith=0)
+
+    The last dimension of the inputs/outputs must be 2.
+
+    Example
+    -------
+    >>> from astropy.time import Time, TimeDelta
+    >>> t0 = Time(['2000-01-01 00:00:00.0'], scale='utc')
+    >>> dt = TimeDelta(np.arange(1000)/10, format='sec')
+    >>> lat, lon = 48.853291, 2.348751
+    >>> op = CartesianHorizontal2EquatorialOperator('NE', t0 + dt, lat, lon)
+
+    """
+    def __init__(self, convention_horizontal, time, latitude, longitude,
+                 conventionin='azimuth,elevation',
+                 conventionout='azimuth,elevation', degrees=False,
+                 block_column=False, **keywords):
+        """
+        convention_horizontal : 'NE', 'SW', 'SE'
+            The azimuth angle convention:
+                - 'NE' : measured from the North towards the East (indirect)
+                - 'SW' : from the South towards the West (indirect)
+                - 'SE' : from the South towards the East (direct)
+            But so far, only the 'NE' convention is implemented.
+        time : astropy.time.Time
+            The observer's time.
+        latitude : array-like
+            The observer's latitude, in degrees.
+        longitude : array-like
+            The observation's longitude counted positively eastward,
+            in degrees.
+        conventionin : str
+            One of the following spherical coordinate conventions for
+            the input horizontal angles: 'zenith,azimuth', 'azimuth,zenith',
+            'elevation,azimuth' and 'azimuth,elevation'.
+        conventionout : str
+            The spherical coordinate convention for the output equatorial
+            angles.
+        degrees : boolean, optional
+            If true, the angle units are degrees (radians otherwise).
+        block_column : boolean
+            If more than one observer's time, latitude or longitude is
+            specified, the operator can behave like a block column operator
+            (the output has extra dimensions) if this keyword is set or a
+            block diagonal operator (input and output have the same dimensions)
+            otherwise.
+
+        """
+        operands = [
+            Cartesian2SphericalOperator(conventionout, degrees=degrees),
+            CartesianHorizontal2EquatorialOperator(
+                convention_horizontal, time, latitude, longitude,
+                block_column=block_column),
+            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+        CompositionOperator.__init__(self, operands, **keywords)
