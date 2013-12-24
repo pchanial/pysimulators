@@ -122,16 +122,18 @@ def test_error():
     assert_raises(ValueError, layout.unpack, [1, 2, 3, 4], out=np.array([1]))
     assert_raises(ValueError, LayoutGrid, shape, 0.1, origin=[1, 2])
 
+    cls_error = RuntimeError if np.__version__ < '1.7' else ValueError
+
     def func1():
         layout.removed = True
 
-    assert_raises(RuntimeError, func1)
+    assert_raises(cls_error, func1)
 
     def func2():
         l = Layout(shape, removed=[True, False, False, True])
         l.removed[1] = True
 
-    assert_raises(RuntimeError, func2)
+    assert_raises(cls_error, func2)
 
 
 def test_zero_component():

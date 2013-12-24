@@ -181,10 +181,11 @@ class Layout(object):
 
     def __setattr__(self, key, value):
         # make removed and special attributes not writeable
+        cls_error = RuntimeError if np.__version__ < '1.7' else ValueError
         if key == 'removed':
-            raise RuntimeError('The removed mask is not writeable.')
+            raise cls_error('The removed mask is not writeable.')
         if key == 'center' and self.nvertices > 0:
-            raise RuntimeError('The vertices should be set instead of the cent' 'ers.')
+            raise cls_error('The vertices should be set instead of the centers' '.')
         if key in getattr(self, '_special_attributes', ()):
             self.setattr_packed(key, self.pack(value))
         else:
