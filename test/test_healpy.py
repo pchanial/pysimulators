@@ -48,7 +48,6 @@ def test_cartesian_healpix_rules():
         Cartesian2HealpixOperator(NSIDE) * Healpix2CartesianOperator(2 * NSIDE),
         CompositionOperator,
     )
-    raise SkipTest()
     assert_is_type(
         Cartesian2HealpixOperator(NSIDE) * Healpix2CartesianOperator(NSIDE),
         IdentityOperator,
@@ -95,7 +94,6 @@ def test_healpix_cartesian_rules():
         Healpix2CartesianOperator(NSIDE) * Cartesian2HealpixOperator(2 * NSIDE),
         CompositionOperator,
     )
-    raise SkipTest()
     assert_is_type(
         Healpix2CartesianOperator(NSIDE) * Cartesian2HealpixOperator(NSIDE),
         IdentityOperator,
@@ -182,7 +180,6 @@ def test_spherical_healpix_rules():
     def func(op, nside, c, nest):
         op2 = Healpix2SphericalOperator(nside, c, nest=nest)
         if c == op.convention and nside == op.nside and nest == op.nest:
-            raise SkipTest()
             assert_is_type(op * op2, IdentityOperator)
         else:
             assert_is_type(op * op2, CompositionOperator)
@@ -235,7 +232,6 @@ def test_healpix_spherical_rules():
     def func(op, nside, c, nest):
         op2 = Spherical2HealpixOperator(nside, c, nest=nest)
         if c == op.convention and nside == op.nside and nest == op.nest:
-            raise SkipTest()
             assert_is_type(op * op2, IdentityOperator)
         else:
             assert_is_type(op * op2, CompositionOperator)
