@@ -8,15 +8,21 @@ from astropy.coordinates.angles import Angle
 from astropy.time import Time
 from numpy.testing import assert_allclose, assert_equal, assert_raises
 from pyoperators import (
-    Operator, CompositionOperator, BlockDiagonalOperator, IdentityOperator,
-    MultiplicationOperator, Spherical2CartesianOperator, decorators)
+    Operator, Cartesian2SphericalOperator, CompositionOperator,
+    BlockDiagonalOperator, IdentityOperator, MultiplicationOperator,
+    Spherical2CartesianOperator, decorators)
 from pyoperators.utils import all_eq, isscalar, product
 from pyoperators.utils.testing import assert_is_instance, assert_same
 from pysimulators.operators import (
     BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal,
-    CartesianEquatorial2GalacticOperator, CartesianGalactic2EquatorialOperator,
+    CartesianEquatorial2GalacticOperator,
     CartesianEquatorial2HorizontalOperator,
-    CartesianHorizontal2EquatorialOperator)
+    CartesianGalactic2EquatorialOperator,
+    CartesianHorizontal2EquatorialOperator,
+    SphericalEquatorial2GalacticOperator,
+    SphericalEquatorial2HorizontalOperator,
+    SphericalGalactic2EquatorialOperator,
+    SphericalHorizontal2EquatorialOperator)
 
 
 def test_partitioning_chunk():
@@ -295,3 +301,58 @@ def test_equ2hor():
     # Duffett-Smith §25
     assert_allclose(az % 360, 283.271027)
     assert_allclose(el, 19.334345, rtol=1e-6)
+
+
+def test_spherical():
+    ops = ((SphericalEquatorial2GalacticOperator,
+            CartesianEquatorial2GalacticOperator),
+           (SphericalEquatorial2HorizontalOperator,
+            CartesianEquatorial2HorizontalOperator),
+           (SphericalGalactic2EquatorialOperator,
+            CartesianGalactic2EquatorialOperator),
+           (SphericalHorizontal2EquatorialOperator,
+            CartesianHorizontal2EquatorialOperator))
+    dirs_za = ((0, 0), (20, 0), (130, 0), (10, 20), (20, 190),
+               ((0, 0), (20, 0), (130, 0), (10, 20), (20, 130)),
+               (((0, 0), (20, 200), (130, 300)),))
+    dirs_az = ((0, 0), (0, 20), (0, 130), (20, 10), (190, 20),
+               ((0, 0), (0, 20), (0, 130), (20, 10), (130, 20)),
+               (((0, 0), (200, 20), (300, 130)),))
+    dirs_ea = ((90, 0), (70, 0), (-40, 0), (80, 20), (70, 190),
+               ((90, 0), (70, 0), (-40, 0), (80, 20), (70, 130)),
+               (((90, 0), (70, 200), (-40, 300)),))
+    dirs_ae = ((0, 90), (0, 70), (0, -40), (20, 80), (190, 70),
+               ((0, 90), (0, 70), (0, -40), (20, 80), (130, 70)),
+               (((0, 90), (200, 70), (300, -40)),))
+    shapes = ((), (), (), (), (), (5,), (1, 3))
+
+    def func(cls_sph, cls_car, cin, cout, v, s, d):
+        if 'Horizontal' in str(cls_sph):
+            args = ('NE', Time('1980-04-22 14:36:51.67', scale='ut1'),
+                    100.1, -80)
+        else:
+            args = ()
+        op_sph = cls_sph(*args, conventionin=cin, conventionout=cout,
+                         degrees=d)
+        actual = op_sph(v)
+        assert_equal(actual.shape, s + (2,))
+        if d:
+            v = np.radians(v)
+        expected = Cartesian2SphericalOperator(cout)(
+            cls_car(*args)(Spherical2CartesianOperator(cin)(v)))
+        if d:
+            np.degrees(expected, expected)
+        assert_same(actual, expected)
+
+    for cls_sph, cls_car in ops:
+        for cin, vs in (('zenith,azimuth', dirs_za),
+                        ('azimuth,zenith', dirs_az),
+                        ('elevation,azimuth', dirs_ea),
+                        ('azimuth,elevation', dirs_ae)):
+            for cout in ('zenith,azimuth',
+                         'azimuth,zenith',
+                         'elevation,azimuth',
+                         'azimuth,elevation'):
+                for v, s in zip(vs, shapes):
+                    for d in (False, True):
+                        yield func, cls_sph, cls_car, cin, cout, v, s, d
