@@ -10,8 +10,9 @@ import scipy.constants
 
 from pyoperators import (
     Operator, BlockDiagonalOperator, CompositionOperator, ConstantOperator,
-    DenseOperator, DiagonalOperator, DiagonalNumexprOperator,
-    HomothetyOperator, MultiplicationOperator)
+    DenseOperator, DenseBlockColumnOperator, DenseBlockDiagonalOperator,
+    DiagonalOperator, DiagonalNumexprOperator, HomothetyOperator,
+    MultiplicationOperator)
 from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty
 from pyoperators.utils import (
@@ -816,9 +817,9 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
                       CompositionOperator)
 
 
-class _CartesianEquatorialHorizontal(DenseOperator):
+class _CartesianEquatorialHorizontal(DenseBase):
     def __init__(self, convention, time, latitude, longitude, transpose,
-                 dtype=None, **keywords):
+                 block_column=False, dtype=None, **keywords):
         conventions = ('NE',)  # 'SW', 'SE')
         if convention not in conventions:
             raise ValueError(
@@ -846,10 +847,12 @@ class _CartesianEquatorialHorizontal(DenseOperator):
         m[..., 2, 2] = slat
         if transpose:
             m = m.swapaxes(-1, -2)
-        if m.ndim == 2:
-            keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
-                                                    orthogonal=True)
-        DenseOperator.__init__(self, m, dtype=dtype, **keywords)
+        keywords['flags'] = self.validate_flags(
+            keywords.get('flags', {}),
+            orthogonal=m.ndim == 2 or not block_column)
+        self.__class__ = DenseBlockColumnOperator if block_column else \
+            DenseBlockDiagonalOperator
+        self.__init__(m, **keywords)
 
     @staticmethod
     def _jd2gst(jd):
@@ -916,12 +919,12 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
                 - 'SW' : from the South towards the West (indirect)
                 - 'SE' : from the South towards the East (direct)
             But so far, only the 'NE' convention is implemented.
-        block_diagonal : boolean
+        block_column : boolean
             If more than one observer's time, latitude or longitude is
-            specified, the operator can behave like a block diagonal operator
-            (input and output have the same dimensions) if this keyword is set
-            to True, or a block column operator (the output has extra
-            dimensions) otherwise.
+            specified, the operator can behave like a block column operator
+            (the output has extra dimensions) if this keyword is set or a
+            block diagonal operator (input and output have the same dimensions)
+            otherwise.
         roll_input : boolean
             See DenseOperator's docstring.
 
@@ -968,12 +971,12 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
                 - 'SW' : from the South towards the West (indirect)
                 - 'SE' : from the South towards the East (direct)
             But so far, only the 'NE' convention is implemented.
-        block_diagonal : boolean
+        block_column : boolean
             If more than one observer's time, latitude or longitude is
-            specified, the operator can behave like a block diagonal operator
-            (input and output have the same dimensions) if this keyword is set
-            to True, or a block column operator (the output has extra
-            dimensions) otherwise.
+            specified, the operator can behave like a block column operator
+            (the output has extra dimensions) if this keyword is set or a
+            block diagonal operator (input and output have the same dimensions)
+            otherwise.
         roll_input : boolean
             See DenseOperator's docstring.
 
