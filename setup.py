@@ -139,6 +139,7 @@ setup(
     install_requires=['pyoperators>=0.9', 'astropy>=0.2'],
     packages=[
         'pysimulators',
+        'pysimulators/interfaces',
         'pysimulators/interfaces/healpy',
         'pysimulators/interfaces/madmap1',
     ],
