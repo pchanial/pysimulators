@@ -103,6 +103,7 @@ def configuration(parent_package='', top_path=None):
     config.add_extension('pysimulators._flib',
                          sources=['pysimulators/module_datautils.f90',
                                   'pysimulators/module_geometry.f90',
+                                  'pysimulators/module_operators.f90.src',
                                   'pysimulators/module_pointingmatrix.f90',
                                   'pysimulators/module_sparse.f90.src',
                                   'pysimulators/module_wcsutils.f90'],

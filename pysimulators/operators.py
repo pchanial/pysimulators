@@ -16,13 +16,14 @@ from pyoperators import (
     MultiplicationOperator, Spherical2CartesianOperator)
 from pyoperators.core import DenseBase
 from pyoperators.decorators import linear, orthogonal, real, inplace
-from pyoperators.memory import empty
+from pyoperators.memory import empty, ones, zeros
 from pyoperators.utils import (
     float_dtype, isscalar, operation_assignment, product, strenum, tointtuple)
 
 from . import _flib as flib
 from .datatypes import FitsArray, Map
 from .quantities import Quantity, _divide_unit, _multiply_unit
+from .sparse import FSRMatrix, FSRRotation3dMatrix, SparseOperator
 from .wcsutils import create_fitsheader
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     'CartesianHorizontal2EquatorialOperator',
     'PointingMatrix',
     'PowerLawOperator',
+    'ProjectionOperator',
     'ProjectionInMemoryOperator',
     'ProjectionOnFlyOperator',
     'RollOperator',
@@ -710,6 +712,106 @@ class ProjectionOnFlyOperator(ProjectionBaseOperator):
         matrix = self.func(self.id)
         self.place_holder['id'], self.place_holder['matrix'] = self.id, matrix
         return matrix
+
+
+class ProjectionOperator(SparseOperator):
+    def __init__(self, arg, **keywords):
+        if not isinstance(arg, (FSRMatrix, FSRRotation3dMatrix)):
+            raise TypeError('The input sparse matrix type is invalid.')
+        SparseOperator.__init__(self, arg, **keywords)
+
+    def pT1(self, out=None, operation=operation_assignment):
+        if out is None:
+            shape = self.shapein
+            if isinstance(self.matrix, FSRRotation3dMatrix):
+                shape = shape[:-1]
+            out = zeros(shape, self.dtype)
+        elif not isinstance(out, np.ndarray):
+            raise TypeError('The output keyword is not an ndarray.')
+        elif out.dtype != self.dtype:
+            raise TypeError('The output array has a dtype incompatible with th'
+                            'at of the input timeline.')
+        elif operation is operation_assignment:
+            out[...] = 0
+        if operation not in (operation_assignment, operator.iadd):
+            raise ValueError('Invalid reduction operation.')
+
+        i, m, v = [str(_.dtype.itemsize) for _ in (self.matrix.data.index,
+                                                   self.matrix, self)]
+        f = 'fsr{0}_pt1_i{1}_m{2}_v{3}'.format(
+            '' if isinstance(self.matrix, FSRMatrix) else '_rot3d', i, m, v)
+        if not hasattr(flib.operators, f):
+            if isinstance(self.matrix, FSRMatrix):
+                self.T(ones(self.shapeout, self.dtype), out=out,
+                       operation=operation)
+            else:
+                x_ = ones(self.shapeout, self.dtype)
+                if operation is operator.iadd:
+                    out_ = zeros(self.shapein, self.dtype)
+                    out_[..., 0] = out
+                else:
+                    out_ = empty(self.shapein, self.dtype)
+                self.T(x_, out=out_, operation=operation)
+                out[...] = out_[..., 0]
+        else:
+            func = getattr(flib.operators, f)
+            func(self.matrix.data.view(np.int8).ravel(), out.ravel(),
+                 self.matrix.ncolmax, self.matrix.data.shape[0])
+        return out
+
+    def pTx_pT1(self, x, out=None, operation=operation_assignment):
+        x = np.asarray(x)
+        shapein = self.shapeout
+        shapeout = self.shapein
+        if isinstance(self.matrix, FSRRotation3dMatrix):
+            shapein = shapein[:-1]
+            shapeout = shapeout[:-1]
+        if x.shape != shapein:
+            raise ValueError("Invalid input shape '{0}'. Expected shape is '{1"
+                             "}'.".format(shapein))
+        if out is None:
+            pTx = zeros(shapeout, self.dtype)
+            pT1 = zeros(shapeout, self.dtype)
+        elif not isinstance(out, (list, tuple)) or len(out) != 2:
+            raise TypeError('The out keyword is not a 2-tuple.')
+        elif out[0].dtype != x.dtype or out[1].dtype != x.dtype:
+            raise TypeError('The output arrays have a dtype incompatible with '
+                            'that of the input timeline.')
+        else:
+            pTx, pT1 = out
+            if operation is operation_assignment:
+                pTx[...] = 0
+                pT1[...] = 0
+        if operation not in (operation_assignment, operator.iadd):
+            raise ValueError('Invalid reduction operation.')
+
+        i, m, v = [str(_.dtype.itemsize) for _ in (self.matrix.data.index,
+                                                   self.matrix, x)]
+        f = 'fsr{0}_ptx_pt1_i{1}_m{2}_v{3}'.format(
+            '' if isinstance(self.matrix, FSRMatrix) else '_rot3d', i, m, v)
+        if not hasattr(flib.operators, f):
+            if isinstance(self.matrix, FSRMatrix):
+                self.T(x, out=pTx, operation=operator.iadd)
+                self.T(ones(x.shape, self.dtype), out=pT1, operation=operation)
+            else:
+                x_ = ones(self.shapeout, x.dtype)
+                if operation is operator.iadd:
+                    out_ = zeros(self.shapein, self.dtype)
+                    out_[..., 0] = pT1
+                else:
+                    out_ = empty(self.shapein, self.dtype)
+                self.T(x_, out=out_, operation=operation)
+                pT1[...] = out_[..., 0]
+                if operation is operator.iadd:
+                    out_[..., 0] = pTx
+                x_[..., 0] = x                    
+                self.T(x_, out=out_, operation=operation)
+                pTx[...] = out_[..., 0]
+        else:
+            func = getattr(flib.operators, f)
+            func(self.matrix.data.view(np.int8).ravel(), x.ravel(),
+                 pTx.ravel(), pT1.ravel(), self.matrix.ncolmax)
+        return pTx, pT1
 
 
 @orthogonal

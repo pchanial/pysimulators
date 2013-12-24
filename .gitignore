@@ -8,4 +8,5 @@ _site
 htmlcov
 pysimulators/__init__.py
 pysimulators/_flib.so
+pysimulators/module_operators.f90
 pysimulators/module_sparse.f90
