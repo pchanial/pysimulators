@@ -1,6 +1,7 @@
 include .coveragerc
 include README.rst
-exclude pysimulators/__init__.py
 include pysimulators/__init__.py.in
+exclude pysimulators/__init__.py
+exclude pysimulators/module_operators.f90
 exclude pysimulators/module_sparse.f90
-graft test/data
+raft test/data

@@ -2,6 +2,7 @@
 from __future__ import division
 
 import numpy as np
+import operator
 import scipy
 import scipy.constants
 from astropy.coordinates.angles import Angle
@@ -28,11 +29,16 @@ from pysimulators.operators import (
     CartesianEquatorial2HorizontalOperator,
     CartesianGalactic2EquatorialOperator,
     CartesianHorizontal2EquatorialOperator,
+    ProjectionOperator,
     SphericalEquatorial2GalacticOperator,
     SphericalEquatorial2HorizontalOperator,
     SphericalGalactic2EquatorialOperator,
     SphericalHorizontal2EquatorialOperator,
 )
+from pysimulators.sparse import FSRMatrix, FSRRotation3dMatrix
+
+ftypes = np.float16, np.float32, np.float64, np.float128
+itypes = (np.int8, np.int16, np.int32, np.int64)
 
 
 def test_partitioning_chunk():
@@ -246,6 +252,149 @@ def test_power_law():
 
     for cls in CompositionOperator, MultiplicationOperator:
         yield func2, cls
+
+
+def test_projection_fsr_pT1():
+    index1 = [3, 2, 2, 1, 2, -1]
+    index2 = [-1, 3, 1, 1, 0, -1]
+    value1 = [1, 1, 0.5, 1, 2, 10]
+    value2 = [1, 2, 0.5, 1, 1, 10]
+
+    def get_projection(itype, ftype, vtype):
+        dtype = [('index', itype), ('value', ftype)]
+        data = np.recarray((6, 2), dtype=dtype)
+        data[..., 0].index, data[..., 1].index = index1, index2
+        data[..., 0].value, data[..., 1].value = value1, value2
+        return ProjectionOperator(FSRMatrix((6, 4), data), dtype=vtype)
+
+    def func(itype, ftype, vtype):
+        proj = get_projection(itype, ftype, vtype)
+        expected = proj.T(np.ones(proj.shapeout, proj.dtype))
+        pT1 = proj.pT1()
+        assert_allclose(pT1, expected)
+        pT1 = proj.pT1(out=pT1)
+        assert_allclose(pT1, expected)
+        pT1[...] = 2
+        proj.pT1(out=pT1, operation=operator.iadd)
+        assert_allclose(pT1, 2 + expected)
+
+    for itype in itypes:
+        for ftype in ftypes:
+            for vtype in ftypes:
+                yield func, itype, ftype, vtype
+
+
+def test_projection_fsr_rot3d_pT1():
+    index1 = [3, 2, 2, 1, 2, -1]
+    index2 = [-1, 3, 1, 1, 0, -1]
+    value1 = [1, 1, 0.5, 1, 2, 10]
+    value2 = [1, 2, 0.5, 1, 1, 10]
+
+    def get_projection(itype, ftype, vtype):
+        dtype = [('index', itype), ('r11', ftype), ('r22', ftype), ('r32', ftype)]
+        data = np.recarray((6, 2), dtype=dtype)
+        data[..., 0].index, data[..., 1].index = index1, index2
+        data[..., 0].r11, data[..., 1].r11 = value1, value2
+        data.r22 = 0
+        data.r32 = 0
+        return ProjectionOperator(
+            FSRRotation3dMatrix((3 * 6, 3 * 4), data), dtype=vtype
+        )
+
+    def func(itype, ftype, vtype):
+        proj = get_projection(itype, ftype, vtype)
+        expected = proj.T(np.ones(proj.shapeout, proj.dtype))[..., 0]
+        pT1 = proj.pT1()
+        assert_same(pT1, expected)
+        pT1 = proj.pT1(out=pT1)
+        assert_same(pT1, expected)
+        pT1[...] = 2
+        proj.pT1(out=pT1, operation=operator.iadd)
+        assert_same(pT1, 2 + expected)
+
+    for itype in itypes:
+        for ftype in ftypes:
+            for vtype in ftypes:
+                yield func, itype, ftype, vtype
+
+
+def test_projection_fsr_pTx_pT1():
+    input = [1, 2, 1, 1, 1, 1]
+    index1 = [3, 2, 2, 1, 2, -1]
+    index2 = [-1, 3, 1, 1, 0, -1]
+    value1 = [1, 1, 0.5, 1, 2, 10]
+    value2 = [1, 2, 0.5, 1, 1, 10]
+
+    def get_projection(itype, ftype, vtype):
+        dtype = [('index', itype), ('value', ftype)]
+        data = np.recarray((6, 2), dtype=dtype)
+        data[..., 0].index, data[..., 1].index = index1, index2
+        data[..., 0].value, data[..., 1].value = value1, value2
+        return ProjectionOperator(FSRMatrix((6, 4), data), dtype=vtype)
+
+    def func(itype, ftype, vtype):
+        input_ = np.asarray(input, vtype)
+        proj = get_projection(itype, ftype, vtype)
+        expectedx = proj.T(input_)
+        expected1 = proj.T(np.ones_like(input_))
+        pTx, pT1 = proj.pTx_pT1(input_)
+        assert_allclose(pTx, expectedx)
+        assert_allclose(pT1, expected1)
+        proj.pTx_pT1(input_, out=(pTx, pT1))
+        assert_allclose(pTx, expectedx)
+        assert_allclose(pT1, expected1)
+        pTx[...] = 1
+        pT1[...] = 2
+        proj.pTx_pT1(input_, out=(pTx, pT1), operation=operator.iadd)
+        assert_allclose(pTx, 1 + expectedx)
+        assert_allclose(pT1, 2 + expected1)
+
+    for itype in itypes:
+        for ftype in ftypes:
+            for vtype in ftypes:
+                yield func, itype, ftype, vtype
+
+
+def test_projection_fsr_rot3d_pTx_pT1():
+    input = [1, 2, 1, 1, 1, 1]
+    index1 = [3, 2, 2, 1, 2, -1]
+    index2 = [-1, 3, 1, 1, 0, -1]
+    value1 = [1, 1, 0.5, 1, 2, 10]
+    value2 = [1, 2, 0.5, 1, 1, 10]
+
+    def get_projection(itype, ftype, vtype):
+        dtype = [('index', itype), ('r11', ftype), ('r22', ftype), ('r32', ftype)]
+        data = np.recarray((6, 2), dtype=dtype)
+        data[..., 0].index, data[..., 1].index = index1, index2
+        data[..., 0].r11, data[..., 1].r11 = value1, value2
+        data.r22 = 0
+        data.r32 = 0
+        return ProjectionOperator(
+            FSRRotation3dMatrix((3 * 6, 3 * 4), data), dtype=vtype
+        )
+
+    def func(itype, ftype, vtype):
+        input_ = np.zeros(np.shape(input) + (3,), vtype)
+        input_[..., 0] = input
+        proj = get_projection(itype, ftype, vtype)
+        expectedx = proj.T(input_)[..., 0]
+        expected1 = proj.T(np.ones_like(input_))[..., 0]
+        pTx, pT1 = proj.pTx_pT1(input_[..., 0])
+        assert_same(pTx, expectedx)
+        assert_same(pT1, expected1)
+        pTx, pT1 = proj.pTx_pT1(input_[..., 0], out=(pTx, pT1))
+        assert_same(pTx, expectedx)
+        assert_same(pT1, expected1)
+        pTx[...] = 1
+        pT1[...] = 2
+        proj.pTx_pT1(input_[..., 0], out=(pTx, pT1), operation=operator.iadd)
+        assert_same(pTx, 1 + expectedx)
+        assert_same(pT1, 2 + expected1)
+
+    for itype in itypes:
+        for ftype in ftypes:
+            for vtype in ftypes:
+                yield func, itype, ftype, vtype
 
 
 def test_roll():
