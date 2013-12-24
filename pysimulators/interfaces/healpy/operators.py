@@ -3,7 +3,7 @@ from __future__ import division
 import healpy as hp
 import healpy._healpy_pixel_lib as pixlib
 import numpy as np
-from pyoperators import Operator
+from pyoperators import CompositionOperator, IdentityOperator, Operator
 from pyoperators.decorators import inplace, real, symmetric
 from pyoperators.utils import pi, strenum
 
@@ -34,6 +34,11 @@ class _HealPixCartesian(Operator):
         if len(shape) == 0 or shape[-1] != 3:
             raise ValueError('Invalid cartesian shape.')
 
+    @staticmethod
+    def _rule_identity(o1, o2):
+        if o1.nside == o2.nside and o1.nest == o2.nest:
+            return IdentityOperator()
+
 
 class Healpix2CartesianOperator(_HealPixCartesian):
     """
@@ -56,6 +61,8 @@ class Healpix2CartesianOperator(_HealPixCartesian):
             validateout=self._validatecartesian, **keywords)
         self.set_rule('I', lambda s:
                       Cartesian2HealpixOperator(s.nside, nest=s.nest))
+        self.set_rule(('.', Cartesian2HealpixOperator), self._rule_identity,
+                      CompositionOperator)
 
     def direct(self, input, output):
         input = input.astype(int)
@@ -84,6 +91,8 @@ class Cartesian2HealpixOperator(_HealPixCartesian):
             validatein=self._validatecartesian, **keywords)
         self.set_rule('I', lambda s:
                       Healpix2CartesianOperator(s.nside, nest=s.nest))
+        self.set_rule(('.', Healpix2CartesianOperator), self._rule_identity,
+                      CompositionOperator)
 
     def direct(self, input, output):
         func = pixlib._vec2pix_nest if self.nest else pixlib._vec2pix_ring
@@ -124,6 +133,12 @@ class _HealPixSpherical(Operator):
         if len(shape) == 0 or shape[-1] != 2:
             raise ValueError('Invalid spherical shape.')
 
+    @staticmethod
+    def _rule_identity(o1, o2):
+        if o1.nside == o2.nside and o1.convention == o2.convention and \
+           o1.nest == o2.nest:
+            return IdentityOperator()
+
 
 class Healpix2SphericalOperator(_HealPixSpherical):
     """
@@ -158,9 +173,11 @@ class Healpix2SphericalOperator(_HealPixSpherical):
             reshapein=self._reshapehealpix,
             reshapeout=self._reshapespherical,
             validateout=self._validatespherical, **keywords)
-        self.set_rule('I', lambda s:
-                      Spherical2HealpixOperator(s.nside, s.convention,
-                                                nest=s.nest))
+        self.set_rule(
+            'I', lambda s: Spherical2HealpixOperator(s.nside, s.convention,
+                                                     nest=s.nest))
+        self.set_rule(('.', Spherical2HealpixOperator), self._rule_identity,
+                      CompositionOperator)
 
     def direct(self, input, output):
         input = input.astype(int)
@@ -206,9 +223,11 @@ class Spherical2HealpixOperator(_HealPixSpherical):
             reshapein=self._reshapespherical,
             reshapeout=self._reshapehealpix,
             validatein=self._validatespherical, **keywords)
-        self.set_rule('I', lambda s:
-                      Healpix2SphericalOperator(s.nside, s.convention,
-                                                nest=s.nest))
+        self.set_rule(
+            'I', lambda s: Healpix2SphericalOperator(s.nside, s.convention,
+                                                     nest=s.nest))
+        self.set_rule(('.', Healpix2SphericalOperator), self._rule_identity,
+                      CompositionOperator)
 
     def direct(self, input, output):
         func = pixlib._ang2pix_nest if self.nest else pixlib._ang2pix_ring
