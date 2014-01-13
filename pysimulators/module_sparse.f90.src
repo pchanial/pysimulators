@@ -39,7 +39,7 @@ contains
         !$omp parallel do
         do i = 1, ninput
             do j = 1, nrowmax
-                if (matrix(j,i)%index < 0) exit
+                if (matrix(j,i)%index < 0) cycle
                 !$omp atomic
                 output(matrix(j,i)%index) = output(matrix(j,i)%index) +        &
                                             matrix(j,i)%value * input(i)
@@ -68,7 +68,6 @@ contains
             !$omp parallel do
             do i = 1, noutput
                 if (matrix(1,i)%index < 0) cycle
-                if (matrix(1,i)%index >= ninput) stop
                 output(i) = output(i) +                                        &
                             matrix(1,i)%value * input(matrix(1,i)%index)
             end do
@@ -78,12 +77,14 @@ contains
 
         !$omp parallel do
         do i = 1, noutput
-!!$            output(i) = sum(input(matrix(:,i)%index) * matrix(:,i)%value)
             do j = 1, ncolmax
-                if (matrix(j,i)%index < 0) exit
+                if (matrix(j,i)%index < 0) cycle
                 output(i) = output(i) +                                        &
                             matrix(j,i)%value * input(matrix(j,i)%index)
             end do
+!!$         output(i) = output(i) +                                            &
+!!$                     sum(input(matrix(:,i)%index) * matrix(:,i)%value,      &
+!!$                         mask=matrix(:,i)%index >= 0)
         end do
         !$omp end parallel do
 
@@ -144,7 +145,7 @@ contains
         do i = 1, noutput
             do j = 1, ncolmax
                 col = matrix(j,i)%index
-                if (col < 0) exit
+                if (col < 0) cycle
                 output(1,i) = output(1,i) + matrix(j,i)%r11 * input(1,col)
                 output(2,i) = output(2,i) + matrix(j,i)%r22 * input(2,col) -   &
                                             matrix(j,i)%r32 * input(3,col)
