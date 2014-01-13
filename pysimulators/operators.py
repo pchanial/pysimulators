@@ -715,12 +715,26 @@ class ProjectionOnFlyOperator(ProjectionBaseOperator):
 
 
 class ProjectionOperator(SparseOperator):
+    """
+    Projection operator. It is a SparseOperator with convenience methods.
+
+    Attributes
+    ----------
+    matrix : FSRMatrix or FSRRotation3dMatrix
+        The projection sparse matrix.
+
+    """
     def __init__(self, arg, **keywords):
         if not isinstance(arg, (FSRMatrix, FSRRotation3dMatrix)):
             raise TypeError('The input sparse matrix type is invalid.')
         SparseOperator.__init__(self, arg, **keywords)
 
     def pT1(self, out=None, operation=operation_assignment):
+        """
+        Return the transpose of the projection over one. In other words,
+        it returns the projection coverage.
+
+        """
         if out is None:
             shape = self.shapein
             if isinstance(self.matrix, FSRRotation3dMatrix):
@@ -760,6 +774,12 @@ class ProjectionOperator(SparseOperator):
         return out
 
     def pTx_pT1(self, x, out=None, operation=operation_assignment):
+        """
+        Return a tuple of two arrays: the transpose of the projection
+        applied over the input and over one. In other words, it returns
+        the back projection of the input and its coverage.
+
+        """
         x = np.asarray(x)
         shapein = self.shapeout
         shapeout = self.shapein
