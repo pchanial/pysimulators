@@ -26,7 +26,7 @@ contains
         do i = 1, ninput
             do j = 1, ncolmax
                 col = matrix(j,i)%index
-                if (col < 0) exit
+                if (col < 0) cycle
                 !$omp atomic
                 pT1(col) = pT1(col) + matrix(j,i)%value
             end do
@@ -53,7 +53,7 @@ contains
         do i = 1, ninput
             do j = 1, ncolmax
                 col = matrix(j,i)%index
-                if (col < 0) exit
+                if (col < 0) cycle
                 !$omp atomic
                 pT1(col) = pT1(col) + matrix(j,i)%r11
             end do
@@ -83,7 +83,7 @@ contains
         do i = 1, ninput
             do j = 1, ncolmax
                 col = matrix(j,i)%index
-                if (col < 0) exit
+                if (col < 0) cycle
                 val = matrix(j,i)%value
                 !$omp atomic
                 pTx(col) = pTx(col) + val * input(i)
@@ -116,7 +116,7 @@ contains
         do i = 1, ninput
             do j = 1, ncolmax
                 col = matrix(j,i)%index
-                if (col < 0) exit
+                if (col < 0) cycle
                 val = matrix(j,i)%r11
                 !$omp atomic
                 pTx(col) = pTx(col) + val * input(i)
