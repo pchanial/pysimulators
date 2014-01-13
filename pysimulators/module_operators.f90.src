@@ -3,11 +3,64 @@ module operators
     use module_pointingmatrix
     implicit none
 
+contains
+
+    ! <itype=4,4,8,8>
+    ! <mtype=4,8,4,8>
+
+    subroutine fsr_kernel_i<itype>_m<mtype>(matrix, kernel, ncolmax, m, n)
+        integer, parameter          :: s = <itype> + <mtype>
+        integer*8, intent(in)       :: ncolmax
+        integer*8, intent(in)       :: m
+        integer*8, intent(in)       :: n
+        !f2py integer*1, intent(in) :: matrix(ncolmax*m*s)
+        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
+            matrix(ncolmax, m)
+        logical(1), intent(inout)   :: kernel(0:n-1)
+        integer*<itype> :: col
+        integer*8 :: i, j        
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0 .or. matrix(j,i)%value == 0) cycle
+                kernel(col) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_rot3d_kernel_i<itype>_m<mtype>(matrix, kernel, ncolmax, m, n)
+        integer, parameter          :: s = <itype> + 3 * <mtype>
+        integer*8, intent(in)       :: ncolmax
+        integer*8, intent(in)       :: m
+        integer*8, intent(in)       :: n
+        !f2py integer*1, intent(in) :: matrix(ncolmax*m*s)
+        type(PointingElementRot3d_i<itype>_m<mtype>), intent(in) ::            &
+            matrix(ncolmax, m)
+        logical(1), intent(inout)   :: kernel(0:n-1)
+        integer*<itype> :: col
+        integer*8 :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0 .or. matrix(j,i)%r11 == 0) cycle
+                kernel(col) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
     ! <itype=4,4,4,8,8,8>
     ! <mtype=4,4,8,4,4,8>
     ! <vtype=4,8,8,4,8,8>
-
-contains
 
     subroutine fsr_pT1_i<itype>_m<mtype>_v<vtype>(matrix, pT1, ncolmax, ninput,&
                                     noutput)

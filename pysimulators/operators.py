@@ -729,6 +729,58 @@ class ProjectionOperator(SparseOperator):
             raise TypeError('The input sparse matrix type is invalid.')
         SparseOperator.__init__(self, arg, **keywords)
 
+    def canonical_basis_in_kernel(self, out=None,
+                                  operation=operation_assignment):
+        """
+        Return a boolean array whose values are True if the component of
+        the canonical basis is in the operator's kernel.
+
+        """
+        data = self.matrix.data
+        shape = self.shapein
+        if isinstance(self.matrix, FSRRotation3dMatrix):
+            shape = shape[:-1]
+        if out is None:
+            if operation is not operation_assignment:
+                raise ValueError(
+                    'The array for inplace operation is not specified')
+            out = empty(shape, bool)
+        elif out.dtype != bool:
+            raise TypeError("The keyword 'out' has an invalid type.")
+        elif out.shape != shape:
+            raise ValueError("The keyword 'out' has an incompatible shape.")
+        if data.size == 0:
+            operation(out, True)
+            return out
+
+        i, m = [str(_.dtype.itemsize) for _ in (data.index, self.matrix)]
+        f = 'fsr{0}_kernel_i{1}_m{2}'.format(
+            '' if isinstance(self.matrix, FSRMatrix) else '_rot3d', i, m)
+        n = product(shape)
+        if hasattr(flib.operators, f):
+            if operation in (operation_assignment, operator.iand,
+                             operator.imul):
+                if operation is operation_assignment:
+                    out[...] = True
+                kernel = out
+            else:
+                kernel = np.ones_like(out)
+
+            func = getattr(flib.operators, f)
+            func(data.view(np.int8).ravel(), kernel.view(np.int8).ravel(),
+                 self.matrix.ncolmax, data.shape[0])
+            if operation in (operation_assignment, operator.iand,
+                             operator.imul):
+                return out
+        else:
+            if isinstance(self.matrix, FSRMatrix):
+                indices = data.index[data.value != 0]
+            else:
+                indices = data.index[data.r11 != 0]
+            kernel = np.histogram(indices, n, range=(0, n))[0] == 0
+        operation(out, kernel)
+        return out
+
     def pT1(self, out=None, operation=operation_assignment):
         """
         Return the transpose of the projection over one. In other words,
