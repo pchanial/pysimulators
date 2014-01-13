@@ -254,6 +254,62 @@ def test_power_law():
         yield func2, cls
 
 
+def test_projection_fsr_kernel():
+    expected = [False, False, True, False, True]
+
+    def get_projection(itype, ftype):
+        index1 = [2, 2, 2, 1, 2, -1]
+        index2 = [-1, 3, 1, 1, 0, -1]
+        value1 = [0, 0, 0, 1, 0, 10]
+        value2 = [1, 2, 0.5, 1, 1, 10]
+        dtype = [('index', itype), ('value', ftype)]
+        data = np.recarray((6, 2), dtype=dtype)
+        data[..., 0].index, data[..., 1].index = index1, index2
+        data[..., 0].value, data[..., 1].value = value1, value2
+        return ProjectionOperator(FSRMatrix((6, 5), data))
+
+    def get_projection_rot3d(itype, ftype):
+        index1 = [2, 1, 3, 1, 2, -1]
+        index2 = [-1, 3, 1, 3, 0, -1]
+        r111 = [0, 1, 0.5, 0, 0, 10]
+        r112 = [1, 2, 0, 1, 1, 10]
+        r221 = [0, 0, 1, 0, 0, 1]
+        r222 = [1, 1, 1, 1, 1, 1]
+        r321 = [0, 0, 1, 1, 0, 1]
+        r322 = [1, 1, 0, 1, 1, 1]
+        dtype = [('index', itype), ('r11', ftype), ('r22', ftype), ('r32', ftype)]
+        data = np.recarray((6, 2), dtype=dtype)
+        data[..., 0].index, data[..., 1].index = index1, index2
+        data[..., 0].r11, data[..., 1].r11 = r111, r112
+        data[..., 0].r22, data[..., 1].r22 = r221, r222
+        data[..., 0].r32, data[..., 1].r32 = r321, r322
+        return ProjectionOperator(FSRRotation3dMatrix((3 * 6, 3 * 5), data))
+
+    def func(cls, itype, ftype):
+        if cls is FSRMatrix:
+            proj = get_projection(itype, ftype)
+        else:
+            proj = get_projection_rot3d(itype, ftype)
+        actual = proj.canonical_basis_in_kernel()
+        assert_equal(actual, expected)
+        out = np.empty(5, bool)
+        actual = proj.canonical_basis_in_kernel(out=out)
+        assert_equal(actual, expected)
+        kernel0 = [True, True, True, False, False]
+        out = np.array(kernel0)
+        proj.canonical_basis_in_kernel(out=out, operation=operator.iand)
+        assert_equal(out, np.array(kernel0) & expected)
+        kernel0 = [False, True, False, False, True]
+        out = np.array(kernel0)
+        proj.canonical_basis_in_kernel(out=out, operation=operator.ior)
+        assert_equal(out, np.array(kernel0) | expected)
+
+    for cls in (FSRMatrix, FSRRotation3dMatrix):
+        for itype in itypes:
+            for ftype in ftypes:
+                yield func, cls, itype, ftype
+
+
 def test_projection_fsr_pT1():
     index1 = [3, 2, 2, 1, 2, -1]
     index2 = [-1, 3, 1, 1, 0, -1]
