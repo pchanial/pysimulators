@@ -885,6 +885,38 @@ class ProjectionOperator(SparseOperator):
                  pTx.ravel(), pT1.ravel(), self.matrix.ncolmax)
         return pTx, pT1
 
+    def restrict(self, mask, n=None):
+        """
+        Restrict the projection to a subspace defined by a mask
+        (True means that the element is kept). Indices are renumbered in-place.
+
+        """
+        idtype = self.matrix.data.index.dtype
+        mask = np.asarray(mask)
+        expected = self.shapein[:-1] \
+                   if isinstance(self.matrix, FSRRotation3dMatrix) \
+                   else self.shapein
+        if mask.shape != expected:
+            raise ValueError("Invalid shape '{}'. Expected value is '{}'.".
+                             format(mask.shape, expected))
+        if mask.dtype == bool:
+            if n is None:
+                n = np.sum(mask)
+            new_index = empty(mask.shape, idtype)
+            new_index[...] = -1
+            new_index[mask] = np.arange(n, dtype=idtype)
+        elif n is None:
+            raise ValueError('The size of the restriction is not specified.')
+        if isinstance(self.matrix, FSRRotation3dMatrix):
+            shapein = (n, 3)
+        else:
+            shapein = n
+        undef = self.matrix.data.index < 0
+        self.matrix.data.index = new_index[self.matrix.data.index]
+        self.matrix.data.index[undef] = -1
+        self.matrix.shape = (self.matrix.shape[0], product(shapein))
+        self._reset(shapein=shapein)
+
 
 @orthogonal
 @inplace

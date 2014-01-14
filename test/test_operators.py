@@ -10,8 +10,9 @@ from astropy.time import Time
 from numpy.testing import assert_allclose, assert_equal, assert_raises
 from pyoperators import (
     Operator, Cartesian2SphericalOperator, CompositionOperator,
-    BlockDiagonalOperator, IdentityOperator, MultiplicationOperator,
-    Spherical2CartesianOperator, decorators)
+    BlockDiagonalOperator, IdentityOperator, MaskOperator,
+    MultiplicationOperator, PackOperator, Spherical2CartesianOperator,
+    decorators)
 from pyoperators.utils import all_eq, isscalar, product
 from pyoperators.utils.testing import assert_is_instance, assert_same
 from pysimulators.operators import (
@@ -240,43 +241,44 @@ def test_power_law():
         yield func2, cls
 
 
-def test_projection_fsr_kernel():
+def _get_projection(itype, ftype):
+    index1 = [2, -1, 2, 1, 2, -1]
+    index2 = [-1, 3, 1, 1, 0, -1]
+    value1 = [0, 0, 0, 1, 0, 10]
+    value2 = [1, 2, 0.5, 1, 1, 10]
+    dtype = [('index', itype), ('value', ftype)]
+    data = np.recarray((6, 2), dtype=dtype)
+    data[..., 0].index, data[..., 1].index = index1, index2
+    data[..., 0].value, data[..., 1].value = value1, value2
+    return ProjectionOperator(FSRMatrix((6, 5), data))
+
+
+def _get_projection_rot3d(itype, ftype):
+    index1 = [2, -1, 3, 1, 2, -1]
+    index2 = [-1, 3, 1, 3, 0, -1]
+    r111 = [0, 1, 0.5, 0, 0, 10]
+    r112 = [1, 2, 1, 1, 1, 10]
+    r221 = [0, 0, 1, 0, 0, 1]
+    r222 = [1, 1, 1, 1, 1, 1]
+    r321 = [0, 0, 1, 1, 0, 1]
+    r322 = [1, 1, 0, 1, 1, 1]
+    dtype = [('index', itype), ('r11', ftype), ('r22', ftype), ('r32', ftype)]
+    data = np.recarray((6, 2), dtype=dtype)
+    data[..., 0].index, data[..., 1].index = index1, index2
+    data[..., 0].r11, data[..., 1].r11 = r111, r112
+    data[..., 0].r22, data[..., 1].r22 = r221, r222
+    data[..., 0].r32, data[..., 1].r32 = r321, r322
+    return ProjectionOperator(FSRRotation3dMatrix((3*6, 3*5), data))
+
+
+def test_projection_kernel():
     expected = [False, False, True, False, True]
-
-    def get_projection(itype, ftype):
-        index1 = [2, 2, 2, 1, 2, -1]
-        index2 = [-1, 3, 1, 1, 0, -1]
-        value1 = [0, 0, 0, 1, 0, 10]
-        value2 = [1, 2, 0.5, 1, 1, 10]
-        dtype = [('index', itype), ('value', ftype)]
-        data = np.recarray((6, 2), dtype=dtype)
-        data[..., 0].index, data[..., 1].index = index1, index2
-        data[..., 0].value, data[..., 1].value = value1, value2
-        return ProjectionOperator(FSRMatrix((6, 5), data))
-
-    def get_projection_rot3d(itype, ftype):
-        index1 = [2, 1, 3, 1, 2, -1]
-        index2 = [-1, 3, 1, 3, 0, -1]
-        r111 = [0, 1, 0.5, 0, 0, 10]
-        r112 = [1, 2, 0, 1, 1, 10]
-        r221 = [0, 0, 1, 0, 0, 1]
-        r222 = [1, 1, 1, 1, 1, 1]
-        r321 = [0, 0, 1, 1, 0, 1]
-        r322 = [1, 1, 0, 1, 1, 1]
-        dtype = [('index', itype), ('r11', ftype), ('r22', ftype),
-                 ('r32', ftype)]
-        data = np.recarray((6, 2), dtype=dtype)
-        data[..., 0].index, data[..., 1].index = index1, index2
-        data[..., 0].r11, data[..., 1].r11 = r111, r112
-        data[..., 0].r22, data[..., 1].r22 = r221, r222
-        data[..., 0].r32, data[..., 1].r32 = r321, r322
-        return ProjectionOperator(FSRRotation3dMatrix((3*6, 3*5), data))
 
     def func(cls, itype, ftype):
         if cls is FSRMatrix:
-            proj = get_projection(itype, ftype)
+            proj = _get_projection(itype, ftype)
         else:
-            proj = get_projection_rot3d(itype, ftype)
+            proj = _get_projection_rot3d(itype, ftype)
         actual = proj.canonical_basis_in_kernel()
         assert_equal(actual, expected)
         out = np.empty(5, bool)
@@ -437,6 +439,34 @@ def test_projection_fsr_rot3d_pTx_pT1():
         for ftype in ftypes:
             for vtype in ftypes:
                 yield func, itype, ftype, vtype
+
+
+def test_projection_restrict():
+    restriction = np.array([True, False, False, True, True])
+    kernel = [False, False, True, False, True]
+
+    def func(cls, itype, ftype):
+        if cls is FSRMatrix:
+            get_projection = _get_projection
+        else:
+            get_projection = _get_projection_rot3d
+        proj_ref = get_projection(itype, ftype)
+        proj = get_projection(itype, ftype)
+        proj.restrict(restriction)
+        if cls is not FSRMatrix:
+            def pack(v):
+                return v[restriction, :]
+        else:
+            pack = PackOperator(~restriction)
+        masking = MaskOperator(~restriction, broadcast='rightward')
+        x = np.arange(proj_ref.shape[1]).reshape(proj_ref.shapein) + 1
+        assert_equal(proj_ref(masking(x)), proj(pack(x)))
+        pack = PackOperator(~restriction)
+        assert_equal(pack(kernel), proj.canonical_basis_in_kernel())
+    for cls in (FSRMatrix, FSRRotation3dMatrix):
+        for itype in itypes:
+            for ftype in ftypes:
+                yield func, cls, itype, ftype
 
 
 def test_roll():
