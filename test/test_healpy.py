@@ -265,6 +265,7 @@ def test_healpix_spherical_error():
 
 def test_healpix_convolution():
     nside = 16
+    input = np.arange(12 * nside**2)
     keywords = {
         'fwhm': np.radians(30),
         'iter': 2,
@@ -272,6 +273,10 @@ def test_healpix_convolution():
         'use_weights': True,
         'regression': True,
     }
-    op = HealpixConvolutionGaussianOperator(nside, **keywords)
-    input = np.arange(12 * nside**2)
-    assert_same(op(input), hp.smoothing(input, **keywords))
+    expected = hp.smoothing(input, **keywords)
+
+    op = HealpixConvolutionGaussianOperator(**keywords)
+    assert_same(op(input), expected)
+
+    input = np.array([input, input]).T
+    assert_same(op(input), np.array([expected, expected]).T)
