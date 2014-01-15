@@ -248,13 +248,13 @@ class HealpixConvolutionGaussianOperator(Operator):
     Convolve a Healpix map by a gaussian kernel.
 
     """
-    def __init__(self, nside, fwhm=None, sigma=None, iter=3, lmax=None,
+    def __init__(self, fwhm=None, sigma=None, iter=3, lmax=None,
                  mmax=None, use_weights=False, regression=True, datapath=None,
                  dtype=float, **keywords):
         """
         Keywords are passed to the Healpy function smoothing.
+
         """
-        Operator.__init__(self, shapein=12 * nside**2, dtype=dtype, **keywords)
         self.fwhm = fwhm
         self.sigma = sigma
         self.iter = iter
@@ -263,9 +263,23 @@ class HealpixConvolutionGaussianOperator(Operator):
         self.use_weights = use_weights
         self.regression = regression
         self.datapath = datapath
+        Operator.__init__(self, dtype=dtype, **keywords)
 
     def direct(self, input, output):
-        output[...] = hp.smoothing(
-            input, fwhm=self.fwhm, sigma=self.sigma, iter=self.iter,
-            lmax=self.lmax, mmax=self.mmax, use_weights=self.use_weights,
-            regression=self.regression, datapath=self.datapath)
+        if input.ndim == 1:
+            input = input[:, None]
+            output = output[:, None]
+        for i, o in zip(input.T, output.T):
+            o[...] = hp.smoothing(
+                i, fwhm=self.fwhm, sigma=self.sigma, iter=self.iter,
+                lmax=self.lmax, mmax=self.mmax, use_weights=self.use_weights,
+                regression=self.regression, datapath=self.datapath)
+
+    def validatein(self, shape):
+        if len(shape) == 0 or len(shape) > 2:
+            raise ValueError('Invalid number of dimensions.')
+        nside = int(np.round(np.sqrt(shape[0] / 12)))
+        if 12 * nside**2 != shape[0]:
+            raise ValueError(
+                'The nside value cannot be inferred from the input number of p'
+                "ixels '{0}'.".format(shape[0]))
