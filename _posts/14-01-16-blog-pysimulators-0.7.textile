@@ -1,0 +1,46 @@
+---
+layout: post
+title: PySimulators 0.7
+excerpt: Release of PySimulators 0.7
+category: blog
+---
+
+What's new ?
+* New Operators for coordinate conversions:
+    - CartesianEquatorial2GalacticOperator
+    - CartesianGalactic2EquatorialOperator
+    - CartesianEquatorial2HorizontalOperator
+    - CartesianHorizontal2EquatorialOperator
+    - SphericalEquatorial2GalacticOperator
+    - SphericalGalactic2EquatorialOperator
+    - SphericalEquatorial2HorizontalOperator
+    - SphericalHorizontal2EquatorialOperator
+* New interface to healpy, with operators:
+    - Healpix2CartesianOperator
+    - Cartesian2HealpixOperator
+    - Healpix2SphericalOperator
+    - Spherical2HealpixOperator
+    - HealpixConvolutionGaussianOperator
+* New sparse storages:
+    - fsc (fixed size sparse column)
+    - fsr (fixed size sparse row)
+    - fsc_rotation3d (fsc for polarized data)
+    - fsr_rotation3d (fsr for polarized data)
+* Implement ProjectionOperator (as a SparseOperator subclass), using sparse matrix types FSRMatrix and FSRRotation3dMatrix. This class will supersede ProjectionInMemoryOperator and ProjectionOnFlyOperator. Implemented methods are:
+    - canonical_basis_in_kernel
+    - restrict
+    - pT1
+    - pTx_pT1
+* In Layout
+    - allow unpacked special attributes to be set
+    - expose attribute spacing, layout_center, layout_angle, layout_xreflection, layout_yreflection
+    - remove autoscale keyword in plot method. Make sure transform has no side effects
+* Make Pointing a general purpose class. Add PointingEquatorial, PointingScanEquatorial and PointingHorizontal
+
+Under the hood:
+* Make MADmap1 a package inside directory interfaces
+* Lazy loading of interface modules
+* In Layout
+    - use vertices to compute centers
+    - enforce attribute 'removed' to be an array of the layout's shape
+* Make PySimulators compatible with gfortran 4.5
