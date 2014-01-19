@@ -1,45 +1,16 @@
 #!/usr/bin/env python
 import numpy as np
 import os
-import re
 import sys
-import subprocess
 
 from distutils.util import get_platform
-from numpy.distutils.core import setup, Command
-from numpy.distutils.command.build_ext import build_ext
+from numpy.distutils.core import setup
 from numpy.distutils.misc_util import Configuration
-from subprocess import Popen, PIPE
+from hooks import get_cmdclass, get_version
 
 VERSION = '0.7'
 
-
-def version_sdist():
-    stdout, stderr = Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                           stdout=PIPE, stderr=PIPE).communicate()
-    if stderr:
-        return VERSION
-    branch = stdout[:-1]
-    if re.search('^v[0-9]', branch) is not None:
-        branch = branch[1:]
-    if branch != 'master':
-        return VERSION
-    stdout, stderr = Popen(['git', 'rev-parse', '--verify', '--short', 'HEAD'],
-                           stdout=PIPE, stderr=PIPE).communicate()
-    if stderr:
-        return VERSION
-    return VERSION + '-' + stdout[:-1]
-
-version = version_sdist()
-if 'install' in sys.argv[1:]:
-    if '-' in version:
-        version = VERSION + '-dev'
-
-if any(c in sys.argv[1:] for c in ('install', 'sdist')):
-    init = open('pysimulators/__init__.py.in').readlines()
-    init += ['\n', '__version__ = ' + repr(version) + '\n']
-    open('pysimulators/__init__.py', 'w').writelines(init)
-
+name = 'pysimulators'
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
@@ -49,40 +20,10 @@ if any(c in sys.argv for c in ('build', 'build_ext', 'config', 'install')):
                  "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp "
                  "-fpack-derived'"]
 
-if 'coverage' in sys.argv:
-    index = sys.argv.index('coverage') + 1
-    coverage_extra = sys.argv[index:]
-    sys.argv = sys.argv[:index]
-
-# write f2py's type mapping file
-with open(os.path.join(os.path.dirname(__file__), '.f2py_f2cmap'), 'w') as f:
-    f.write("{'real':{'p':'double'}, 'complex':{'p':'complex_double'}}\n")
-
-
-class NewCommand(Command):
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-
-class CoverageCommand(NewCommand):
-    description = "run the package coverage"
-
-    def run(self):
-        subprocess.call(['nosetests', '--with-coverage', '--cover-package',
-                         'pysimulators'] + coverage_extra)
-        subprocess.call(['coverage', 'html'])
-
-
-class TestCommand(NewCommand):
-    description = "run the test suite"
-
-    def run(self):
-        subprocess.call(['nosetests', 'test'])
+    # write f2py's type mapping file
+    root = os.path.dirname(__file__)
+    with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
+        f.write("{'real':{'p':'double'}, 'complex':{'p':'complex_double'}}\n")
 
 
 def configuration(parent_package='', top_path=None):
@@ -114,8 +55,8 @@ def configuration(parent_package='', top_path=None):
 
 
 setup(configuration=configuration,
-      name='pysimulators',
-      version=version,
+      name=name,
+      version=get_version(name, VERSION),
       description='Tools to build an instrument model.',
       long_description=long_description,
       url='http://pchanial.github.com/pysimulators',
@@ -130,9 +71,7 @@ setup(configuration=configuration,
                 'pysimulators/interfaces/madmap1'],
       platforms=platforms.split(','),
       keywords=keywords.split(','),
-      cmdclass={'build_ext': build_ext,
-                'coverage': CoverageCommand,
-                'test': TestCommand},
+      cmdclass=get_cmdclass(),
       license='CeCILL-B',
       classifiers=[
           'Programming Language :: Python',
