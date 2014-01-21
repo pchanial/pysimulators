@@ -57,7 +57,7 @@ class _FSMatrix(object):
             raise ValueError(
                 "The n{0}max keyword value '{1}' is incompatible with the shap"
                 "e of the structured array '{2}'.".format(
-                straxes[0][:3], n, data.shape))
+                    straxes[0][:3], n, data.shape))
         elif any(data[name].dtype != data[dtype_names[0]].dtype
                  for name in dtype_names):
             raise TypeError(
