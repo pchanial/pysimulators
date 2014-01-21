@@ -22,7 +22,8 @@ __all__ = []
 
 class _FSMatrix(object):
     def __init__(self, shape, sparse_axis, n, data=None, dtype=None,
-                 dtype_index=None, dtype_names=('value',), block_size=1):
+                 dtype_index=None, dtype_names=('value',), block_size=1,
+                 verbose=False):
         if not isinstance(shape, tuple):
             raise TypeError("Invalid shape '{0}'.".format(shape))
         if len(shape) != 2:
@@ -41,7 +42,7 @@ class _FSMatrix(object):
                 dtype_index = int
             dtype_data = [('index', dtype_index)] + [(name, dtype)
                                                      for name in dtype_names]
-            data = empty(shape_data, dtype_data, verbose=True).view(
+            data = empty(shape_data, dtype_data, verbose=verbose).view(
                 np.recarray)
         elif data.dtype.names != ('index',) + dtype_names:
             raise TypeError('The fields of the structured array are invalid.')
@@ -102,9 +103,9 @@ class FSCMatrix(_FSMatrix):
 
     """
     def __init__(self, shape, data=None, nrowmax=None, dtype=None,
-                 dtype_index=None):
+                 dtype_index=None, verbose=False):
         _FSMatrix.__init__(self, shape, 0, nrowmax, data=data, dtype=dtype,
-                           dtype_index=dtype_index)
+                           dtype_index=dtype_index, verbose=verbose)
 
     def _matvec(self, v, out=None):
         v = np.asarray(v).ravel()
@@ -175,9 +176,9 @@ class FSRMatrix(_FSMatrix):
 
     """
     def __init__(self, shape, data=None, ncolmax=None, dtype=None,
-                 dtype_index=None):
+                 dtype_index=None, verbose=False):
         _FSMatrix.__init__(self, shape, 1, ncolmax, data=data, dtype=dtype,
-                           dtype_index=dtype_index)
+                           dtype_index=dtype_index, verbose=verbose)
 
     def _matvec(self, v, out=None):
         v = np.asarray(v).ravel()
@@ -244,11 +245,11 @@ class FSRMatrix(_FSMatrix):
 
 class _FSRotation3dMatrix(_FSMatrix):
     def __init__(self, shape, sparse_axis, n, data=None, dtype=None,
-                 dtype_index=None):
+                 dtype_index=None, verbose=False):
         _FSMatrix.__init__(
             self, shape, sparse_axis, n, data=data, dtype=dtype,
             dtype_index=dtype_index, dtype_names=('r11', 'r22', 'r32'),
-            block_size=3)
+            block_size=3, verbose=verbose)
 
     def __mul__(self, other):
         if isscalar(other):
@@ -271,9 +272,10 @@ class FSCRotation3dMatrix(_FSRotation3dMatrix):
 
     """
     def __init__(self, shape, data=None, nrowmax=None, dtype=None,
-                 dtype_index=None):
-        _FSRotation3dMatrix.__init__(self, shape, 0, nrowmax, data=data,
-                                     dtype=dtype, dtype_index=dtype_index)
+                 dtype_index=None, verbose=False):
+        _FSRotation3dMatrix.__init__(
+            self, shape, 0, nrowmax, data=data, dtype=dtype,
+            dtype_index=dtype_index, verbose=verbose)
 
     def _matvec(self, v, out=None):
         v = np.asarray(v).reshape((-1, 3))
@@ -344,9 +346,10 @@ class FSRRotation3dMatrix(_FSRotation3dMatrix):
 
     """
     def __init__(self, shape, data=None, ncolmax=None, dtype=None,
-                 dtype_index=None):
-        _FSRotation3dMatrix.__init__(self, shape, 1, ncolmax, data=data,
-                                     dtype=dtype, dtype_index=dtype_index)
+                 dtype_index=None, verbose=False):
+        _FSRotation3dMatrix.__init__(
+            self, shape, 1, ncolmax, data=data, dtype=dtype,
+            dtype_index=dtype_index, verbose=verbose)
 
     def _matvec(self, v, out=None):
         v = np.asarray(v).reshape((-1, 3))
