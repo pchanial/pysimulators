@@ -5,7 +5,10 @@ import scipy.fftpack
 import scipy.signal
 import scipy.special
 
-from matplotlib import pyplot as mp
+try:
+    from matplotlib import pyplot as mp
+except ImportError:
+    pass
 from pyoperators import FFTOperator
 from pyoperators.utils import isscalar, product
 from . import _flib as flib
