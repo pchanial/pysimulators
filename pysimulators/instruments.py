@@ -1,6 +1,9 @@
 from __future__ import division
 
-from matplotlib import pyplot as mp
+try:
+    from matplotlib import pyplot as mp
+except ImportError:
+    pass
 from pyoperators import I, asoperator
 from pyoperators.utils.mpi import MPI
 

@@ -5,7 +5,10 @@ try:
 except ImportError:
     km = None
 import numpy as np
-import matplotlib.pyplot as mp
+try:
+    import matplotlib.pyplot as mp
+except ImportError:
+    pass
 from astropy.time import Time
 from pyoperators import (
     DifferenceOperator, NormalizeOperator, RadiansOperator,
