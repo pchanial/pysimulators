@@ -17,8 +17,11 @@ try:
     import kapteyn.maputils as km
 except ImportError:
     km = None
-import matplotlib
-import matplotlib.pyplot as mp
+try:
+    import matplotlib
+    import matplotlib.pyplot as mp
+except ImportError:
+    pass
 import numpy as np
 import os
 import pickle
