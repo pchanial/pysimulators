@@ -45,11 +45,11 @@ def test_cartesian_healpix_rules():
     assert_is_type(op.I, Healpix2CartesianOperator)
     assert_equal(op.I.nside, op.nside)
     assert_is_type(
-        Cartesian2HealpixOperator(NSIDE) * Healpix2CartesianOperator(2 * NSIDE),
+        Cartesian2HealpixOperator(NSIDE)(Healpix2CartesianOperator(2 * NSIDE)),
         CompositionOperator,
     )
     assert_is_type(
-        Cartesian2HealpixOperator(NSIDE) * Healpix2CartesianOperator(NSIDE),
+        Cartesian2HealpixOperator(NSIDE)(Healpix2CartesianOperator(NSIDE)),
         IdentityOperator,
     )
 
@@ -91,11 +91,11 @@ def test_healpix_cartesian_rules():
     assert_is_type(op.I, Cartesian2HealpixOperator)
     assert_equal(op.I.nside, op.nside)
     assert_is_type(
-        Healpix2CartesianOperator(NSIDE) * Cartesian2HealpixOperator(2 * NSIDE),
+        Healpix2CartesianOperator(NSIDE)(Cartesian2HealpixOperator(2 * NSIDE)),
         CompositionOperator,
     )
     assert_is_type(
-        Healpix2CartesianOperator(NSIDE) * Cartesian2HealpixOperator(NSIDE),
+        Healpix2CartesianOperator(NSIDE)(Cartesian2HealpixOperator(NSIDE)),
         IdentityOperator,
     )
 
@@ -180,9 +180,9 @@ def test_spherical_healpix_rules():
     def func(op, nside, c, nest):
         op2 = Healpix2SphericalOperator(nside, c, nest=nest)
         if c == op.convention and nside == op.nside and nest == op.nest:
-            assert_is_type(op * op2, IdentityOperator)
+            assert_is_type(op(op2), IdentityOperator)
         else:
-            assert_is_type(op * op2, CompositionOperator)
+            assert_is_type(op(op2), CompositionOperator)
 
     for c in Spherical2HealpixOperator.CONVENTIONS:
         op = Spherical2HealpixOperator(NSIDE, c, nest=True)
@@ -232,9 +232,9 @@ def test_healpix_spherical_rules():
     def func(op, nside, c, nest):
         op2 = Spherical2HealpixOperator(nside, c, nest=nest)
         if c == op.convention and nside == op.nside and nest == op.nest:
-            assert_is_type(op * op2, IdentityOperator)
+            assert_is_type(op(op2), IdentityOperator)
         else:
-            assert_is_type(op * op2, CompositionOperator)
+            assert_is_type(op(op2), CompositionOperator)
 
     for c in Healpix2SphericalOperator.CONVENTIONS:
         op = Healpix2SphericalOperator(NSIDE, c, nest=True)

@@ -17,7 +17,7 @@ except ImportError:
 import astropy.wcs
 from pyoperators import Operator
 from pyoperators.decorators import real, square, inplace
-from pyoperators.utils import isscalar, operation_assignment
+from pyoperators.utils import isscalarlike, operation_assignment
 from . import _flib as flib
 
 __all__ = [
@@ -272,7 +272,7 @@ def create_fitsheader(
         if cdelt is None:
             return header
         cdelt = np.array(cdelt, float)
-        if isscalar(cdelt):
+        if isscalarlike(cdelt):
             if (
                 ctype is None
                 or len(ctype) == 2
@@ -304,7 +304,7 @@ def create_fitsheader(
     if ctype.size != 2:
         raise ValueError('CTYPE does not have two elements.')
 
-    if isscalar(cunit):
+    if isscalarlike(cunit):
         cunit = (cunit, cunit)
     cunit = np.asarray(cunit, dtype=np.string_)
     if cunit.size != 2:
