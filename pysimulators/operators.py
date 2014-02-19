@@ -11,14 +11,13 @@ import scipy.constants
 from pyoperators import (
     Operator, BlockDiagonalOperator, Cartesian2SphericalOperator,
     CompositionOperator, ConstantOperator, DenseOperator,
-    DenseBlockColumnOperator, DenseBlockDiagonalOperator,
-    DiagonalOperator, DiagonalNumexprOperator, HomothetyOperator,
-    MultiplicationOperator, Spherical2CartesianOperator)
-from pyoperators.core import DenseBase
+    DenseBlockDiagonalOperator, DiagonalOperator, DiagonalNumexprOperator,
+    HomothetyOperator, MultiplicationOperator, Spherical2CartesianOperator)
 from pyoperators.decorators import linear, orthogonal, real, inplace
 from pyoperators.memory import empty, ones, zeros
 from pyoperators.utils import (
-    float_dtype, isscalar, operation_assignment, product, strenum, tointtuple)
+    float_dtype, isscalarlike, operation_assignment, product, strenum,
+    tointtuple)
 
 from . import _flib as flib
 from .datatypes import FitsArray, Map
@@ -119,9 +118,9 @@ def block_diagonal(*partition_args, **keywords):
             class_args.pop(0)
 
             # get number of blocks through the arguments
-            ns = [0 if isscalar(a) else len(a) for i, a in enumerate(args)
+            ns = [0 if isscalarlike(a) else len(a) for i, a in enumerate(args)
                   if class_args[i] in partition_args] + \
-                 [0 if isscalar(v) else len(v) for k, v in keywords.items()
+                 [0 if isscalarlike(v) else len(v) for k, v in keywords.items()
                   if k in partition_args]
 
             n2 = 0 if len(ns) == 0 else max(ns)
@@ -151,10 +150,12 @@ def block_diagonal(*partition_args, **keywords):
             # dispatch arguments
             n = len(partitionin)
             argss = tuple(tuple(a[i] if class_args[j] in partition_args and
-                          not isscalar(a) else a for j, a in enumerate(args))
+                                not isscalarlike(a) else a
+                                for j, a in enumerate(args))
                           for i in range(n))
-            keyss = tuple(dict((k, v[i]) if k in partition_args and not
-                          isscalar(v) else (k, v) for k, v in keywords.items())
+            keyss = tuple(dict((k, v[i]) if k in partition_args and
+                               not isscalarlike(v) else (k, v)
+                               for k, v in keywords.items())
                           for i in range(n))
 
             # the input shapein/out describe the BlockDiagonalOperator
@@ -315,15 +316,15 @@ class PowerLawOperator(DiagonalNumexprOperator):
 
     """
     def __init__(self, alpha, x, x0, scalar=1, **keywords):
+        alpha = np.asarray(alpha, float)
+        if alpha.ndim > 0:
+            keywords['shapein'] = alpha.shape
         x = np.asarray(x, float)
         if x.ndim != 0:
             raise TypeError('The input is not a scalar.')
         x0 = np.asarray(x0, float)
         if x0.ndim != 0:
             raise TypeError('The reference input is not a scalar.')
-        alpha = np.asarray(alpha, float)
-        if alpha.ndim > 0:
-            keywords['shapein'] = alpha.shape
         scalar = np.asarray(scalar, float)
         if scalar.ndim != 0:
             raise TypeError('The scalar coefficient is not a scalar.')
@@ -332,14 +333,14 @@ class PowerLawOperator(DiagonalNumexprOperator):
         global_dict = {'x': x, 'x0': x0, 's': scalar}
         DiagonalNumexprOperator.__init__(self, alpha, 's * (x / x0) ** alpha',
                                          global_dict, var='alpha', **keywords)
+        self.alpha = alpha
         self.x = x
         self.x0 = x0
         self.scalar = scalar
-        self.set_rule((HomothetyOperator, '.'), lambda o, s: PowerLawOperator(
-                      alpha, x, x0, o.data * s.scalar), CompositionOperator)
-        self.set_rule(('.', ConstantOperator), lambda s, o: PowerLawOperator(
-                      alpha, x, x0, o.data * s.scalar) if o.broadcast ==
-                      'scalar' else None, MultiplicationOperator)
+        self.set_rule((HomothetyOperator, '.'),
+                      lambda o, s: PowerLawOperator(
+                          s.alpha, s.x, s.x0, o.data * s.scalar),
+                      CompositionOperator)
 
     @staticmethod
     def _rule_block(self, op, shape, partition, axis, new_axis,
@@ -347,6 +348,11 @@ class PowerLawOperator(DiagonalNumexprOperator):
         return DiagonalOperator._rule_block(
             self, op, shape, partition, axis, new_axis, func_operation,
             self.x, self.x0, scalar=self.scalar)
+
+    def __str__(self):
+        return u'powerlaw(..., \u03B1={0}, x/x0={1})'\
+            .encode('utf-8') \
+            .format(self.alpha, self.x / self.x0)
 
 
 class PointingMatrix(FitsArray):
@@ -924,9 +930,9 @@ class RollOperator(Operator):
     def __init__(self, n, axis=None, **keywords):
         Operator.__init__(self, **keywords)
         if axis is None:
-            axis = -1 if isscalar(n) else range(-len(n), 0)
-        self.axis = (axis,) if isscalar(axis) else tuple(axis)
-        self.n = (n,) * len(self.axis) if isscalar(n) else tuple(n)
+            axis = -1 if isscalarlike(n) else range(-len(n), 0)
+        self.axis = (axis,) if isscalarlike(axis) else tuple(axis)
+        self.n = (n,) * len(self.axis) if isscalarlike(n) else tuple(n)
         if len(self.axis) != len(self.n):
             raise ValueError('There is a mismatch between the number of axes a'
                              'nd offsets.')
@@ -984,7 +990,7 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
     """
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e.T, **keywords)
-        self.set_rule('I', lambda s: CartesianGalactic2EquatorialOperator())
+        self.set_rule('T', lambda s: CartesianGalactic2EquatorialOperator())
         self.set_rule(('.', CartesianGalactic2EquatorialOperator), '1',
                       CompositionOperator)
 
@@ -1024,14 +1030,14 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     """
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
-        self.set_rule('I', lambda s: CartesianEquatorial2GalacticOperator())
+        self.set_rule('T', lambda s: CartesianEquatorial2GalacticOperator())
         self.set_rule(('.', CartesianEquatorial2GalacticOperator), '1',
                       CompositionOperator)
 
 
-class _CartesianEquatorialHorizontal(DenseBase):
+class _CartesianEquatorialHorizontal(DenseBlockDiagonalOperator):
     def __init__(self, convention, time, latitude, longitude, transpose,
-                 block_column=False, dtype=None, **keywords):
+                 dtype=None, **keywords):
         conventions = ('NE',)  # 'SW', 'SE')
         if convention not in conventions:
             raise ValueError(
@@ -1059,12 +1065,9 @@ class _CartesianEquatorialHorizontal(DenseBase):
         m[..., 2, 2] = slat
         if transpose:
             m = m.swapaxes(-1, -2)
-        keywords['flags'] = self.validate_flags(
-            keywords.get('flags', {}),
-            orthogonal=m.ndim == 2 or not block_column)
-        self.__class__ = DenseBlockColumnOperator if block_column else \
-            DenseBlockDiagonalOperator
-        self.__init__(m, **keywords)
+        keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
+                                                orthogonal=True)
+        DenseBlockDiagonalOperator.__init__(self, m, **keywords)
 
     @staticmethod
     def _jd2gst(jd):
@@ -1132,12 +1135,6 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
         longitude : array-like
             The observation's longitude counted positively eastward,
             in degrees.
-        block_column : boolean
-            If more than one observer's time, latitude or longitude is
-            specified, the operator can behave like a block column operator
-            (the output has extra dimensions) if this keyword is set or a
-            block diagonal operator (input and output have the same dimensions)
-            otherwise.
 
         """
         _CartesianEquatorialHorizontal.__init__(
@@ -1183,12 +1180,6 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
         longitude : array-like
             The observation's longitude counted positively eastward,
             in degrees.
-        block_column : boolean
-            If more than one observer's time, latitude or longitude is
-            specified, the operator can behave like a block column operator
-            (the output has extra dimensions) if this keyword is set or a
-            block diagonal operator (input and output have the same dimensions)
-            otherwise.
 
         """
         _CartesianEquatorialHorizontal.__init__(
@@ -1336,8 +1327,7 @@ class SphericalEquatorial2HorizontalOperator(CompositionOperator):
     """
     def __init__(self, convention_horizontal, time, latitude, longitude,
                  conventionin='azimuth,elevation',
-                 conventionout='azimuth,elevation', degrees=False,
-                 block_column=False, **keywords):
+                 conventionout='azimuth,elevation', degrees=False, **keywords):
         """
         convention_horizontal : 'NE', 'SW', 'SE'
             The azimuth angle convention:
@@ -1361,19 +1351,12 @@ class SphericalEquatorial2HorizontalOperator(CompositionOperator):
             angles.
         degrees : boolean, optional
             If true, the angle units are degrees (radians otherwise).
-        block_column : boolean
-            If more than one observer's time, latitude or longitude is
-            specified, the operator can behave like a block column operator
-            (the output has extra dimensions) if this keyword is set or a
-            block diagonal operator (input and output have the same dimensions)
-            otherwise.
 
         """
         operands = [
             Cartesian2SphericalOperator(conventionout, degrees=degrees),
             CartesianEquatorial2HorizontalOperator(
-                convention_horizontal, time, latitude, longitude,
-                block_column=block_column),
+                convention_horizontal, time, latitude, longitude),
             Spherical2CartesianOperator(conventionin, degrees=degrees)]
         CompositionOperator.__init__(self, operands, **keywords)
 
@@ -1406,8 +1389,7 @@ class SphericalHorizontal2EquatorialOperator(CompositionOperator):
     """
     def __init__(self, convention_horizontal, time, latitude, longitude,
                  conventionin='azimuth,elevation',
-                 conventionout='azimuth,elevation', degrees=False,
-                 block_column=False, **keywords):
+                 conventionout='azimuth,elevation', degrees=False, **keywords):
         """
         convention_horizontal : 'NE', 'SW', 'SE'
             The azimuth angle convention:
@@ -1431,18 +1413,11 @@ class SphericalHorizontal2EquatorialOperator(CompositionOperator):
             angles.
         degrees : boolean, optional
             If true, the angle units are degrees (radians otherwise).
-        block_column : boolean
-            If more than one observer's time, latitude or longitude is
-            specified, the operator can behave like a block column operator
-            (the output has extra dimensions) if this keyword is set or a
-            block diagonal operator (input and output have the same dimensions)
-            otherwise.
 
         """
         operands = [
             Cartesian2SphericalOperator(conventionout, degrees=degrees),
             CartesianHorizontal2EquatorialOperator(
-                convention_horizontal, time, latitude, longitude,
-                block_column=block_column),
+                convention_horizontal, time, latitude, longitude),
             Spherical2CartesianOperator(conventionin, degrees=degrees)]
         CompositionOperator.__init__(self, operands, **keywords)
