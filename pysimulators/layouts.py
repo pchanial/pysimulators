@@ -5,7 +5,7 @@ try:
 except:  # pragma: no coverage
     pass
 import numpy as np
-from pyoperators.utils import isalias, isscalar, product, strenum, tointtuple
+from pyoperators.utils import isalias, isscalarlike, product, strenum, tointtuple
 
 from .geometry import create_circle, create_grid, create_grid_squares
 from .quantities import Quantity
@@ -122,7 +122,7 @@ class Layout(object):
         """
         shape = tointtuple(shape)
         removed = np.array(removed, dtype=bool)
-        if isscalar(removed):
+        if isscalarlike(removed):
             removed = np.lib.stride_tricks.as_strided(removed, shape, len(shape) * (0,))
         elif removed.shape != shape:
             raise ValueError('Invalid shape of the removed attribute.')
@@ -215,7 +215,7 @@ class Layout(object):
             pvalue = None
         else:
             value = np.asanyarray(value)
-            if isscalar(value):
+            if isscalarlike(value):
                 pvalue = value
             elif value.shape[: self.ndim] != self.shape:
                 raise ValueError(
@@ -253,7 +253,7 @@ class Layout(object):
             uvalue = None
         else:
             value = np.asanyarray(value)
-            if isscalar(value):
+            if isscalarlike(value):
                 uvalue = value
             elif value.shape[0] != len(self.packed):
                 raise ValueError(
@@ -467,7 +467,7 @@ class _Packed(object):
     """Class used to store unpacked characteristics of the layout."""
 
     def __init__(self, unpacked):
-        if isscalar(unpacked.removed) and not unpacked.removed:
+        if isscalarlike(unpacked.removed) and not unpacked.removed:
             self._len = len(unpacked)
         else:
             self._len = int(np.sum(~unpacked.removed))

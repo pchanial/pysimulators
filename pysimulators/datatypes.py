@@ -43,7 +43,7 @@ try:
     from pyoperators.memory import empty
 except ImportError:
     from pyoperators.memory import allocate as empty
-from pyoperators.utils import isscalar
+from pyoperators.utils import isscalarlike
 from pyoperators.utils.mpi import MPI
 
 from .mpiutils import read_fits, write_fits
@@ -404,7 +404,7 @@ class FitsArray(Quantity):
             data = abs(self.magnitude)
         else:
             data = self.magnitude.copy()
-        if isscalar(percentile):
+        if isscalarlike(percentile):
             percentile = percentile / 2, 100 - percentile / 2
         unfinite = ~np.isfinite(self.magnitude)
         if mask is None:
@@ -882,7 +882,7 @@ class Map(FitsArray):
             data = abs(self.magnitude)
         else:
             data = self.magnitude.copy()
-        if isscalar(percentile):
+        if isscalarlike(percentile):
             percentile = percentile / 2, 100 - percentile / 2
         unfinite = ~np.isfinite(self.magnitude)
         if mask is None:

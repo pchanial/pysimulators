@@ -15,7 +15,7 @@ from pyoperators import (
 from pyoperators.memory import empty
 from pyoperators.utils import (
     ifirst,
-    isscalar,
+    isscalarlike,
     product,
     strelapsed,
     strenum,
@@ -1100,12 +1100,12 @@ class MaskPolicy(object):
 
     def __init__(self, flags, values, description=None):
         self._description = description
-        if isscalar(flags):
+        if isscalarlike(flags):
             if isinstance(flags, str):
                 flags = flags.split(',')
             else:
                 flags = (flags,)
-        if isscalar(values):
+        if isscalarlike(values):
             if isinstance(values, str):
                 values = values.split(',')
             else:

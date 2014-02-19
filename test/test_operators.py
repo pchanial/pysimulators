@@ -20,7 +20,7 @@ from pyoperators import (
     Spherical2CartesianOperator,
     decorators,
 )
-from pyoperators.utils import all_eq, isscalar, product
+from pyoperators.utils import all_eq, isscalarlike, product
 from pyoperators.utils.testing import assert_is_instance, assert_same
 from pysimulators.operators import (
     BlackBodyOperator,
@@ -79,23 +79,23 @@ def test_partitioning_chunk():
     arg3 = ['a', 'b', 'c', 'd']
 
     def func(cls, n, v, k):
-        n1 = 1 if isscalar(v) else len(v)
-        n2 = 1 if isscalar(k) else len(k)
-        nn = max(n1, n2) if n is None else 1 if isscalar(n) else len(n)
-        if not isscalar(v) and not isscalar(k) and n1 != n2:
+        n1 = 1 if isscalarlike(v) else len(v)
+        n2 = 1 if isscalarlike(k) else len(k)
+        nn = max(n1, n2) if n is None else 1 if isscalarlike(n) else len(n)
+        if not isscalarlike(v) and not isscalarlike(k) and n1 != n2:
             # the partitioned arguments do not have the same length
             assert_raises(
                 ValueError, lambda: cls(arg1, v, arg3, mykey=k, partitionin=n)
             )
             return
-        if nn != max(n1, n2) and (not isscalar(v) or not isscalar(k)):
+        if nn != max(n1, n2) and (not isscalarlike(v) or not isscalarlike(k)):
             # the partition is incompatible with the partitioned arguments
             return  # XXX test assert_raises(ValueError)
 
         op = cls(arg1, v, arg3, mykey=k, partitionin=n)
         if nn == 1:
-            v = v if isscalar(v) else v[0]
-            k = k if isscalar(k) else k[0]
+            v = v if isscalarlike(v) else v[0]
+            k = k if isscalarlike(k) else k[0]
             func2(cls, op, v, k)
         else:
             assert op.__class__ is BlockDiagonalOperator
@@ -104,8 +104,8 @@ def test_partitioning_chunk():
                 assert op.partitionin == nn * (None,)
                 assert op.partitionout == nn * (None,)
                 return
-            v = nn * [v] if isscalar(v) else v
-            k = nn * [k] if isscalar(k) else k
+            v = nn * [v] if isscalarlike(v) else v
+            k = nn * [k] if isscalarlike(k) else k
             for op_, v_, k_ in zip(op.operands, v, k):
                 func2(cls, op_, v_, k_)
             expected = np.hstack(n_ * [v_] for n_, v_ in zip(n, v))
@@ -167,24 +167,24 @@ def test_partitioning_stack():
     arg3 = ['a', 'b', 'c', 'd']
 
     def func(cls, v, k):
-        n1 = 1 if isscalar(v) else len(v)
-        n2 = 1 if isscalar(k) else len(k)
+        n1 = 1 if isscalarlike(v) else len(v)
+        n2 = 1 if isscalarlike(k) else len(k)
         nn = max(n1, n2)
-        if not isscalar(v) and not isscalar(k) and n1 != n2:
+        if not isscalarlike(v) and not isscalarlike(k) and n1 != n2:
             # the partitioned arguments do not have the same length
             assert_raises(ValueError, lambda: cls(arg1, v, arg3, mykey=k))
             return
 
         op = cls(arg1, v, arg3, mykey=k)
         if nn == 1:
-            v = v if isscalar(v) else v[0]
-            k = k if isscalar(k) else k[0]
+            v = v if isscalarlike(v) else v[0]
+            k = k if isscalarlike(k) else k[0]
             func2(cls, op, v, k)
         else:
             assert op.__class__ is BlockDiagonalOperator
             assert len(op.operands) == nn
-            v = nn * [v] if isscalar(v) else v
-            k = nn * [k] if isscalar(k) else k
+            v = nn * [v] if isscalarlike(v) else v
+            k = nn * [k] if isscalarlike(k) else k
             for op_, v_, k_ in zip(op.operands, v, k):
                 func2(cls, op_, v_, k_)
             input = np.ones(nn)
@@ -475,11 +475,11 @@ def test_projection_restrict():
                 return v[restriction, :]
 
         else:
-            pack = PackOperator(~restriction)
+            pack = PackOperator(restriction)
         masking = MaskOperator(~restriction, broadcast='rightward')
         x = np.arange(proj_ref.shape[1]).reshape(proj_ref.shapein) + 1
         assert_equal(proj_ref(masking(x)), proj(pack(x)))
-        pack = PackOperator(~restriction)
+        pack = PackOperator(restriction)
         assert_equal(pack(kernel), proj.canonical_basis_in_kernel())
 
     for cls in (FSRMatrix, FSRRotation3dMatrix):
@@ -542,8 +542,8 @@ def test_equ2gal():
         for shape in shapes:
             yield func, op, shape
 
-    assert_is_instance(equ2gal * gal2equ, IdentityOperator)
-    assert_is_instance(gal2equ * equ2gal, IdentityOperator)
+    assert_is_instance(equ2gal(gal2equ), IdentityOperator)
+    assert_is_instance(gal2equ(equ2gal), IdentityOperator)
 
 
 def test_equ2hor():

@@ -27,7 +27,7 @@ obs = MadMap1Observation(name, 135, path + 'todSpirePSW_be',
 
 tod = obs.get_tod(unit='Jy/beam')
 projection = obs.get_operator()
-packing = PackOperator(np.isnan(map_ref))
+packing = PackOperator(np.isfinite(map_ref))
 
 model = projection * packing
 map_naive_1d = mapper_naive(tod, projection)
