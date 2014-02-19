@@ -70,8 +70,8 @@ class DiscreteSurface(object):
         """
         xy = self.topixel(vertices)
         roi_operator = BlockDiagonalOperator(
-            [RoundOperator('rhtpi'), RoundOperator('rhtmi')], new_axisin=-2) *\
-            MinMaxOperator(axis=-2, new_axisout=-2)
+            [RoundOperator('rhtpi'), RoundOperator('rhtmi')],
+            new_axisin=-2)(MinMaxOperator(axis=-2, new_axisout=-2))
         roi = roi_operator(xy).astype(np.int32)
 
         shape = vertices.shape[:-2] + (npixels_per_sample,)

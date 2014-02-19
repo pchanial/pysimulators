@@ -10,7 +10,7 @@ try:
 except ImportError:
     pass
 from pyoperators import FFTOperator
-from pyoperators.utils import isscalar, product
+from pyoperators.utils import isscalarlike, product
 from . import _flib as flib
 from .datatypes import Map
 
@@ -109,7 +109,7 @@ def distance(shape, origin=None, resolution=1.):
      [ 1.41421356  1.          1.41421356]]
 
     """
-    if isscalar(shape):
+    if isscalarlike(shape):
         shape = (shape,)
     else:
         shape = tuple(shape)
@@ -123,7 +123,7 @@ def distance(shape, origin=None, resolution=1.):
 
     unit = getattr(resolution, '_unit', None)
 
-    if isscalar(resolution):
+    if isscalarlike(resolution):
         resolution = np.resize(resolution, rank)
     resolution = np.asanyarray(resolution, dtype=float)
 

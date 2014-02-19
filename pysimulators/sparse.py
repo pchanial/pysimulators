@@ -14,7 +14,7 @@ import pyoperators
 import scipy.sparse as sp
 from pyoperators import operation_assignment
 from pyoperators.memory import empty
-from pyoperators.utils import isscalar, product
+from pyoperators.utils import isscalarlike, product
 from pysimulators._flib import sparse as fsp
 
 __all__ = []
@@ -76,7 +76,7 @@ class _FSMatrix(object):
         setattr(self, 'n' + straxes[0][:3] + 'max', n)
 
     def __mul__(self, other):
-        if isscalar(other):
+        if isscalarlike(other):
             data = self.data.copy()
             data.value *= other
             return type(self)(self.shape, data=data)
@@ -86,7 +86,7 @@ class _FSMatrix(object):
         return NotImplemented
 
     def __rmul__(self, other):
-        if isscalar(other):
+        if isscalarlike(other):
             return self * other
         other = np.asarray(other)
         if other.ndim == 1:
@@ -252,7 +252,7 @@ class _FSRotation3dMatrix(_FSMatrix):
             block_size=3, verbose=verbose)
 
     def __mul__(self, other):
-        if isscalar(other):
+        if isscalarlike(other):
             data = self.data.copy()
             data.r11 *= other
             data.r22 *= other
