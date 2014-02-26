@@ -1,5 +1,8 @@
 from __future__ import division
 
+import inspect
+import weakref
+
 try:
     from matplotlib import pyplot as mp
 except:  # pragma: no coverage
@@ -87,7 +90,6 @@ class Layout(object):
         removed=False,
         masked=False,
         index=None,
-        nvertices=None,
         **keywords,
     ):
         """
@@ -113,11 +115,6 @@ class Layout(object):
             The values in this array specify the ranks of the components. It is
             used to define a 1-dimensional indexing of the packed components.
             A negative value means that the component is removed.
-        nvertices : int, optional
-            The component number of vertices. If not specified, it is deduced
-            from the last but one dimension of the vertex keyword. If the component
-            vertices are given by a function, setting the keyword nvertices spares
-            a call to this function.
 
         """
         shape = tointtuple(shape)
@@ -137,7 +134,7 @@ class Layout(object):
         self._reserved_attributes = ('ndim', 'shape', 'nvertices', 'removed', 'packed')
         self.shape = shape
         self.ndim = len(self.shape)
-        super(Layout, self).__setattr__('removed', removed)
+        object.__setattr__(self, 'removed', removed)
         self.packed = _Packed(self)
         self.setattr_packed('index', self._pack_index(index, removed))
         if vertex is not None:
@@ -148,11 +145,9 @@ class Layout(object):
                 self.setattr_unpacked(k, v)
 
         if vertex is None:
-            nvertices = 0
-        if nvertices is not None:
-            self.nvertices = nvertices
+            self.nvertices = 0
         else:
-            self.nvertices = self.vertex.shape[-2]
+            self.nvertices = self.packed.vertex.shape[-2]
 
     def __len__(self):
         """Return the number of elements in the layout."""
@@ -161,23 +156,20 @@ class Layout(object):
     def __getattribute__(self, key):
         """
         Some magic is applied here for the special attributes. These special
-        attributes can be a function, a scalar or an array, but they are always
-        returned as  an ndarray of the same shape as the layout.
+        attributes are stored in the packed object, and they can be a scalar,
+        a function or an array. Except for scalars, they are always
+        returned as arrays of the same shape as the layout.
         We use the more cumbersome __getattribute__ instead of __getattr__ only
-        because we can make the special attributes actual attributes that can
-        be inspected by Ipython's autocomplete feature.
+        because it allows us to make these special attributes actual
+        attributes set to None, so that they can be inspected by Ipython's
+        autocomplete feature.
 
         """
-        v = super(Layout, self).__getattribute__(key)
-        if key == '_special_attributes' or key not in self._special_attributes:
+        v = object.__getattribute__(self, key)
+        if key.startswith('_') or key not in self._special_attributes:
             return v
-        if callable(v):
-            out = v()
-        elif v is None:
-            out = self.unpack(getattr(self.packed, key))
-        else:
-            return v
-        return out
+        assert v is None
+        return self.unpack(getattr(self.packed, key))
 
     def __setattr__(self, key, value):
         # make removed and special attributes not writeable
@@ -187,9 +179,9 @@ class Layout(object):
         if key == 'center' and self.nvertices > 0:
             raise cls_error('The vertices should be set instead of the centers' '.')
         if key in getattr(self, '_special_attributes', ()):
-            self.setattr_packed(key, self.pack(value))
+            self.setattr_unpacked(key, value)
         else:
-            super(Layout, self).__setattr__(key, value)
+            object.__setattr__(self, key, value)
 
     def setattr_unpacked(self, key, value):
         """
@@ -205,29 +197,25 @@ class Layout(object):
                     strenum(self._reserved_attributes)
                 )
             )
+        if key.startswith('_'):
+            raise KeyError('A special layout attribute cannot be private.')
         self._special_attributes.add(key)
         if key == 'vertex':
-            self.setattr_unpacked('center', lambda: np.mean(self.vertex, axis=-2))
+            self.setattr_packed('center', lambda s: np.mean(s.vertex, axis=-2))
 
         if callable(value):
-            pvalue = lambda: self.pack(getattr(self, key))
+            argspec = inspect.getargspec(value)
+            if len(argspec.args) != 1:
+                raise ValueError('The input function must take one argument.')
+            pvalue = value
         elif value is None:
-            pvalue = None
+            pvalue = value
         else:
             value = np.asanyarray(value)
-            if isscalarlike(value):
-                pvalue = value
-            elif value.shape[: self.ndim] != self.shape:
-                raise ValueError(
-                    "Invalid input unpacked shape '{0}'. The first dimension(s"
-                    ") must be '{1}'.".format(value.shape, self.shape)
-                )
-            else:
-                pvalue = self.pack(value)
-                value = None
+            pvalue = self.pack(value)
 
-        super(Layout, self).__setattr__(key, value)
-        super(_Packed, self.packed).__setattr__(key, pvalue)
+        object.__setattr__(self, key, None)  # for tab completion
+        object.__setattr__(self.packed, key, pvalue)
 
     def setattr_packed(self, key, value):
         """
@@ -243,28 +231,28 @@ class Layout(object):
                     strenum(self._reserved_attributes)
                 )
             )
+        if key.startswith('_'):
+            raise KeyError('A special layout attribute cannot be private.')
         self._special_attributes.add(key)
         if key == 'vertex':
-            self.setattr_packed('center', lambda: np.mean(self.packed.vertex, axis=-2))
+            self.setattr_packed('center', lambda s: np.mean(s.vertex, axis=-2))
 
         if callable(value):
-            uvalue = lambda: self.unpack(getattr(self.packed, key))
+            argspec = inspect.getargspec(value)
+            if len(argspec.args) != 1:
+                raise ValueError('The input function must take one argument.')
         elif value is None:
-            uvalue = None
+            pass
         else:
             value = np.asanyarray(value)
-            if isscalarlike(value):
-                uvalue = value
-            elif value.shape[0] != len(self.packed):
+            if value.ndim > 0 and value.shape[0] != len(self.packed):
                 raise ValueError(
-                    "Invalid input packed shape '{0}'. The first dimension mus"
-                    "t be '{1}'.".format(value.shape, len(self.packed))
+                    "Invalid packed shape '{0}'. The first dimension must be '"
+                    "{1}'.".format(value.shape, len(self.packed))
                 )
-            else:
-                uvalue = None
 
-        super(Layout, self).__setattr__(key, uvalue)
-        super(_Packed, self.packed).__setattr__(key, value)
+        object.__setattr__(self, key, None)
+        object.__setattr__(self.packed, key, value)
 
     def pack(self, x, out=None):
         """
@@ -299,8 +287,13 @@ class Layout(object):
         if x is None:
             return None
         x = np.asanyarray(x)
+        if x.ndim == 0:
+            return x
         if x.shape[: self.ndim] != self.shape:
-            raise ValueError("Invalid input dimensions '{0}'.".format(x.shape))
+            raise ValueError(
+                "Invalid unpacked shape '{0}'. The first dimension(s) must be "
+                "'{1}'.".format(x.shape, self.shape)
+            )
         packed_shape = (len(self.packed),) + x.shape[self.ndim :]
         if out is None:
             if self.packed.index is None:
@@ -358,8 +351,13 @@ class Layout(object):
         if x is None:
             return None
         x = np.asanyarray(x)
+        if x.ndim == 0:
+            return x
         if x.shape[0] != len(self.packed):
-            raise ValueError("Invalid input dimensions '{0}'.".format(x.shape))
+            raise ValueError(
+                "Invalid input packed shape '{0}'. The first dimension must be"
+                " '{1}'.".format(x.shape, len(self.packed))
+            )
         unpacked_shape = self.shape + x.shape[1:]
         has_out = out is not None
         if not has_out:
@@ -464,30 +462,40 @@ class Layout(object):
 
 
 class _Packed(object):
-    """Class used to store unpacked characteristics of the layout."""
+    """
+    Class storing all the special attributes of the layout, as packed
+    arrays.
+
+    """
 
     def __init__(self, unpacked):
-        if isscalarlike(unpacked.removed) and not unpacked.removed:
-            self._len = len(unpacked)
-        else:
-            self._len = int(np.sum(~unpacked.removed))
+        self._unpacked = weakref.ref(unpacked)
 
     def __len__(self):
-        return self._len
+        removed = self._unpacked().removed
+        if isscalarlike(removed) and not removed:
+            return len(self._unpacked())
+        return len(self._unpacked()) - int(np.sum(removed))
 
     def __getattribute__(self, key):
-        v = super(_Packed, self).__getattribute__(key)
-        if key[0] == '_' or not callable(v):
+        try:
+            v = object.__getattribute__(self, key)
+        except AttributeError:
+            if key in self._unpacked()._reserved_attributes:
+                raise
+            # fall back to the non-special attributes of the unpacked layout
+            return getattr(self._unpacked(), key)
+        if key.startswith('_') or not callable(v):
             return v
-        return v()
+        return v(self)
 
     def __setattr__(self, key, value):
-        if key[0] == '_':
-            super(_Packed, self).__setattr__(key, value)
+        if key.startswith('_'):
+            object.__setattr__(self, key, value)
             return
         raise KeyError(
-            "A packed attribute should be set with the Layout metho"
-            "d 'setattr_packed'."
+            "A packed special attribute should be set with the Layo"
+            "ut method 'setattr_packed'."
         )
 
 
@@ -568,26 +576,22 @@ class LayoutGrid(Layout):
             A negative value means that the component is removed.
 
         """
-
-        def center():
-            out = create_grid(
-                self.shape,
-                self.spacing,
-                xreflection=self.xreflection,
-                yreflection=self.yreflection,
-                center=self.origin,
-                angle=self.angle,
-            )
-            if self._unit:
-                out = Quantity(out, self._unit, copy=False)
-            return out
-
         unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
+        if len(origin) != len(shape):
+            raise ValueError('Invalid dimensions of the layout center.')
         if unit:
             spacing = Quantity(spacing).tounit(unit)
             origin = Quantity(origin).tounit(unit)
-        if len(origin) != len(shape):
-            raise ValueError('Invalid dimensions of the layout center.')
+        center = create_grid(
+            shape,
+            spacing,
+            xreflection=xreflection,
+            yreflection=yreflection,
+            center=origin,
+            angle=angle,
+        )
+        if unit:
+            center = Quantity(center, unit, copy=False)
         self.spacing = spacing
         self.origin = origin
         self.xreflection = xreflection
@@ -665,9 +669,7 @@ class LayoutGridCircles(LayoutGrid):
         if unit:
             spacing = Quantity(spacing).tounit(unit)
             radius = Quantity(radius, copy=False).tounit(unit)
-        LayoutGrid.__init__(
-            self, shape, spacing, radius=radius, nvertices=0, **keywords
-        )
+        LayoutGrid.__init__(self, shape, spacing, radius=radius, **keywords)
 
 
 class LayoutGridSquares(LayoutGrid):
@@ -708,7 +710,17 @@ class LayoutGridSquares(LayoutGrid):
 
     """
 
-    def __init__(self, shape, spacing, filling_factor=1, **keywords):
+    def __init__(
+        self,
+        shape,
+        spacing,
+        filling_factor=1,
+        xreflection=False,
+        yreflection=False,
+        angle=0,
+        origin=(0, 0),
+        **keywords,
+    ):
         """
         shape : tuple of two integers (nrows, ncolumns)
             Number of rows and columns of the grid.
@@ -738,22 +750,30 @@ class LayoutGridSquares(LayoutGrid):
             A negative value means that the component is removed.
 
         """
-
-        def vertex():
-            out = create_grid_squares(
-                self.shape,
-                self.spacing,
-                filling_factor=self.filling_factor,
-                xreflection=self.xreflection,
-                yreflection=self.yreflection,
-                center=self.origin,
-                angle=self.angle,
-            )
-            if self._unit:
-                out = Quantity(out, self._unit, copy=False)
-            return out
-
+        unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
+        if unit:
+            spacing = Quantity(spacing).tounit(unit)
+            origin = Quantity(origin).tounit(unit)
+        vertex = create_grid_squares(
+            shape,
+            spacing,
+            filling_factor=filling_factor,
+            xreflection=xreflection,
+            yreflection=yreflection,
+            center=origin,
+            angle=angle,
+        )
+        if unit:
+            vertex = Quantity(vertex, unit, copy=False)
         self.filling_factor = filling_factor
         LayoutGrid.__init__(
-            self, shape, spacing, vertex=vertex, nvertices=4, **keywords
+            self,
+            shape,
+            spacing,
+            vertex=vertex,
+            xreflection=xreflection,
+            yreflection=yreflection,
+            origin=origin,
+            angle=angle,
+            **keywords,
         )
