@@ -1,7 +1,6 @@
 from __future__ import division
 
 import numpy as np
-
 from numpy.testing import assert_equal, assert_raises
 from pyoperators.utils import isalias, product
 from pyoperators.utils.testing import (assert_same, assert_is_instance,
@@ -329,6 +328,121 @@ def test_index_none():
              [3, 4, 5]]
     layout = Layout((2, 3), index=index)
     assert_is_none(layout.packed.index)
+
+
+def test_selection_unpacked1():
+    val = np.array([[12,  2, 18, 15, 22, 19],
+                    [33, 21, 16, 26, 31,  1],
+                    [30, 28,  7, 14,  0,  6],
+                    [27,  4, 11, 24,  3,  5],
+                    [ 8, 20, 32,  9, 29, 35],
+                    [25, 17, 13, 23, 10, 34]])
+    int_selection = (0, 2, 5, 3, 1, 4), (0, 3, 0, 2, 1, 5)
+    bool_selection = np.zeros((6, 6), bool)
+    bool_selection[int_selection] = True
+    layout = Layout((6, 6), val=val)
+    selections = ((), [], Ellipsis, 2, (2,), [3], (0, 0), (1, 1), [1, 1],
+                  (slice(0, 2), slice(0, 3)), bool_selection, int_selection)
+    expecteds = (None, [], None, [12, 13, 14, 15, 16, 17],
+                 [12, 13, 14, 15, 16, 17], [18, 19, 20, 21, 22, 23], [0], [7],
+                 [6, 7, 8, 9, 10, 11], [0, 1, 2, 6, 7, 8],
+                 [0, 7, 15, 20, 29, 30], [0, 7, 15, 20, 29, 30])
+
+    def func(selection, expected):
+        selected = layout[selection]
+        assert_equal(selected.packed.index, expected)
+        assert_equal(selected.val[selection], val[selection])
+    for selection, expected in zip(selections, expecteds):
+        yield func, selection, expected
+
+
+def test_selection_unpacked2():
+    index = [[-1, 12, 15,  0,  1, -1],
+             [ 9, 11, 14,  2,  3,  4],
+             [ 8, 10, 13,  5,  6,  7],
+             [23, 22, 21, 29, 26, 24],
+             [20, 19, 18, 30, 27, 25],
+             [-1, 17, 16, 31, 28, -1]]
+    val = np.array([[-1,  2, 18, 15, 22, -1],
+                    [33, 21, 16, 26, 31,  1],
+                    [30, 28,  7, 14,  0,  6],
+                    [27,  4, 11, 24,  3,  5],
+                    [ 8, 20, 32,  9, 29, 35],
+                    [-1, 17, 13, 23, 10, -1]])
+    int_selection = (0, 2, 5, 3, 1, 4), (0, 3, 0, 2, 1, 5)
+    bool_selection = np.zeros((6, 6), bool)
+    bool_selection[int_selection] = True
+    layout = Layout((6, 6), index=index, val=val)
+    selections = ((), [], Ellipsis, 2, (2,), [3], (0, 0), (1, 1), [1, 1],
+                  (slice(0, 2), slice(0, 3)), bool_selection, int_selection)
+    expecteds = (layout.packed.index, [], layout.packed.index,
+                 [15, 16, 17, 12, 13, 14], [15, 16, 17, 12, 13, 14],
+                 [20, 19, 18, 23, 22, 21], [], [7], [9, 10, 11, 6, 7, 8],
+                 [6, 7, 1, 8, 2], [15, 7, 20, 29], [15, 7, 20, 29])
+
+    def func(selection, expected):
+        selected = layout[selection]
+        assert selected.packed.index.dtype == np.int32
+        assert_equal(selected.packed.index, expected)
+        assert_equal(selected.val[selection], val[selection])
+    for selection, expected in zip(selections, expecteds):
+        yield func, selection, expected
+
+
+def test_selection_packed1():
+    val = np.array([[12,  2, 18, 15, 22, 19],
+                    [33, 21, 16, 26, 31,  1],
+                    [30, 28,  7, 14,  0,  6],
+                    [27,  4, 11, 24,  3,  5],
+                    [ 8, 20, 32,  9, 29, 35],
+                    [25, 17, 13, 23, 10, 34]])
+    int_selection = [13, 14, 6, 19, 0, 35, 3]
+    bool_selection = np.zeros(36, bool)
+    bool_selection[int_selection] = True
+    layout = Layout((6, 6), val=val)
+    selections = ((), [], Ellipsis, 2, (0,), [3], slice(4, 9), int_selection,
+                  bool_selection)
+    expecteds = (None, [], None, [2], [0], [3], [4, 5, 6, 7, 8], int_selection,
+                 sorted(int_selection))
+
+    def func(selection, expected):
+        selected = layout.packed[selection]
+        assert_equal(selected.packed.index, expected)
+        assert_equal(selected.packed.val, val.ravel()[selection])
+    for selection, expected in zip(selections, expecteds):
+        yield func, selection, expected
+
+
+def test_selection_packed2():
+    index = [[-1, 12, 15,  0,  1, -1],
+             [ 9, 11, 14,  2,  3,  4],
+             [ 8, 10, 13,  5,  6,  7],
+             [23, 22, 21, 29, 26, 24],
+             [20, 19, 18, 30, 27, 25],
+             [-1, 17, 16, 31, 28, -1]]
+    val = np.array([[-1,  2, 18, 15, 22, -1],
+                    [33, 21, 16, 26, 31,  1],
+                    [30, 28,  7, 14,  0,  6],
+                    [27,  4, 11, 24,  3,  5],
+                    [ 8, 20, 32,  9, 29, 35],
+                    [-1, 17, 13, 23, 10, -1]])
+    int_selection = [13, 14, 6, 19, 0, 31, 3]
+    bool_selection = np.zeros(32, bool)
+    bool_selection[int_selection] = True
+    layout = Layout((6, 6), index=index, val=val)
+    i = layout.packed.index
+    selections = ((), [], Ellipsis, 2, (0,), [3], slice(4, 9), int_selection,
+                  bool_selection)
+    expecteds = (i, [], i, [9], [3], [10], [11, 15, 16, 17, 12],
+                 i[int_selection], i[bool_selection])
+
+    def func(selection, expected):
+        selected = layout.packed[selection]
+        assert selected.packed.index.dtype == np.int32
+        assert_equal(selected.packed.index, expected)
+        assert_equal(selected.packed.val, layout.pack(val)[selection])
+    for selection, expected in zip(selections, expecteds):
+        yield func, selection, expected
 
 
 def test_origin():
