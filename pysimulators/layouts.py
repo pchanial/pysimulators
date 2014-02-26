@@ -113,7 +113,7 @@ class Layout(object):
         if removed.ndim > 0 and removed.shape != shape:
             raise ValueError('Invalid shape of the removed attribute.')
         if index is not None:
-            index = np.asarray(index, np.int32)
+            index = np.array(index, np.int32)
             if index.shape != shape:
                 raise ValueError('Invalid shape of the index attribute.')
         self._special_attributes = set()
@@ -235,8 +235,12 @@ class Layout(object):
             pass
         else:
             value = np.asanyarray(value)
-            if key != 'index' and value.ndim > 0 and \
-               value.shape[0] != len(self.packed):
+            # special case for the index, to avoid unnecessary copies.
+            if key == 'index' and value is not None:
+                if value.size == len(self) and \
+                   np.all(value == np.arange(len(self))):
+                    value = None
+            elif value.ndim > 0 and value.shape[0] != len(self.packed):
                 raise ValueError(
                     "Invalid packed shape '{0}'. The first dimension must be '"
                     "{1}'.".format(value.shape, len(self.packed)))
@@ -429,14 +433,15 @@ class Layout(object):
 
     @staticmethod
     def _pack_index(index, removed):
-        if np.all(removed):
-            return np.array([], int)
-        if index is None:
-            if not np.any(removed):
+        if isscalarlike(removed):
+            if removed:
+                return np.array([], int)
+            if index is None:
                 return None
-            return np.where(~np.ravel(removed))[0]
-        index = np.array(index)
-        if not isscalarlike(removed):
+        else:
+            if index is None:
+                index = np.arange(removed.size,
+                                  dtype=np.int32).reshape(removed.shape)
             index[removed] = -1
         index = index.ravel()
         npacked = np.sum(index >= 0)
