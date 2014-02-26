@@ -1,6 +1,8 @@
 from __future__ import division
 
+import copy
 import inspect
+import types
 import weakref
 
 try:
@@ -176,6 +178,31 @@ class Layout(object):
             self.setattr_unpacked(key, value)
         else:
             object.__setattr__(self, key, value)
+
+    def __getitem__(self, selection):
+        if isscalarlike(selection):
+            selection = slice(selection, selection + 1)
+        valid = np.zeros(self.shape, bool)
+        valid[selection] = True
+        valid = valid.ravel()
+        if self.packed.index is None:
+            index = np.arange(len(self), dtype=np.int32)
+        else:
+            index = self.packed.index
+            valid = valid[self.packed.index]
+        index = index[valid]
+        out = copy.copy(self)
+        object.__setattr__(out, 'packed', copy.copy(self.packed))
+        out.packed._unpacked = weakref.ref(out)
+        out.setattr_packed('index', index)
+        for key in out._special_attributes:
+            if key == 'index':
+                continue
+            value = object.__getattribute__(out.packed, key)
+            if isscalarlike(value) or callable(value):
+                continue
+            out.setattr_packed(key, value[valid].copy())
+        return out
 
     @property
     def removed(self):
@@ -463,7 +490,7 @@ class Layout(object):
         if npacked == 0:
             return np.array([], int)
         isort = np.argsort(index)
-        return isort[-npacked:].copy()
+        return isort[-npacked:].astype(np.int32)
 
 
 class _Packed(object):
@@ -501,6 +528,27 @@ class _Packed(object):
             "A packed special attribute should be set with the Layo"
             "ut method 'setattr_packed'."
         )
+
+    def __getitem__(self, selection):
+        if isscalarlike(selection):
+            selection = slice(selection, selection + 1)
+        if self.index is None:
+            index = np.arange(len(self._unpacked()), dtype=np.int32)
+        else:
+            index = self.index
+        index = np.atleast_1d(index[selection]).copy()
+        out = copy.copy(self._unpacked())
+        object.__setattr__(out, 'packed', copy.copy(self))
+        out.packed._unpacked = weakref.ref(out)
+        out.setattr_packed('index', index)
+        for key in out._special_attributes:
+            if key == 'index':
+                continue
+            value = object.__getattribute__(out.packed, key)
+            if isscalarlike(value) or callable(value):
+                continue
+            out.setattr_packed(key, np.atleast_1d(value[selection]).copy())
+        return out
 
 
 class LayoutGrid(Layout):
