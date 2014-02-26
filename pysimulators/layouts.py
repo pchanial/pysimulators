@@ -112,29 +112,23 @@ class Layout(object):
             The mask array that specifies the masked components. True means masked
             (numpy.ma convention).
         index : array-like of int, optional
-            The values in this array specify the ranks of the components. It is
-            used to define a 1-dimensional indexing of the packed components.
+            The values in this array specify an ordering of the components. It is
+            used to define the 1-dimensional indexing of the packed components.
             A negative value means that the component is removed.
 
         """
         shape = tointtuple(shape)
-        removed = np.array(removed, dtype=bool)
-        if isscalarlike(removed):
-            removed = np.lib.stride_tricks.as_strided(removed, shape, len(shape) * (0,))
-        elif removed.shape != shape:
+        removed = np.asarray(removed, dtype=bool)
+        if removed.ndim > 0 and removed.shape != shape:
             raise ValueError('Invalid shape of the removed attribute.')
         if index is not None:
             index = np.asarray(index, np.int32)
             if index.shape != shape:
                 raise ValueError('Invalid shape of the index attribute.')
-            if np.any(index < 0):
-                removed = removed | (index < 0)  # no |= because of 0 strides
-        removed.flags.writeable = False
         self._special_attributes = set()
         self._reserved_attributes = ('ndim', 'shape', 'nvertices', 'removed', 'packed')
+        self.ndim = len(shape)
         self.shape = shape
-        self.ndim = len(self.shape)
-        object.__setattr__(self, 'removed', removed)
         self.packed = _Packed(self)
         self.setattr_packed('index', self._pack_index(index, removed))
         if vertex is not None:
@@ -182,6 +176,12 @@ class Layout(object):
             self.setattr_unpacked(key, value)
         else:
             object.__setattr__(self, key, value)
+
+    @property
+    def removed(self):
+        removed = self.unpack(np.zeros(len(self.packed), bool), removed_value=True)
+        removed.flags.writeable = False
+        return removed
 
     def setattr_unpacked(self, key, value):
         """
@@ -245,7 +245,7 @@ class Layout(object):
             pass
         else:
             value = np.asanyarray(value)
-            if value.ndim > 0 and value.shape[0] != len(self.packed):
+            if key != 'index' and value.ndim > 0 and value.shape[0] != len(self.packed):
                 raise ValueError(
                     "Invalid packed shape '{0}'. The first dimension must be '"
                     "{1}'.".format(value.shape, len(self.packed))
@@ -452,7 +452,8 @@ class Layout(object):
                 return None
             return np.where(~np.ravel(removed))[0]
         index = np.array(index)
-        index[removed] = -1
+        if not isscalarlike(removed):
+            index[removed] = -1
         index = index.ravel()
         npacked = np.sum(index >= 0)
         if npacked == 0:
@@ -472,10 +473,9 @@ class _Packed(object):
         self._unpacked = weakref.ref(unpacked)
 
     def __len__(self):
-        removed = self._unpacked().removed
-        if isscalarlike(removed) and not removed:
+        if self.index is None:
             return len(self._unpacked())
-        return len(self._unpacked()) - int(np.sum(removed))
+        return len(self.index)
 
     def __getattribute__(self, key):
         try:
