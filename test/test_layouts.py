@@ -468,6 +468,12 @@ def test_index3():
     assert_equal(layout.packed.index, expected)
 
 
+def test_index_none():
+    index = [[0, 1, 2], [3, 4, 5]]
+    layout = Layout((2, 3), index=index)
+    assert_is_none(layout.packed.index)
+
+
 def test_origin():
     shape = (3, 1)
     center = create_grid(shape, 0.1)
