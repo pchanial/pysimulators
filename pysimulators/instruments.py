@@ -43,6 +43,29 @@ class Instrument(object):
         self.commin = commin
         self.commout = commout
 
+    def __getitem__(self, selection):
+        """
+        Shallow copy of the Instrument for the selected deep-copied
+        non-removed detectors.
+
+        """
+
+        class _EmptyClass(object):
+            pass
+
+        out = _EmptyClass()
+        out.__class__ = self.__class__
+        out.__dict__.update(self.__dict__)
+        out.detector = self.detector.packed[selection]
+        return out
+
+    def __iter__(self):
+        for i in xrange(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        return len(self.detector.packed)
+
     def pack(self, x):
         return self.detector.pack(x)
 
