@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 
 from numpy.testing import assert_equal, assert_raises
-from pyoperators.utils import isalias
+from pyoperators.utils import isalias, product
 from pyoperators.utils.testing import (assert_same, assert_is_instance,
                                        assert_is_none, assert_is_type)
 from pysimulators import Quantity
@@ -49,19 +49,38 @@ def test_special_attribute_array():
         yield func, setattr_, v
 
 
-def test_special_attribute_func():
-    layout = Layout((6, 6))
-    val = np.arange(len(layout))
+def test_special_attribute_func1():
+    val = np.arange(36).reshape(6, 6)
+    layout = Layout((6, 6), val=val)
+    layout_func = lambda s: s.val
 
-    def func(setattr_, v):
-        setattr_('key', v)
+    def func(setattr_):
+        setattr_('key', layout_func)
         assert isalias(layout.key, val)
         assert isalias(layout.packed.key, val)
         assert_same(layout.key.shape, layout.shape)
         assert_same(layout.packed.key.shape, (len(layout),))
-    for setattr_, v in zip((layout.setattr_unpacked, layout.setattr_packed),
-                           (lambda: val.reshape(layout.shape), lambda: val)):
-        yield func, setattr_, v
+    for setattr_ in (layout.setattr_unpacked, layout.setattr_packed):
+        yield func, setattr_
+
+
+def test_special_attribute_func2():
+    shape = (6, 6)
+    index = np.arange(product(shape))[::-1].reshape(shape)
+    val = np.arange(product(shape)).reshape(shape)
+    layout = Layout(shape, index=index, val=val)
+    layout.myscalar1 = 2
+    layout._myscalar2 = 3
+    layout_func = lambda s: s.val * s.myscalar1 * s._myscalar2
+
+    def func(setattr_):
+        setattr_('key', layout_func)
+        assert_equal(layout.key, val * 6)
+        assert_equal(layout.packed.key, val.ravel()[::-1] * 6)
+        assert_same(layout.key.shape, layout.shape)
+        assert_same(layout.packed.key.shape, (len(layout),))
+    for setattr_ in (layout.setattr_unpacked, layout.setattr_packed):
+        yield func, setattr_
 
 
 def test_special_attribute_scalar():
@@ -93,6 +112,8 @@ def test_error():
     shape = (4,)
     layout = Layout(shape)
     assert_raises(KeyError, setattr, layout.packed, 'mykey', 'value')
+    assert_raises(KeyError, layout.setattr_unpacked, '_mykey', 'value')
+    assert_raises(KeyError, layout.setattr_packed, '_mykey', 'value')
     assert_raises(ValueError, Layout, shape, removed=[True, False])
     assert_raises(ValueError, Layout, shape, index=[1, 3])
     assert_raises(ValueError, layout.setattr_packed, 'mykey', [1, 2, 3])
