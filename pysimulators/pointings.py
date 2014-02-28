@@ -114,9 +114,6 @@ class Pointing(FitsArray):
                 if n not in keywords:
                     keywords[n] = x[..., i]
 
-        for k, v in keywords.items():
-            keywords[k] = np.asarray(v)
-
         for n in cls.MANDATORY_NAMES:
             if n not in keywords:
                 raise ValueError(
@@ -136,8 +133,11 @@ class Pointing(FitsArray):
             shape, header=header, unit=unit, derived_units=derived_units,
             dtype=dtype, order=order)
         result = result.view(type(x) if subok and isinstance(x, cls) else cls)
+        result.date_obs = date_obs
+        result.sampling_period = sampling_period
         for k, v in keywords.items():
-            result[k] = v
+            if v is not None:
+                result[k] = v
 
         return result
 
