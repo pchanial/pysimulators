@@ -10,7 +10,8 @@ h1. {{ page.title }}
 ## The Instrument class
 ## "The Layout class":{{site.baseurl}}/2000/doc-layout-class
 ## "The DiscreteSurface class":{{site.baseurl}}/2000/doc-discretesurface-class
-# Building the acquisition model
+# Building the observation model
+# Combining the instrument and observation models into an acquisition model
 ## The Acquisition class
 ## Operators
 # Defining a noise model
