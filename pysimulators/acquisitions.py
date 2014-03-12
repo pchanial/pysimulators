@@ -427,8 +427,9 @@ class Acquisition(object):
                 # log-log interpolation of one-sided PSD
                 f = np.arange(b.n // 2 + 1, dtype=float) * (sampling_frequency / b.n)
                 p = _logloginterp_psd(f, bandwidth, psd)
-            noise = _gaussian_sample(b.n, sampling_frequency, p, twosided=twosided)
-            out[:, b.start : b.stop] = noise[valid]
+            for out_ in out:
+                noise = _gaussian_sample(b.n, sampling_frequency, p, twosided=twosided)
+                out_[b.start : b.stop] = noise[valid]
 
         return out
 
