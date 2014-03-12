@@ -608,3 +608,18 @@ def test_layout_grid_squares_unit():
     for s in spacing:
         for l in lcenter:
             yield func, s, l
+
+
+def test_layout_grid_colrow():
+    index = [[-1, 3, 0],
+             [1, -1, -1],
+             [-1, 2, -1]]
+    expected_row = [[-1, 0, 0],
+                    [1, -1, -1],
+                    [-1, 2, -1]]
+    expected_col = [[-1, 1, 2],
+                    [0, -1, -1],
+                    [-1, 1, -1]]
+    grid = LayoutGrid((3, 3), 1.2, index=index)
+    assert_equal(grid.column, expected_col)
+    assert_equal(grid.row, expected_row)

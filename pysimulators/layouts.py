@@ -606,6 +606,24 @@ class LayoutGrid(Layout):
         if len(shape) != 2:
             raise ValueError('The layout grid is not 2-dimensional.')
 
+        def column(s):
+            if s.index is None:
+                index = np.arange(shape[0] * shape[1])
+            elif isinstance(s.index, slice):
+                index = np.arange(s.index.start, s.index.stop)
+            else:
+                index = s.index
+            return index % shape[1]
+
+        def row(s):
+            if s.index is None:
+                index = np.arange(shape[0] * shape[1])
+            elif isinstance(s.index, slice):
+                index = np.arange(s.index.start, s.index.stop)
+            else:
+                index = s.index
+            return index // shape[1]
+
         unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
         if len(origin) != len(shape):
             raise ValueError('Invalid dimensions of the layout center.')
@@ -623,7 +641,8 @@ class LayoutGrid(Layout):
         self.yreflection = yreflection
         self.angle = angle
         self._unit = unit
-        Layout.__init__(self, shape, center=center, **keywords)
+        Layout.__init__(self, shape, center=center, column=column, row=row,
+                        **keywords)
 
 
 class LayoutGridCircles(LayoutGrid):
