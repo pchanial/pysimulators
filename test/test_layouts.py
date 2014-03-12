@@ -123,7 +123,7 @@ def test_special_attribute_none():
         yield func, setattr_
 
 
-def test_error():
+def test_layout_error():
     shape = (4,)
     layout = Layout(shape)
     assert_raises(KeyError, setattr, layout.packed, 'mykey', 'value')
@@ -153,6 +153,12 @@ def test_error():
         l.removed[1] = True
 
     assert_raises(cls_error, func2)
+
+
+def test_layout_grid_error():
+    assert_raises(TypeError, LayoutGrid, 3, 1.2)
+    assert_raises(ValueError, LayoutGrid, (1,), 1.2)
+    assert_raises(ValueError, LayoutGrid, (1, 2, 3), 1.2)
 
 
 def test_zero_component():
