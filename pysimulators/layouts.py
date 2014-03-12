@@ -601,6 +601,11 @@ class LayoutGrid(Layout):
         A negative value means that the component is removed.
 
         """
+        if not isinstance(shape, (list, tuple)):
+            raise TypeError('Invalid grid shape.')
+        if len(shape) != 2:
+            raise ValueError('The layout grid is not 2-dimensional.')
+
         unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
         if len(origin) != len(shape):
             raise ValueError('Invalid dimensions of the layout center.')
