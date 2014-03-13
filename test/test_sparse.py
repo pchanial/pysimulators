@@ -4,11 +4,13 @@ import numpy as np
 import pyoperators
 import scipy.sparse
 from numpy.testing import assert_equal, assert_raises
-from pyoperators import Rotation3dOperator
+from pyoperators import Rotation2dOperator, Rotation3dOperator
 from pyoperators.utils.testing import assert_is_type, assert_same
 from pysimulators.sparse import (
     FSCMatrix,
     FSRMatrix,
+    FSCRotation2dMatrix,
+    FSRRotation2dMatrix,
     FSCRotation3dMatrix,
     FSRRotation3dMatrix,
     SparseOperator,
@@ -265,6 +267,124 @@ def test_fsr_error():
     assert_raises(ValueError, mat._matvec, np.ones(8), out=np.zeros(4))
 
 
+def test_rot2d():
+    input_fsc = np.arange(6 * 2.0)
+    input_fsr = np.arange(4 * 2.0)
+    index1 = [3, 2, 2, 1, 2, -1]
+    index2 = [-1, 3, 1, 1, 0, -1]
+    value1 = [1, 1, 0.5, 1, 2, 10]
+    value2 = [1, 2, 0.5, 1, 1, 10]
+    angle1 = [1, 10, 20, 30, 40, -10]
+    angle2 = [0, 30, -20, 1, 1, 10]
+
+    def fill(array, dense, index, value, angle, n):
+        for i, (j, v, a) in enumerate(zip(index, value, angle)):
+            array[i, n].index = j
+            if j == -1:
+                continue
+            r = v * Rotation2dOperator(a, degrees=True).todense(shapein=2)
+            array[i, n].r11 = r[0, 0]
+            array[i, n].r21 = r[1, 0]
+            dense[2 * i : 2 * i + 2, 2 * j : 2 * j + 2] += r
+
+    def func(itype, ftype):
+        array = np.recarray(
+            (6, 2), dtype=[('index', itype), ('r11', ftype), ('r21', ftype)]
+        )
+        dense = np.zeros((6 * 2, 4 * 2), dtype=ftype)
+        fill(array, dense, index1, value1, angle1, 0)
+        fill(array, dense, index2, value2, angle2, 1)
+
+        mat_fsc = FSCRotation2dMatrix(dense.shape[::-1], array)
+        mat_fsr = FSRRotation2dMatrix(dense.shape, array)
+
+        op = SparseOperator(mat_fsc)
+        assert_equal(op.matrix.dtype, ftype)
+        assert_equal(op.dtype, ftype)
+        assert_same(op.todense(), dense.T)
+        assert_same(op.T.todense(), dense)
+        ref = mat_fsc._matvec(input_fsc.astype(np.float128))
+        for ftype2 in ftypes[:-1]:
+            out = np.zeros_like(ref, ftype2)
+            mat_fsc._matvec(input_fsc.astype(ftype2), out)
+            assert_same(out, ref.astype(min(ftype, ftype2)))
+        ref = (2 * (mat_fsc * input_fsc)).astype(ftype)
+        assert_same((mat_fsc * 2) * input_fsc, ref)
+        assert_same((2 * mat_fsc) * input_fsc, ref)
+        assert_same(input_fsr * mat_fsc, mat_fsr * input_fsr)
+
+        op = SparseOperator(mat_fsr)
+        assert_equal(op.matrix.dtype, ftype)
+        assert_equal(op.dtype, ftype)
+        assert_same(op.todense(), dense)
+        assert_same(op.T.todense(), dense.T)
+        ref = mat_fsr._matvec(input_fsr.astype(np.float128))
+        for ftype2 in ftypes[:-1]:
+            out = np.zeros_like(ref, ftype2)
+            mat_fsr._matvec(input_fsr.astype(ftype2), out)
+            assert_same(out, ref.astype(min(ftype, ftype2)))
+        ref = (2 * (mat_fsr * input_fsr)).astype(ftype)
+        assert_same((mat_fsr * 2) * input_fsr, ref)
+        assert_same((2 * mat_fsr) * input_fsr, ref)
+        assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc)
+
+    for itype in itypes:
+        for ftype in ftypes:
+            yield func, itype, ftype
+
+
+def test_fsc_rot2d_error():
+    data = np.zeros((3, 4), dtype=[('index', int), ('r11', float), ('r21', float)])
+    data_wrong1 = np.empty((3, 4), [('index', int), ('value', float)])
+    data_wrong2 = np.empty((3, 4), [('r11', float), ('r21', float), ('index', int)])
+    data_wrong3 = np.empty(
+        (3, 4), dtype=[('index', int), ('r11', float), ('r21', np.float32)]
+    )
+    assert_raises(TypeError, FSCRotation2dMatrix, 2)
+    assert_raises(ValueError, FSCRotation2dMatrix, (2, 3, 4))
+    assert_raises(ValueError, FSCRotation2dMatrix, (6, 16), data)
+    assert_raises(ValueError, FSCRotation2dMatrix, (7, 16), data)
+    assert_raises(ValueError, FSCRotation2dMatrix, (17, 6), data)
+    assert_raises(TypeError, FSCRotation2dMatrix, (16, 6), data_wrong1)
+    assert_raises(TypeError, FSCRotation2dMatrix, (16, 6), data_wrong2)
+    assert_raises(TypeError, FSCRotation2dMatrix, (16, 6), data_wrong3)
+    assert_raises(ValueError, FSCRotation2dMatrix, (16, 6), data, nrowmax=5)
+    assert_raises(ValueError, FSCRotation2dMatrix, (16, 6))
+    mat = FSCRotation2dMatrix((16, 6), data)
+    assert_raises(ValueError, mat._matvec, np.ones(4))
+    mat._matvec(np.ones((3, 2)))
+    assert_raises(ValueError, mat._matvec, np.ones(17))
+    assert_raises(ValueError, mat._matvec, np.ones((8, 2)))
+    assert_raises(TypeError, mat._matvec, np.ones((3, 2)), out=1)
+    assert_raises(ValueError, mat._matvec, np.ones((3, 2)), out=np.zeros(7))
+
+
+def test_fsr_rot2d_error():
+    data = np.zeros((3, 4), dtype=[('index', int), ('r11', float), ('r21', float)])
+    data_wrong1 = np.empty((3, 4), [('index', int), ('value', float)])
+    data_wrong2 = np.empty((3, 4), [('r11', float), ('r21', float), ('index', int)])
+    data_wrong3 = np.empty(
+        (3, 4), dtype=[('index', int), ('r11', float), ('r21', np.float32)]
+    )
+    assert_raises(TypeError, FSRRotation2dMatrix, 3)
+    assert_raises(ValueError, FSRRotation2dMatrix, (2, 3, 4))
+    assert_raises(ValueError, FSRRotation2dMatrix, (16, 6), data)
+    assert_raises(ValueError, FSRRotation2dMatrix, (7, 16), data)
+    assert_raises(ValueError, FSRRotation2dMatrix, (6, 17), data)
+    assert_raises(TypeError, FSRRotation2dMatrix, (6, 16), data_wrong1)
+    assert_raises(TypeError, FSRRotation2dMatrix, (6, 16), data_wrong2)
+    assert_raises(TypeError, FSRRotation2dMatrix, (6, 16), data_wrong3)
+    assert_raises(ValueError, FSRRotation2dMatrix, (6, 16), data, ncolmax=5)
+    assert_raises(ValueError, FSRRotation2dMatrix, (6, 16))
+    mat = FSRRotation2dMatrix((6, 16), data)
+    assert_raises(ValueError, mat._matvec, np.ones(4))
+    mat._matvec(np.ones((8, 2)))
+    assert_raises(ValueError, mat._matvec, np.ones(17))
+    assert_raises(ValueError, mat._matvec, np.ones((3, 2)))
+    assert_raises(TypeError, mat._matvec, np.ones((8, 2)), out=1)
+    assert_raises(ValueError, mat._matvec, np.ones((8, 2)), out=np.zeros(7))
+
+
 def test_rot3d():
     input_fsc = np.arange(6 * 3.0)
     input_fsr = np.arange(4 * 3.0)
@@ -307,7 +427,7 @@ def test_rot3d():
         for ftype2 in ftypes[:-1]:
             out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
-            assert_same(out, ref)
+            assert_same(out, ref.astype(min(ftype, ftype2)))
         ref = (3 * (mat_fsc * input_fsc)).astype(ftype)
         assert_same((mat_fsc * 3) * input_fsc, ref)
         assert_same((3 * mat_fsc) * input_fsc, ref)
@@ -322,7 +442,7 @@ def test_rot3d():
         for ftype2 in ftypes[:-1]:
             out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
-            assert_same(out, ref)
+            assert_same(out, ref.astype(min(ftype, ftype2)))
         ref = (3 * (mat_fsr * input_fsr)).astype(ftype)
         assert_same((mat_fsr * 3) * input_fsr, ref)
         assert_same((3 * mat_fsr) * input_fsr, ref)
@@ -403,6 +523,10 @@ def test_sparse_operator():
     data = FSRMatrix((10, 3), ncolmax=1)
     assert_raises(ValueError, SparseOperator, data, shapein=4)
     assert_raises(ValueError, SparseOperator, data, shapeout=11)
+
+    data = FSRRotation2dMatrix((12, 6), ncolmax=1)
+    assert_raises(ValueError, SparseOperator, data, shapein=(5, 2))
+    assert_raises(ValueError, SparseOperator, data, shapeout=(7,))
 
     data = FSRRotation3dMatrix((12, 6), ncolmax=1)
     assert_raises(ValueError, SparseOperator, data, shapein=(5, 3))
