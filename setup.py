@@ -46,7 +46,6 @@ def configuration(parent_package='', top_path=None):
                                   'pysimulators/module_geometry.f90',
                                   'pysimulators/module_operators.f90.src',
                                   'pysimulators/module_pointingmatrix.f90',
-                                  'pysimulators/module_polarization.f90.src',
                                   'pysimulators/module_sparse.f90.src',
                                   'pysimulators/module_wcsutils.f90'],
                          include_dirs=['.', np.get_include(), temp_dir],
