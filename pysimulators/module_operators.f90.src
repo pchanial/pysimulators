@@ -33,6 +33,32 @@ contains
     end subroutine
 
 
+    subroutine fsr_rot2d_kernel_i<itype>_m<mtype>(matrix, kernel, ncolmax, m, n)
+        integer, parameter          :: s = <itype> + 2 * <mtype>
+        integer*8, intent(in)       :: ncolmax
+        integer*8, intent(in)       :: m
+        integer*8, intent(in)       :: n
+        !f2py integer*1, intent(in) :: matrix(ncolmax*m*s)
+        type(PointingElementRot2d_i<itype>_m<mtype>), intent(in) ::            &
+            matrix(ncolmax, m)
+        logical(1), intent(inout)   :: kernel(0:n-1)
+        integer*<itype> :: col
+        integer*8 :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0 .or.                                               &
+                    matrix(j,i)%r11 == 0 .and. matrix(j,i)%r21 == 0) cycle
+                kernel(col) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
     subroutine fsr_rot3d_kernel_i<itype>_m<mtype>(matrix, kernel, ncolmax, m, n)
         integer, parameter          :: s = <itype> + 3 * <mtype>
         integer*8, intent(in)       :: ncolmax
@@ -63,7 +89,7 @@ contains
     ! <vtype=4,8,8,4,8,8>
 
     subroutine fsr_pT1_i<itype>_m<mtype>_v<vtype>(matrix, pT1, ncolmax, ninput,&
-                                    noutput)
+                                noutput)
         integer, parameter          :: s = <itype> + <mtype>
         integer*8, intent(in)       :: ncolmax
         integer*8, intent(in)       :: ninput
@@ -89,8 +115,36 @@ contains
     end subroutine
 
 
+    subroutine fsr_rot2d_pT1_i<itype>_m<mtype>_v<vtype>(matrix, pT1, ncolmax,  &
+                                      ninput, noutput)
+        integer, parameter          :: s = <itype> + 2 * <mtype>
+        integer*8, intent(in)       :: ncolmax
+        integer*8, intent(in)       :: ninput
+        integer*8, intent(in)       :: noutput
+        !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
+        type(PointingElementRot2d_i<itype>_m<mtype>), intent(in) ::            &
+            matrix(ncolmax, ninput)
+        real*<vtype>, intent(inout) :: pT1(0:noutput-1)
+        integer*<itype> :: col
+        integer*8 :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                !$omp atomic
+                pT1(col) = pT1(col) + sqrt(matrix(j,i)%r11**2 +                &
+                     matrix(j,i)%r21**2)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
     subroutine fsr_rot3d_pT1_i<itype>_m<mtype>_v<vtype>(matrix, pT1, ncolmax,  &
-                                          ninput, noutput)
+                                      ninput, noutput)
         integer, parameter          :: s = <itype> + 3 * <mtype>
         integer*8, intent(in)       :: ncolmax
         integer*8, intent(in)       :: ninput
@@ -158,7 +212,7 @@ contains
         !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
         type(PointingElementRot3d_i<itype>_m<mtype>), intent(in) ::            &
             matrix(ncolmax, ninput)
-        real*<vtype>, intent(in)    :: input(ninput)
+        real*<vtype>, intent(in)    :: input(3,ninput)
         real*<vtype>, intent(inout) :: pTx(0:noutput-1)
         real*<vtype>, intent(inout) :: pT1(0:noutput-1)
         real*<mtype> :: val
@@ -172,7 +226,7 @@ contains
                 if (col < 0) cycle
                 val = matrix(j,i)%r11
                 !$omp atomic
-                pTx(col) = pTx(col) + val * input(i)
+                pTx(col) = pTx(col) + val * input(1,i)
                 !$omp atomic
                 pT1(col) = pT1(col) + val
             end do
