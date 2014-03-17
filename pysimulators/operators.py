@@ -13,8 +13,9 @@ from pyoperators import (
     Operator, BlockDiagonalOperator, Cartesian2SphericalOperator,
     CompositionOperator, DenseOperator, DenseBlockDiagonalOperator,
     DiagonalOperator, DiagonalNumexprOperator, HomothetyOperator,
-    Spherical2CartesianOperator)
-from pyoperators.flags import linear, orthogonal, real, inplace
+    IdentityOperator, Spherical2CartesianOperator)
+from pyoperators.flags import (
+    inplace, linear, orthogonal, real, separable, square)
 from pyoperators.memory import empty, ones
 from pyoperators.utils import (
     float_dtype, isscalarlike, operation_assignment, product, strenum,
@@ -33,6 +34,7 @@ __all__ = [
     'CartesianGalactic2EquatorialOperator',
     'CartesianEquatorial2HorizontalOperator',
     'CartesianHorizontal2EquatorialOperator',
+    'ConvolutionTruncatedExponentialOperator',
     'PointingMatrix',
     'PowerLawOperator',
     'ProjectionOperator',
@@ -285,6 +287,90 @@ class BlackBodyOperator(DiagonalOperator):
         self.frequency0 = frequency0
         self.wavelength = wavelength
         self.wavelength0 = wavelength0
+
+
+@real
+@linear
+@square
+@inplace
+@separable
+class ConvolutionTruncatedExponentialOperator(Operator):
+    """
+    Apply a truncated exponential response to the signal
+
+    Parameters
+    ==========
+    tau: float or array-like
+        Time constant divided by the signal sampling period.
+
+    """
+    def __init__(self, tau, dtype=None, **keywords):
+        if hasattr(tau, 'SI'):
+            tau = tau.SI
+            if tau.unit != '':
+                raise ValueError('The time constant must be dimensionless.')
+        if dtype is None:
+            tau = np.asarray(tau)
+            if tau.dtype.kind == 'f':
+                dtype = tau.dtype
+            else:
+                dtype = float
+        tau = np.asarray(tau, dtype)
+        if np.all(tau <= 0):
+            self.__class__ = IdentityOperator
+            self.__init__(dtype=dtype, **keywords)
+            return
+        self.tau = tau
+        Operator.__init__(self, dtype=dtype, **keywords)
+
+    def direct(self, input, output):
+        input_, ishape, istride = _ravel_strided(input)
+        output_, oshape, ostride = _ravel_strided(output)
+        f = 'trexp_direct_v{0}'.format(input.dtype.itemsize)
+        try:
+            getattr(flib.operators, f)(
+                input_, ishape[0], ishape[1], istride,
+                output_, oshape[1], ostride, self.tau.astype(input.dtype))
+        except AttributeError:
+            raise NotImplementedError()
+
+    def transpose(self, input, output):
+        input_, ishape, istride = _ravel_strided(input)
+        output_, oshape, ostride = _ravel_strided(output)
+        f = 'trexp_transpose_v{0}'.format(input.dtype.itemsize)
+        try:
+            getattr(flib.operators, f)(
+                input_, ishape[0], ishape[1], istride,
+                output_, oshape[1], ostride, self.tau.astype(input.dtype))
+        except AttributeError:
+            raise NotImplementedError()
+
+    def validatein(self, shape):
+        if self.tau.size == 1:
+            return
+        if self.tau.size != product(shape[:-1]):
+            raise ValueError(
+                "The shape of the input '{0}' is incompatible with the number "
+                "of scales '{1}'.".format(shape, self.tau.size))
+
+
+def _ravel_strided(array):
+    array_ = array.reshape(-1, array.shape[-1])
+    n2, n1 = array_.shape
+    if array_.flags.c_contiguous:
+        return array_.ravel(), array_.shape, n1
+    if not array_[0, :].flags.c_contiguous:
+        raise RuntimeError()
+    s2, s1 = array_.strides
+    s2 //= s1
+    base = array
+    while not base.flags.c_contiguous:
+        base = base.base
+    start = (array.__array_interface__['data'][0] -
+             base.__array_interface__['data'][0]) // s1
+    stop = start + (n2 - 1) * s2 + n1
+    flat = base.ravel()[start:stop]
+    return flat, array_.shape, s2
 
 
 @real
