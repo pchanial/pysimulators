@@ -4,7 +4,7 @@ import healpy as hp
 import healpy._healpy_pixel_lib as pixlib
 import numpy as np
 from pyoperators import CompositionOperator, IdentityOperator, Operator
-from pyoperators.decorators import inplace, real, symmetric
+from pyoperators.flags import inplace, real, symmetric
 from pyoperators.utils import pi, strenum
 
 __all__ = ['Healpix2CartesianOperator',
