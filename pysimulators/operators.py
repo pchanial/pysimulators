@@ -14,7 +14,7 @@ from pyoperators import (
     CompositionOperator, DenseOperator, DenseBlockDiagonalOperator,
     DiagonalOperator, DiagonalNumexprOperator, HomothetyOperator,
     Spherical2CartesianOperator)
-from pyoperators.decorators import linear, orthogonal, real, inplace
+from pyoperators.flags import linear, orthogonal, real, inplace
 from pyoperators.memory import empty, ones
 from pyoperators.utils import (
     float_dtype, isscalarlike, operation_assignment, product, strenum,
