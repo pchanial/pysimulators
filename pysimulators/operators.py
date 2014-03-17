@@ -13,7 +13,7 @@ from pyoperators import (
     CompositionOperator, ConstantOperator, DenseOperator,
     DenseBlockDiagonalOperator, DiagonalOperator, DiagonalNumexprOperator,
     HomothetyOperator, MultiplicationOperator, Spherical2CartesianOperator)
-from pyoperators.decorators import linear, orthogonal, real, inplace
+from pyoperators.flags import linear, orthogonal, real, inplace
 from pyoperators.memory import empty, ones, zeros
 from pyoperators.utils import (
     float_dtype, isscalarlike, operation_assignment, product, strenum,

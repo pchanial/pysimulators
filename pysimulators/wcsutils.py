@@ -1,7 +1,6 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 #
-
 from __future__ import division
 
 import numpy as np
@@ -16,7 +15,7 @@ except ImportError:
     kwcs = None
 import astropy.wcs
 from pyoperators import Operator
-from pyoperators.decorators import real, square, inplace
+from pyoperators.flags import inplace, real, square
 from pyoperators.utils import isscalarlike, operation_assignment
 from . import _flib as flib
 
