@@ -12,9 +12,11 @@ from pyoperators import (
     BlockDiagonalOperator, IdentityOperator, MultiplicationOperator,
     Spherical2CartesianOperator, decorators)
 from pyoperators.utils import all_eq, isscalarlike, product
-from pyoperators.utils.testing import assert_is_instance, assert_same
+from pyoperators.utils.testing import (
+    assert_is_instance, assert_is_type, assert_same)
 from pysimulators.operators import (
-    BlackBodyOperator, PowerLawOperator, RollOperator, block_diagonal,
+    BlackBodyOperator, ConvolutionTruncatedExponentialOperator,
+    PowerLawOperator, RollOperator, block_diagonal,
     CartesianEquatorial2GalacticOperator,
     CartesianEquatorial2HorizontalOperator,
     CartesianGalactic2EquatorialOperator,
@@ -212,6 +214,35 @@ def test_blackbody():
            for wave in w]
     flux2 = np.array([op(np.ones(T.size)) for op in ops])
     assert all_eq(flux, flux2)
+
+
+def test_convolution_truncated_exponential():
+    tau = (2, 3, 0)
+    r = ConvolutionTruncatedExponentialOperator(tau, shapein=(3, 10))
+    a = np.ones((3, 10))
+    b = r(a)
+    assert np.allclose(a, b)
+
+    a[:, 1:] = 0
+    b = r(a)
+    assert_same(b[:2, :9], [np.exp(-np.arange(9) / _) for _ in tau[:2]])
+    assert_same(b[2], a[2])
+    assert_same(r.T.todense(), r.todense().T)
+    assert_same(r.T.todense(inplace=True), r.todense(inplace=True).T)
+
+
+def test_convolution_truncated_exponential_morphing():
+    def func1(tau):
+        assert_is_type(ConvolutionTruncatedExponentialOperator(tau),
+                       IdentityOperator)
+    for tau in 0, [0], (0,), np.array(0), np.array([0, 0]):
+        yield func1, tau
+
+    def func2(tau):
+        assert_is_type(ConvolutionTruncatedExponentialOperator(tau),
+                       ConvolutionTruncatedExponentialOperator)
+    for tau in [0, 1], (0, 1), np.array([0, 1]):
+        yield func2, tau
 
 
 def test_power_law():
