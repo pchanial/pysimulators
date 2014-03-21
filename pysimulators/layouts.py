@@ -565,7 +565,7 @@ class LayoutGrid(Layout):
 
     """
     def __init__(self, shape, spacing, xreflection=False, yreflection=False,
-                 angle=0, origin=(0, 0), **keywords):
+                 angle=0, origin=(0, 0), startswith1=False, **keywords):
         """
     shape : tuple of two integers (nrows, ncolumns)
         Number of rows and columns of the grid.
@@ -579,6 +579,8 @@ class LayoutGrid(Layout):
         Counter-clockwise rotation angle in degrees (before translation).
     origin : array-like of shape (2,), optional
         The (X, Y) coordinates of the grid center
+    startswith1 : boolean, optional
+        If True, start column and row indewing with one.
     nvertices : int, optional
         The component number of vertices. If not specified, it is deduced
         from the last but one dimension of the vertex keyword. If the component
@@ -613,7 +615,7 @@ class LayoutGrid(Layout):
                 index = np.arange(s.index.start, s.index.stop)
             else:
                 index = s.index
-            return index % shape[1]
+            return index % shape[1] + s.startswith1
 
         def row(s):
             if s.index is None:
@@ -622,7 +624,7 @@ class LayoutGrid(Layout):
                 index = np.arange(s.index.start, s.index.stop)
             else:
                 index = s.index
-            return index // shape[1]
+            return index // shape[1] + s.startswith1
 
         unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
         if len(origin) != len(shape):
@@ -640,6 +642,7 @@ class LayoutGrid(Layout):
         self.xreflection = xreflection
         self.yreflection = yreflection
         self.angle = angle
+        self.startswith1 = startswith1
         self._unit = unit
         Layout.__init__(self, shape, center=center, column=column, row=row,
                         **keywords)
@@ -692,6 +695,8 @@ class LayoutGridCircles(LayoutGrid):
         Counter-clockwise rotation angle in degrees (before translation).
     origin : array-like of shape (2,)
         The (X, Y) coordinates of the grid center
+    startswith1 : boolean, optional
+        If True, start column and row indewing with one.
     removed : array-like of bool, optional
         The mask that specifies the removed components (either because they
         are not physically present or if they are not handled by the current
@@ -769,6 +774,8 @@ class LayoutGridSquares(LayoutGrid):
         Counter-clockwise rotation angle in degrees (before translation).
     origin : array-like of shape (2,)
         The (X, Y) coordinates of the grid center
+    startswith1 : boolean, optional
+        If True, start column and row indewing with one.
     removed : array-like of bool, optional
         The mask that specifies the removed components (either because they
         are not physically present or if they are not handled by the current
