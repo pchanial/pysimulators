@@ -455,7 +455,7 @@ class Quantity(np.ndarray):
         if not isinstance(item, np.ndarray):
             return item
         if self.dtype.kind == 'V' and isinstance(key, str):
-            return Quantity(item, '', {}, copy=False, dtype=item.dtype)
+            return item.view(Quantity)
 
         if isinstance(key, list):
             key = tuple(key)
