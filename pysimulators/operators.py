@@ -1476,7 +1476,7 @@ class SphericalHorizontal2EquatorialOperator(CompositionOperator):
     >>> t0 = Time(['2000-01-01 00:00:00.0'], scale='utc')
     >>> dt = TimeDelta(np.arange(1000)/10, format='sec')
     >>> lat, lon = 48.853291, 2.348751
-    >>> op = CartesianHorizontal2EquatorialOperator('NE', t0 + dt, lat, lon)
+    >>> op = SphericalHorizontal2EquatorialOperator('NE', t0 + dt, lat, lon)
 
     """
     def __init__(self, convention_horizontal, time, latitude, longitude,
