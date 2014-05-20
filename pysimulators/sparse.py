@@ -385,10 +385,10 @@ class FSRRotation3dMatrix(_FSRotation3dMatrix):
         return FSCRotation3dMatrix(self.shape[::-1], data=self.data)
 
 
-class SparseOperator(pyoperators.core.SparseBase):
+class SparseOperator(pyoperators.linear.SparseBase):
     def __init__(self, arg, dtype=None, **keywords):
         if sp.issparse(arg):
-            self.__class__ = pyoperators.core.SparseOperator
+            self.__class__ = pyoperators.linear.SparseOperator
             self.__init__(arg, dtype=None, **keywords)
             return
         if not isinstance(arg, (FSCMatrix, FSRMatrix,
@@ -411,7 +411,7 @@ class SparseOperator(pyoperators.core.SparseBase):
                     'Invalid reduction operation: {0}.'.format(operation))
             self.matrix._matvec(input, output)
 
-        pyoperators.core.SparseBase.__init__(
+        pyoperators.linear.SparseBase.__init__(
             self, arg, dtype=dtype, direct=direct, **keywords)
         self.set_rule('T', lambda s: SparseOperator(s.matrix._transpose(),
                                                     dtype=s.dtype))
