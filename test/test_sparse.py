@@ -379,7 +379,7 @@ def test_fsr_rot3d_error():
 def test_sparse_operator():
     assert_raises(TypeError, SparseOperator, np.zeros((10, 3)))
     sp = SparseOperator(scipy.sparse.csc_matrix((4, 6)))
-    assert_is_type(sp, pyoperators.core.SparseOperator)
+    assert_is_type(sp, pyoperators.linear.SparseOperator)
 
     data = FSRMatrix((10, 3), ncolmax=1)
     assert_raises(ValueError, SparseOperator, data, shapein=4)
