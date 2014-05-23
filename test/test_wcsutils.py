@@ -3,8 +3,7 @@ import os
 
 from astropy.io import fits as pyfits
 from astropy.wcs import WCS
-from numpy.testing import assert_almost_equal
-from pyoperators.utils.testing import assert_eq, skiptest_unless_module
+from pyoperators.utils.testing import assert_eq, assert_same, skiptest_unless_module
 from pysimulators.wcsutils import (
     angle_lonlat,
     barycenter_lonlat,
@@ -21,12 +20,12 @@ from pysimulators.wcsutils import (
 
 def test_mean_degrees():
     assert mean_degrees([1, 2]) == 1.5
-    assert_almost_equal(mean_degrees([1, 359.1]), 0.05, 12)
-    assert_almost_equal(mean_degrees([0.1, 359.1]), 359.6, 12)
+    assert_same(mean_degrees([1, 359.1]), 0.05, atol=100)
+    assert_same(mean_degrees([0.1, 359.1]), 359.6)
 
 
 def test_angle_lonlat1():
-    assert_eq(angle_lonlat(30, 0, 40, 0), 10)
+    assert_same(angle_lonlat(30, 0, 40, 0), 10, atol=100)
 
 
 def test_angle_lonlat2():
@@ -40,7 +39,7 @@ def test_angle_lonlat2():
     )
 
     def func(c1, c2, angle):
-        assert_almost_equal(angle_lonlat(c1, c2), angle, 10)
+        assert_same(angle_lonlat(c1, c2), angle, rtol=1000)
 
     for c1, c2, angle in input:
         yield func, c1, c2, angle
@@ -168,8 +167,8 @@ def test_wcsoperator():
         crval = (header['CRVAL1'], header['CRVAL2'])
         crpix = np.array((header['CRPIX1'], header['CRPIX2'])) - 1 + origin
         toworld = WCSToWorldOperator(header, origin)
-        assert_eq(toworld(crpix), crval)
-        assert_eq(toworld.I(crval), crpix)
+        assert_same(toworld(crpix), crval, atol=10)
+        assert_same(toworld.I(crval), crpix, atol=100000)
 
     for origin in (0, 1):
         yield func, origin

@@ -4,7 +4,7 @@ import os
 import pickle
 
 import astropy.io.fits as fits
-from numpy.testing import assert_array_equal, assert_equal
+from numpy.testing import assert_equal
 from pyoperators.utils.testing import assert_eq, assert_is_none
 from pysimulators import Quantity, FitsArray, Map, Tod, create_fitsheader
 from uuid import uuid1
@@ -30,7 +30,9 @@ def teardown():
 a = np.ones((4, 3))
 a[1, 2] = 4
 q = Quantity(a, unit='myunit', derived_units={'myunit': Quantity(2.0, 'Jy')})
-f = FitsArray(q, header=create_fitsheader(fromdata=q, cdelt=0.5, crval=(4.0, 8.0)))
+header = create_fitsheader(fromdata=q, cdelt=0.5, crval=(4.0, 8.0))
+header['BUNIT'] = 'myunit'
+f = FitsArray(q, header=header)
 m = Map(f, origin='upper', error=a * 2, coverage=a * 3)
 mask = np.zeros((4, 3), np.bool8)
 mask[0, 2] = True
@@ -45,7 +47,7 @@ def test_copy_false_subok_true():
             assert obj1 is obj2
         else:
             assert obj1 is not obj2
-            assert_eq(obj1, obj2)
+            assert_equal(obj1, obj2)
 
     for obj in [q, f, m, t]:
         for ty in types:
@@ -59,7 +61,7 @@ def test_copy_false_subok_false():
             assert obj1 is obj2
         else:
             assert obj1 is not obj2
-            assert_eq(obj1, obj2)
+            assert_equal(obj1, obj2)
 
     for obj in [q, f, m, t]:
         for ty in types:
@@ -70,7 +72,7 @@ def test_copy_true_subok_true():
     def func(obj1, ty):
         obj2 = ty(obj1, copy=True, subok=True)
         assert obj1 is not obj2
-        assert_eq(obj1, obj2)
+        assert_equal(obj1, obj2)
         if isinstance(obj1, ty):
             assert type(obj2) is type(obj1)
         else:
@@ -85,7 +87,7 @@ def test_copy_true_subok_false():
     def func(obj1, ty):
         obj2 = ty(obj1, copy=True, subok=False)
         assert obj1 is not obj2
-        assert_eq(obj1, obj2)
+        assert_equal(obj1, obj2)
         assert type(obj2) is ty
 
     for obj1 in [q, f, m, t]:
@@ -173,23 +175,14 @@ def test_empty_ones_zeros():
     def func(t, k, m, d):
         method = getattr(t, m)
         a = method((2, 3), dtype=d, **k)
-        assert_equal(a.dtype, t.default_dtype if d is None else d)
+        assert_eq(a.dtype, t.default_dtype if d is None else d)
         for k_, v in k.items():
-            assert_equal(getattr(a, k_), v)
+            assert_eq(getattr(a, k_), v)
 
     for t, k in zip(types, keywords_types):
         for m in ('empty', 'ones', 'zeros'):
             for d in (None,) + dtypes:
                 yield func, t, k, m, d
-
-
-def test_tod_save():
-    m = np.ndarray((10, 2, 10), dtype='int8')
-    m.flat = np.random.random(m.size) * 2
-    a = Tod(np.random.random_sample((10, 2, 10)), mask=m, unit='Jy')
-    a.save(filename + '_tod.fits')
-    b = Tod(filename + '_tod.fits')
-    assert_array_equal(a, b)
 
 
 def test_map():
@@ -210,23 +203,23 @@ def test_map():
 
 
 def test_pickling():
-    objs = (q, f, m, t)
-
-    def func1(v, o):
+    def func(v, o):
         o2 = pickle.loads(pickle.dumps(o, v))
         assert_eq(o, o2)
 
     for v in range(pickle.HIGHEST_PROTOCOL):
-        for o in objs:
-            yield func1, v, o
+        for o in (q, f, m, t):
+            yield func, v, o
 
-    def func2(o):
+
+def test_save():
+    def func(o):
         o.save(filename + '_obj.fits')
         o2 = type(o)(filename + '_obj.fits')
         assert_eq(o, o2)
 
-    for o in objs[1:]:
-        yield func2, o
+    for o in (f, m, t):
+        yield func, o
 
 
 def test_ndarray_funcs():
@@ -248,7 +241,7 @@ def test_ndarray_funcs():
                 ref = np.ma.MaskedArray(ref)
         else:
             ref = func(array.magnitude, **keywords_func)
-        assert_eq(result, ref)
+        assert_equal(result.view(np.ndarray), ref)
         if np.isscalar(result):
             return
         if func is np.var:
