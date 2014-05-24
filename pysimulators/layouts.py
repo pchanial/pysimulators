@@ -1012,7 +1012,7 @@ class LayoutTemporal(Layout):
                 sampling_period = np.median(np.diff(keywords['time']))
             else:
                 sampling_period = self.DEFAULT_SAMPLING_PERIOD
-        Layout.__init__(self, n, time=keywords.get('time', None), **keywords)
+        Layout.__init__(self, n, time=keywords.pop('time', None), **keywords)
         self.date_obs = date_obs
         self.sampling_period = float(sampling_period)
 

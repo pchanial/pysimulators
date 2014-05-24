@@ -34,67 +34,32 @@ class Acquisition(object):
     pointing configurations.
 
     """
-    def __init__(self, instrument, pointing, block_id=None, selection=None):
+    def __init__(self, instrument, sampling):
         """
         Parameters
         ----------
         instrument : Instrument
             The Instrument instance.
-        pointing : array-like of shape (n,3) or structured array of shape (n,),
-                   or sequence of
-            The pointing directions.
-        block_id : string or sequence of, optional
-           The pointing block identifier.
-        selection : integer or sequence of, optional
-           The indices of the pointing sequence to be selected to construct
-           the pointing configuration.
+        sampling : LayoutTemporal
+            The sampling information (pointing, etc.)
 
         """
         if not isinstance(instrument, Instrument):
-            raise TypeError("The instrument has an invalid type '{}'.".format(
-                            type(instrument).__name__))
-        if not isinstance(pointing, (list, tuple)):
-            pointing = (pointing,)
-        elif isinstance(pointing, types.GeneratorType):
-            pointing = tuple(pointing)
-        pointing = [np.asanyarray(p) for p in pointing]
-        if any(type(p) is not type(pointing[0]) for p in pointing):
-            raise TypeError('The input pointings have different types.')
-        if any(p.dtype.names != pointing[0].dtype.names for p in pointing):
-            raise TypeError('The input pointings have different dtypes.')
-        if pointing[0].dtype.kind == 'V':
-            pointing = [np.array(p, copy=False, ndmin=1, subok=True)
-                        for p in pointing]
-        else:
-            if len(pointing) == 3 and all(p.ndim == 0 for p in pointing):
-                pointing = [np.hstack(pointing)]
-            if any(p.ndim not in (1, 2) or p.shape[-1] != 3 for p in pointing):
-                raise ValueError('Invalid pointing dimensions.')
-            if len(pointing) > 1 and all(p.ndim == 1 for p in pointing):
-                pointing = [np.vstack(pointing)]
-            pointing = [np.array(p, copy=False, ndmin=2, subok=True)
-                        for p in pointing]
-
-        if selection is None:
-            selection = tuple(range(len(pointing)))
-        pointing = [pointing[i] for i in selection]
-        if block_id is not None:
-            block_id = [block_id[i] for i in selection]
-        if not isinstance(block_id, (list, tuple, types.NoneType)):
-            block_id = (block_id,)
-            if any(not isinstance(i, str) for i in block_id):
-                raise TypeError('The block id is not a string.')
+            raise TypeError(
+                "The instrument input has an invalid type '{}'.".format(
+                    type(instrument).__name__))
+#        if not isinstance(sampling, LayoutTemporal):
+#            raise TypeError(
+#                "The sampling input has an invalid type '{}'.".format(
+#                    type(instrument).__name__))
 
         self.instrument = instrument
-        self.pointing = np.concatenate(pointing).view(type(pointing[0]))
-        self.block = self._get_block(pointing, block_id)
+        self.sampling = sampling
         self.commin = instrument.commin
         self.commout = instrument.commout
 
     def __str__(self):
-        return 'Pointings:\n    {} in {}\n\n'.format(
-            self.get_nsamples(), strplural(len(self.block), 'block')) + \
-            str(self.instrument)
+        return '{}\nSamplings: {}'.format(self.instrument, len(self.sampling))
 
     __repr__ = __str__
 
@@ -105,25 +70,6 @@ class Acquisition(object):
     def unpack(self, x):
         return self.instrument.detector.unpack(x)
     unpack.__doc__ = Layout.unpack.__doc__
-
-    def get_ndetectors(self):
-        """
-        Return the number of non-removed detectors.
-
-        """
-        return len(self.instrument.detector.packed)
-
-    def get_nsamples(self):
-        """
-        Return the number of valid pointings for each block
-        They are those for which self.pointing.removed is False.
-
-        """
-        if self.pointing.dtype.kind != 'V' or \
-           'removed' not in self.pointing.dtype.names:
-            return tuple(s.stop - s.start for s in self.block)
-        return tuple(int(np.sum(~self.pointing[s.start:s.stop].removed))
-                     for s in self.block)
 
     def get_invntt_operator(self, psd=None, bandwidth=None, twosided=False,
                             sigma=None, fknee=0, fslope=1,
@@ -180,11 +126,11 @@ class Acquisition(object):
             return DiagonalOperator(1/sigma**2, broadcast='rightward')
 
         if sampling_frequency is None:
-            if not hasattr(self, 'sampling_frequency'):
+            if not hasattr(self.sampling, 'sampling_frequency'):
                 raise ValueError('The sampling frequency is not specified.')
-            sampling_frequency = self.sampling_frequency
+            sampling_frequency = self.sampling.sampling_frequency
 
-        nsamples_max = np.max(self.block.n)
+        nsamples_max = len(self.sampling)
         fftsize = 2
         while fftsize < nsamples_max:
             fftsize *= 2
@@ -201,12 +147,9 @@ class Acquisition(object):
         p[..., 0] = p[..., 1]
         invntt = _psd2invntt(p, new_bandwidth, ncorr, fftw_flag=fftw_flag)
 
-        ops = []
-        for b in self.block:
-            shapein = (self.get_ndetectors(), b.n)
-            ops += [SymmetricBandToeplitzOperator(
-                    shapein, invntt, fftw_flag=fftw_flag, nthreads=nthreads)]
-        return BlockDiagonalOperator(ops, axisin=-1)
+        shapein = (len(self.instrument), len(self.sampling))
+        return SymmetricBandToeplitzOperator(
+            shapein, invntt, fftw_flag=fftw_flag, nthreads=nthreads)
 
     def get_projection_operator(self, header, npixels_per_sample=0,
                                 method=None, units=None, derived_units=None):
@@ -214,11 +157,9 @@ class Acquisition(object):
             npixels_per_sample = 1
         time0 = time.time()
         info = []
-        pmatrices = [
-            self.get_projection_matrix(header, b.start, b.stop,
-                                       npixels_per_sample=npixels_per_sample,
-                                       method=method) for b in self.block]
-        npps_min = max(p.header['min_npixels_per_sample'] for p in pmatrices)
+        matrix = self.get_projection_matrix(
+            header, npixels_per_sample=npixels_per_sample, method=method)
+        npps_min = matrix.header['min_npixels_per_sample']
 
         if npps_min == 0:
             info += ['Warning, all detectors fall outside the map.']
@@ -228,36 +169,30 @@ class Acquisition(object):
                 info += ["Warning, the value 'npixels_per_sample' is not large"
                          " enough. Set it to '{0}' instead of '{1}' to avoid r"
                          "ecomputation of the pointing matrix.".format(
-                         npps_min, npixels_per_sample)]
+                             npps_min, npixels_per_sample)]
             else:
                 info += ["Set the keyword 'npixels_per_sample' to '{0}' to avo"
                          "id recomputation of the pointing matrix.".format(
-                         npps_min)]
+                             npps_min)]
             npixels_per_sample = npps_min
-            del pmatrices
-            pmatrices = [
-                self.get_projection_matrix(
-                    header, b.start, b.stop,
-                    npixels_per_sample=npixels_per_sample,
-                    method=method) for b in self.block]
+            matrix = self.get_projection_matrix(
+                header, npixels_per_sample=npixels_per_sample, method=method)
 
         elif npixels_per_sample > npps_min:
             info += ["Warning, the value 'npixels_per_sample' is too large. Se"
                      "t it to '{0}' instead of '{1}' for better memory perform"
                      "ance.".format(npps_min, npixels_per_sample)]
 
-        if any(p.header['outside'] for p in pmatrices):
+        if matrix.header['outside']:
             info += ['Warning, some detectors fall outside the map.']
 
-        info.insert(0, strnbytes(sum(p.nbytes for p in pmatrices)))
+        info.insert(0, strnbytes(matrix.nbytes))
         print(strelapsed(time0, 'Computing the projector') + ' ({0})'.
               format(' '.join(info)))
 
-        return BlockColumnOperator(
-            [ProjectionInMemoryOperator(p, attrin={'_header': header},
-                                        classin=Map, classout=Tod, units=units,
-                                        derived_units=derived_units)
-             for p in pmatrices], axisout=-1)
+        return ProjectionOperator(matrix, attrin={'_header': header},
+                                  classin=Map, classout=Tod, units=units,
+                                  derived_units=derived_units)
 
     def get_noise(self, psd=None, bandwidth=None, twosided=False, sigma=None,
                   fknee=0, fslope=1, sampling_frequency=None, out=None):
@@ -286,8 +221,9 @@ class Acquisition(object):
             The 1/f noise knee frequency [Hz].
         fslope : float, optional
             The 1/f noise slope.
-        sampling_frequency : float
-            The sampling frequency of the output timeline [Hz].
+        sampling_frequency : float, optional
+            The sampling frequency of the output timeline [Hz]. By default,
+            it is taken from the acquisition's sampling attribute.
         out : ndarray, optional
             Placeholder for the output noise.
 
@@ -298,7 +234,7 @@ class Acquisition(object):
         if bandwidth is None and psd is None and sigma is None:
             raise ValueError('The noise model is not specified.')
 
-        shape = (self.get_ndetectors(), sum(self.get_nsamples()))
+        shape = (len(self.instrument), len(self.sampling))
 
         # handle non-correlated case first
         if bandwidth is None and fknee == 0:
@@ -310,13 +246,11 @@ class Acquisition(object):
             np.multiply(out.T, sigma, out.T)
             return out
 
+        if sampling_frequency is None:
+            sampling_frequency = 1 / self.sampling.sampling_period
+
         if out is None:
             out = empty(shape)
-
-        if sampling_frequency is None:
-            if not hasattr(self, 'sampling_frequency'):
-                raise ValueError('The sampling frequency is not specified.')
-            sampling_frequency = self.sampling_frequency
 
         # fold two-sided input PSD
         if bandwidth is not None and psd is not None:
@@ -326,23 +260,19 @@ class Acquisition(object):
         else:
             twosided = True
 
-        for b in self.block:
-            try:
-                valid = ~self.pointing.removed[b.start:b.stop]
-            except AttributeError:
-                valid = Ellipsis
-            if bandwidth is None and psd is None:
-                p = _gaussian_psd_1f(b.n, sampling_frequency, sigma, fknee,
-                                     fslope, twosided=twosided)
-            else:
-                # log-log interpolation of one-sided PSD
-                f = np.arange(b.n // 2 + 1, dtype=float) * (sampling_frequency
-                                                            / b.n)
-                p = _logloginterp_psd(f, bandwidth, psd)
-            for out_ in out:
-                noise = _gaussian_sample(b.n, sampling_frequency, p,
+        n = len(self.sampling)
+        if bandwidth is None and psd is None:
+            p = _gaussian_psd_1f(n, sampling_frequency, sigma, fknee, fslope,
+                                 twosided=twosided)
+        else:
+            # log-log interpolation of one-sided PSD
+            f = np.arange(n // 2 + 1, dtype=float) * (sampling_frequency / n)
+            p = _logloginterp_psd(f, bandwidth, psd)
+
+        # looping over the detectors
+        for out_ in out:
+            out_[...] = _gaussian_sample(n, sampling_frequency, p,
                                          twosided=twosided)
-                out_[b.start:b.stop] = noise[valid]
 
         return out
 
@@ -415,30 +345,11 @@ class Acquisition(object):
         if header is None:
             header = getattr(map, 'header', None)
             if header is None:
-                header = self.pointing.get_map_header(naxis=1)
-        annim = self.pointing[self.block[0].start:self.block[0].stop].plot(
+                header = self.sampling.get_map_header(naxis=1)
+        annim = self.sampling.plot(
             map=map, header=header, new_figure=new_figure,
             percentile=percentile, **keywords)
-
-        for s in self.block[1:]:
-            self.pointing[s.start:s.stop].plot(header=header, new_figure=False,
-                                               **keywords)
-
         return annim
-
-    @staticmethod
-    def _get_block(pointing, block_id):
-        npointings = [p.shape[0] for p in pointing]
-        start = np.concatenate([[0], np.cumsum(npointings)[:-1]])
-        stop = np.cumsum(npointings)
-        block = np.recarray(len(pointing),
-                            dtype=[('start', int), ('stop', int),
-                                   ('n', int), ('id', 'S29')])
-        block.n = npointings
-        block.start = start
-        block.stop = stop
-        block.identifier = block_id if block_id is not None else ''
-        return block
 
 
 class AcquisitionImager(Acquisition):
@@ -447,28 +358,22 @@ class AcquisitionImager(Acquisition):
     instrument and the pointing.
 
     """
-    def __init__(self, instrument, pointing, block_id=None, selection=None):
+    def __init__(self, instrument, sampling):
         """
         Parameters
         ----------
         instrument : Imager
             The Imager instance.
-        pointing : array-like of shape (n,3) or structured array of shape (n,),
+        sampling : array-like of shape (n,3) or structured array of shape (n,),
                    or sequence of
             The pointing directions.
-        block_id : string or sequence of, optional
-           The pointing block identifier.
-        selection : integer or sequence of, optional
-           The indices of the pointing sequence to be selected to construct
-           the pointing configuration.
 
         """
         if not isinstance(instrument, Imager):
             raise TypeError("The instrument has an invalid type '{}'.".format(
                             type(instrument).__name__))
-        Acquisition.__init__(self, instrument, pointing, block_id=block_id,
-                             selection=selection)
-        self.object2world = RotationBoresightEquatorialOperator(self.pointing)
+        Acquisition.__init__(self, instrument, sampling)
+        self.object2world = RotationBoresightEquatorialOperator(self.sampling)
 
     def get_map_header(self, resolution=None):
         """
@@ -489,27 +394,27 @@ class AcquisitionImager(Acquisition):
         """
         if resolution is None:
             resolution = self.instrument.default_resolution
-        if self.instrument.detector.nvertices > 0:
-            coords = self.instrument.detector.packed.vertex
+        if hasattr(self.instrument.detector, 'vertex'):
+            coords = self.instrument.detector.vertex
         else:
-            coords = self.instrument.detector.packed.center
+            coords = self.instrument.detector.center
         coords = convex_hull(coords)
         self.instrument.image2object(coords, out=coords)
 
-        valid = ~self.pointing['removed'] & ~self.pointing['masked']
+        valid = ~self.sampling['masked']
         if not np.any(valid):
             raise ValueError('The FITS header cannot be inferred: there is no '
                              'valid pointing.')
-        pointing = self.pointing[valid]
+        sampling = self.sampling[valid]
 
         # get a dummy header, with correct cd and crval
-        ra0, dec0 = barycenter_lonlat(pointing.ra, pointing.dec)
+        ra0, dec0 = barycenter_lonlat(sampling.ra, sampling.dec)
         header = create_fitsheader((1, 1), cdelt=resolution / 3600,
                                    crval=(ra0, dec0), crpix=(1, 1))
 
         # compute coordinate boundaries according to the header's astrometry
         xmin, ymin, xmax, ymax = self._object2xy_minmax(
-            coords, pointing, str(header).replace('\n', ''))
+            coords, sampling, str(header).replace('\n', ''))
         ixmin = int(np.round(xmin))
         ixmax = int(np.round(xmax))
         iymin = int(np.round(ymin))
@@ -526,8 +431,7 @@ class AcquisitionImager(Acquisition):
         headers = self.commin.allgather(header)
         return combine_fitsheader(headers)
 
-    def get_projection_matrix(self, header, start, stop, npixels_per_sample=0,
-                              method=None):
+    def get_projection_matrix(self, header, npixels_per_sample=0, method=None):
         """
         Return the pointing matrix for a given set of pointings.
 
@@ -535,10 +439,6 @@ class AcquisitionImager(Acquisition):
         ----------
         header : pyfits.Header
             The map FITS header
-        start : int
-            The starting index of the pointings.
-        stop : int
-            The last index of the pointings (not included).
         npixels_per_sample : int
             Maximum number of sky pixels intercepted by a detector.
             By setting 0 (the default), the actual value will be determined
@@ -554,7 +454,7 @@ class AcquisitionImager(Acquisition):
 
         """
         if method is None:
-            if self.instrument.detector.nvertices > 0:
+            if hasattr(self.instrument.detector, 'vertex'):
                 method = 'sharp'
             else:
                 method = 'nearest'
@@ -571,39 +471,35 @@ class AcquisitionImager(Acquisition):
                                'stored using 32 bits: {0}>{1}'.format(product(
                                shape_input), np.iinfo(np.int32).max))
 
-        pointing = self.pointing[start:stop]
-        mask = ~pointing['removed']
-        pointing = pointing[mask]
-        nvalids = pointing.size
-
         if method == 'nearest':
             npixels_per_sample = 1
 
         # allocate memory for the pointing matrix
-        ndetectors = self.get_ndetectors()
-        shape = (ndetectors, nvalids, npixels_per_sample)
-        pmatrix = PointingMatrix.empty(shape, shape_input, verbose=False)
+        ndetectors = len(self.instrument)
+        nsamples = len(self.sampling)
+        shape = (ndetectors, nsamples, npixels_per_sample)
+        matrix = PointingMatrix.empty(shape, shape_input, verbose=False)
 
         # compute the pointing matrix
         if method == 'sharp':
             coords = self.instrument.image2object(
-                self.instrument.detector.packed.vertex)
+                self.instrument.detector.vertex)
             new_npps, outside = self._object2pmatrix_sharp_edges(
-                coords, pointing, header, pmatrix, npixels_per_sample)
+                coords, self.sampling, header, matrix, npixels_per_sample)
         elif method == 'nearest':
             coords = self.instrument.image2object(
-                self.instrument.detector.packed.center)
+                self.instrument.detector.center)
             new_npps = 1
             outside = self._object2pmatrix_nearest_neighbour(
-                coords, pointing, header, pmatrix)
+                coords, self.sampling, header, matrix)
         else:
             raise NotImplementedError()
 
-        pmatrix.header['method'] = method
-        pmatrix.header['outside'] = bool(outside)
-        pmatrix.header['HIERARCH min_npixels_per_sample'] = new_npps
+        matrix.header['method'] = method
+        matrix.header['outside'] = bool(outside)
+        matrix.header['HIERARCH min_npixels_per_sample'] = new_npps
 
-        return pmatrix
+        return matrix
 
     def plot(self, map=None, header=None, instrument=True, new_figure=True,
              percentile=0.01, **keywords):
@@ -627,8 +523,10 @@ class AcquisitionImager(Acquisition):
         if not instrument:
             return image
 
-        valid = ~self.pointing.removed & ~self.pointing.masked
-        p = self.pointing[ifirst(valid, True)]
+        if hasattr(self.sampling, 'masked'):
+            p = self.sampling[ifirst(self.sampling.masked, False)]
+        else:
+            p = self.sampling[0]
         t = RotationBoresightEquatorialOperator(p) * \
             self.instrument.image2object
         f = lambda x: image.projection.topixel(t(x))
