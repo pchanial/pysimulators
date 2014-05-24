@@ -47,7 +47,7 @@ class Instrument(object):
         out = _EmptyClass()
         out.__class__ = self.__class__
         out.__dict__.update(self.__dict__)
-        out.detector = self.detector.packed[selection]
+        out.detector = self.detector[selection]
         return out
 
     def __iter__(self):
@@ -55,7 +55,7 @@ class Instrument(object):
             yield self[i]
 
     def __len__(self):
-        return len(self.detector.packed)
+        return len(self.detector)
 
     def pack(self, x):
         return self.detector.pack(x)
