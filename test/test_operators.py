@@ -15,7 +15,7 @@ from pyoperators import (
     IdentityOperator,
     MultiplicationOperator,
     Spherical2CartesianOperator,
-    decorators,
+    flags,
 )
 from pyoperators.utils import all_eq, isscalarlike, product
 from pyoperators.utils.testing import assert_is_instance, assert_is_type, assert_same
@@ -38,7 +38,7 @@ from pysimulators.operators import (
 
 def test_partitioning_chunk():
     @block_diagonal('value', 'mykey', axisin=0)
-    @decorators.square
+    @flags.square
     class MyOp(Operator):
         def __init__(self, arg1, value, arg3, mykey=None, **keywords):
             Operator.__init__(self, **keywords)
@@ -53,7 +53,7 @@ def test_partitioning_chunk():
         __str__ = Operator.__repr__
 
     @block_diagonal('value', 'mykey', axisin=0)
-    @decorators.square
+    @flags.square
     class MySupOp(Operator):
         def __init__(self, arg1, value, arg3, mykey=None, **keywords):
             Operator.__init__(self, **keywords)
@@ -126,7 +126,7 @@ def test_partitioning_chunk():
 
 def test_partitioning_stack():
     @block_diagonal('value', 'mykey', new_axisin=0)
-    @decorators.square
+    @flags.square
     class MyOp(Operator):
         def __init__(self, arg1, value, arg3, mykey=None, **keywords):
             Operator.__init__(self, **keywords)
@@ -141,7 +141,7 @@ def test_partitioning_stack():
         __str__ = Operator.__repr__
 
     @block_diagonal('value', 'mykey', new_axisin=0)
-    @decorators.square
+    @flags.square
     class MySupOp(Operator):
         def __init__(self, arg1, value, arg3, mykey=None, **keywords):
             Operator.__init__(self, **keywords)
