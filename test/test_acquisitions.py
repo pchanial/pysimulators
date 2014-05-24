@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 from numpy.testing import assert_allclose
 from pyoperators.utils.testing import assert_eq, assert_raises
-from pysimulators import Acquisition, Instrument, Layout, MaskPolicy, Pointing
+from pysimulators import Acquisition, Instrument, Layout, LayoutTemporal, MaskPolicy
 
 flags = ['bad', 'u1', 'u2']
 
@@ -28,51 +28,43 @@ def test_mask_policy2():
 def test_get_noise():
     fsamp = 5
     sigma = 0.3
-    p = Pointing.zeros(2e4)
-    pointings = (p, (p, Pointing.zeros(3e4)))
+    sampling = LayoutTemporal(2e4, sampling_period=1 / fsamp)
     shapes = ((1,), (2, 3))
     np.random.seed(0)
 
-    def func1(shape, p, fknee):
+    def func1(shape, fknee):
         instrument = Instrument('', Layout(shape))
-        conf = Acquisition(instrument, p)
-        noise = conf.get_noise(sampling_frequency=fsamp, sigma=sigma, fknee=fknee)
-        assert noise.shape == (conf.get_ndetectors(), sum(conf.get_nsamples()))
+        acq = Acquisition(instrument, sampling)
+        noise = acq.get_noise(sigma=sigma, fknee=fknee)
+        assert noise.shape == (len(acq.instrument), len(acq.sampling))
         assert_allclose(np.std(noise), sigma, rtol=1e-2)
 
     for shape in shapes:
-        for p in pointings:
-            for fknee in (0, 1e-7):
-                yield func1, shape, p, fknee
+        for fknee in (0, 1e-7):
+            yield func1, shape, fknee
 
     freq = np.arange(6) / 6 * fsamp
     psd = np.array([0, 1, 1, 1, 1, 1], float) * sigma**2 / fsamp
 
-    def func2(shape, p):
+    def func2(shape):
         instrument = Instrument('', Layout(shape))
-        conf = Acquisition(instrument, p)
-        noise = conf.get_noise(
-            psd=psd, bandwidth=freq[1], twosided=True, sampling_frequency=fsamp
-        )
-        assert noise.shape == (conf.get_ndetectors(), sum(conf.get_nsamples()))
+        acq = Acquisition(instrument, sampling)
+        noise = acq.get_noise(psd=psd, bandwidth=freq[1], twosided=True)
+        assert noise.shape == (len(acq.instrument), len(acq.sampling))
         assert_allclose(np.std(noise), sigma, rtol=1e-2)
 
     for shape in shapes:
-        for p in pointings:
-            yield func2, shape, p
+        yield func2, shape
 
     freq = np.arange(4) / 6 * fsamp
     psd = np.array([0, 2, 2, 1], float) * sigma**2 / fsamp
 
-    def func3(shape, p):
+    def func3(shape):
         instrument = Instrument('', Layout(shape))
-        conf = Acquisition(instrument, p)
-        noise = conf.get_noise(
-            bandwidth=freq[1], psd=psd, twosided=False, sampling_frequency=fsamp
-        )
-        assert noise.shape == (conf.get_ndetectors(), sum(conf.get_nsamples()))
+        acq = Acquisition(instrument, sampling)
+        noise = acq.get_noise(bandwidth=freq[1], psd=psd, twosided=False)
+        assert noise.shape == (len(acq.instrument), len(acq.sampling))
         assert_allclose(np.std(noise), sigma, rtol=1e-2)
 
     for shape in shapes:
-        for p in pointings:
-            yield func3, shape, p
+        yield func3, shape
