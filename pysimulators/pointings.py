@@ -16,6 +16,7 @@ from pyoperators import (
 from pyoperators.memory import empty, zeros
 from pyoperators.utils import strenum
 from .datatypes import FitsArray, Map
+from .layouts import LayoutTemporal
 from .quantities import Quantity
 from .wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
 
@@ -285,57 +286,28 @@ class PointingEquatorial(Pointing):
         return image
 
 
-class PointingHorizontal(Pointing):
-    MANDATORY_NAMES = 'azimuth', 'elevation'
-    DEFAULT_DTYPE = [('azimuth', float), ('elevation', float),
-                     ('pitch', float), ('time', float)]
+class PointingHorizontal(LayoutTemporal):
     DEFAULT_LATITUDE = None
     DEFAULT_LONGITUDE = None
 
-    def __new__(cls, x=None, date_obs=None, sampling_period=None,
-                latitude=None, longitude=None, copy=True, **keywords):
+    def __init__(self, azimuth, elevation, pitch, latitude=None,
+                 longitude=None, **keywords):
         if latitude is None:
-            latitude = cls.DEFAULT_LATITUDE
+            latitude = self.DEFAULT_LATITUDE
         if latitude is None:
             raise ValueError('The reference latitude is not specified.')
         if longitude is None:
-            longitude = cls.DEFAULT_LONGITUDE
+            longitude = self.DEFAULT_LONGITUDE
         if longitude is None:
             raise ValueError('The reference longitude is not specified.')
-        result = Pointing.__new__(
-            cls, x=x, date_obs=date_obs, sampling_period=sampling_period,
-            copy=copy, **keywords)
-        result.latitude = np.asarray(latitude)
-        result.longitude = np.asarray(longitude)
-        return result
 
-    @classmethod
-    def empty(cls, shape, dtype=None, date_obs=None, sampling_period=None,
-              latitude=None, longitude=None):
-        if dtype is None:
-            dtype = cls.DEFAULT_DTYPE
-        result = cls(empty(shape, dtype), dtype=dtype, date_obs=date_obs,
-                     sampling_period=sampling_period,
-                     latitude=latitude, longitude=longitude, copy=False)
-        if 'time' in result.dtype.names:
-            result.time = (np.arange(result.shape[-1], dtype=float)
-                           if len(result.shape) > 0
-                           else 0) * result.sampling_period
-        return result
-
-    @classmethod
-    def zeros(cls, shape, dtype=None, date_obs=None, sampling_period=None,
-              latitude=None, longitude=None):
-        if dtype is None:
-            dtype = cls.DEFAULT_DTYPE
-        result = cls(zeros(shape, dtype), dtype=dtype, date_obs=date_obs,
-                     sampling_period=sampling_period,
-                     latitude=latitude, longitude=longitude, copy=False)
-        if 'time' in result.dtype.names:
-            result.time = (np.arange(result.shape[-1], dtype=float)
-                           if len(result.shape) > 0
-                           else 0) * result.sampling_period
-        return result
+        shape = np.broadcast(azimuth, elevation, pitch,
+                             keywords.get('time', None)).shape
+        LayoutTemporal.__init__(
+            self, shape, azimuth=azimuth, elevation=elevation, pitch=pitch,
+            **keywords)
+        self.latitude = latitude
+        self.longitude = longitude
 
 
 class PointingScanEquatorial(PointingEquatorial):

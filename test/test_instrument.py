@@ -8,7 +8,7 @@ def test_instrument():
         instrument = cls(name, Layout(shape), **keywords)
         assert instrument.name == name
         assert instrument.detector.shape == shape
-        assert len(instrument.detector) == len(instrument.detector.packed)
+        assert len(instrument.detector) == len(instrument.detector.all)
         assert instrument
 
     name = 'instrument'
@@ -23,7 +23,7 @@ def test_error():
 
 
 def test_pack_unpack():
-    layout = Layout(4, removed=[False, True, False, False])
+    layout = Layout(4, selection=[True, False, True, True])
     instrument = Instrument('instrument', layout)
     v = [1, 2, 3, 4]
     assert_same(instrument.pack(v), [1, 3, 4])
