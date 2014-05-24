@@ -8,8 +8,8 @@ import os
 import sys
 
 from astropy.io import fits as pyfits
-from pyoperators.utils import openmp_num_threads, product, strshape
-from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine, distribute_slice
+from pyoperators.utils import openmp_num_threads, product, split, strshape
+from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine
 from .wcsutils import create_fitsheader_for, has_wcs
 
 __all__ = []
@@ -27,7 +27,7 @@ def gather_fitsheader(header, comm=MPI.COMM_WORLD):
     naxis = str(header['NAXIS'])
     nlocal = header['NAXIS' + naxis]
     nglobal = combine(nlocal, comm=comm)
-    s = distribute_slice(nglobal, comm=comm)
+    s = split(nglobal, comm.size, comm.rank)
     header = header.copy()
     header['NAXIS' + naxis] = nglobal
     if 'CRPIX' + naxis in header:
@@ -82,7 +82,7 @@ def scatter_fitsheader(header, comm=MPI.COMM_WORLD):
         raise KeyError('Scalar FITS headers cannot be split.')
     axis = str(header['NAXIS'])
     nglobal = header['NAXIS' + axis]
-    s = distribute_slice(nglobal, comm=comm)
+    s = split(nglobal, comm.size, comm.rank)
     header = header.copy()
     header['NAXIS' + axis] = s.stop - s.start
     if 'CRPIX' + axis in header:
@@ -186,7 +186,7 @@ def read_fits(filename, extname, comm):
 
     header = hdu.header
     n = header['NAXIS' + str(header['NAXIS'])]
-    s = distribute_slice(n, comm=comm)
+    s = split(n, comm.size, comm.rank)
     output = pyfits.Section(hdu)[s]
 
     if not output.dtype.isnative:
@@ -273,7 +273,7 @@ def write_fits(filename, data, header, extension, extname, comm):
 
     # get global/local parameters
     nglobal = sum(s[0] for s in shapes)
-    s = distribute_slice(nglobal)
+    s = split(nglobal, comm.size, comm.rank)
     nlocal = s.stop - s.start
     if data.shape[0] != nlocal:
         raise ValueError(
