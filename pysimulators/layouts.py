@@ -23,6 +23,7 @@ except:  # pragma: no coverage
 import numpy as np
 import types
 from astropy.time import Time
+from pyoperators import MPI
 from pyoperators.utils import (
     ilast_is_not,
     isalias,
@@ -141,6 +142,7 @@ class Layout(object):
         """
         object.__setattr__(self, 'shape', tointtuple(shape))
         object.__setattr__(self, 'ndim', len(self.shape))
+        object.__setattr__(self, 'comm', MPI.COMM_SELF)
         self._dtype_index = np.int64
         self._index = self._get_index(selection, ordering)
         for k, v in keywords.items():
@@ -151,7 +153,7 @@ class Layout(object):
                 v = self.pack(v, copy=True)
             setattr(self, k, v)
 
-    _reserved_attributes = ('all', 'index', 'ndim', 'removed', 'shape')
+    _reserved_attributes = ('all', 'comm', 'index', 'ndim', 'removed', 'shape')
     _special_attributes = ('index', 'removed')
 
     @property
@@ -304,7 +306,7 @@ class Layout(object):
         out = copy.copy(self)
         out._index = index
         for k in out._special_attributes:
-            if k == 'index':
+            if k in out._reserved_attributes:
                 continue
             try:
                 v = self.__dict__[k]
@@ -402,6 +404,38 @@ class Layout(object):
             np.take(x_, self._index, axis=0, out=out)
         return out
 
+    def scatter(self, comm=None):
+        """
+        MPI-scatter of the layout.
+
+        Parameter
+        ---------
+        comm : MPI.Comm
+            The MPI communicator of the group of processes in which the layout
+            will be scattered.
+
+        """
+        if self.comm.size > 1:
+            raise ValueError('The layout is already distributed.')
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        if comm.size == 1:
+            return self
+
+        selection = split(len(self), comm.size, comm.rank)
+        out = self[selection]
+        for k in out._special_attributes:
+            if k in out._reserved_attributes:
+                continue
+            try:
+                v = out.__dict__[k]
+            except KeyError:
+                continue
+            if isinstance(v, np.ndarray) and v.ndim > 0:
+                setattr(out, k, v.copy())
+        object.__setattr__(out, 'comm', comm)
+        return out
+
     def split(self, n):
         """
         Split the layout in partitioning groups.
@@ -472,7 +506,12 @@ class Layout(object):
                     "pe is '{1}'.".format(out.shape, unpacked_shape)
                 )
         else:
-            if self._index is Ellipsis and not copy and x.shape[0] == len(self):
+            if (
+                self._index is Ellipsis
+                and not copy
+                and x.shape[0] == len(self)
+                and self.comm.size == 1
+            ):
                 return x.reshape(unpacked_shape)
             out = np.empty(unpacked_shape, dtype=x.dtype).view(type(x))
             if out.__array_finalize__ is not None:
@@ -481,11 +520,18 @@ class Layout(object):
             if missing_value is None:
                 missing_value = self._get_default_missing_value(x.dtype)
             out[...] = missing_value
-        elif self._index is Ellipsis and x.shape[0] == len(self):
+        elif (
+            self._index is Ellipsis and x.shape[0] == len(self) and self.comm.size == 1
+        ):
             out[...] = x.reshape(unpacked_shape)
             return out
         out_ = out.reshape(flat_shape)
-        out_[self._index] = x
+        if self.comm.size == 1:
+            out_[self._index] = x
+        else:
+            ix = self.comm.allgather((self._index, x))
+            for i_, x_ in ix:
+                out_[i_] = x_
         if has_out and not isalias(out, out_):
             out[...] = out_.reshape(out.shape)
         return out
