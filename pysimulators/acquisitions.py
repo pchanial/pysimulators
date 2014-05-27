@@ -2,15 +2,13 @@
 # All rights reserved
 
 from __future__ import division
-
+import copy
 import numpy as np
 import time
-import types
-from pyoperators import (BlockColumnOperator, BlockDiagonalOperator,
-                         DiagonalOperator, SymmetricBandToeplitzOperator)
+from pyoperators import (DiagonalOperator, SymmetricBandToeplitzOperator, MPI)
 from pyoperators.memory import empty
 from pyoperators.utils import (
-    ifirst, isscalarlike, product, strelapsed, strenum, strnbytes, strplural)
+    ifirst, isscalarlike, product, strelapsed, strenum, strnbytes)
 
 from . import _flib as flib
 from .datatypes import Map, Tod
@@ -20,7 +18,7 @@ from .layouts import Layout
 from .mpiutils import gather_fitsheader_if_needed
 from .noises import (_fold_psd, _gaussian_psd_1f, _gaussian_sample,
                      _logloginterp_psd, _psd2invntt, _unfold_psd)
-from .operators import PointingMatrix, ProjectionInMemoryOperator
+from .operators import PointingMatrix, ProjectionOperator
 from .pointings import Pointing
 from .wcsutils import (RotationBoresightEquatorialOperator, barycenter_lonlat,
                        combine_fitsheader, create_fitsheader, fitsheader2shape)
@@ -34,7 +32,8 @@ class Acquisition(object):
     pointing configurations.
 
     """
-    def __init__(self, instrument, sampling):
+    def __init__(self, instrument, sampling, nprocs_instrument=None,
+                 nprocs_sampling=None, comm=None):
         """
         Parameters
         ----------
@@ -53,10 +52,31 @@ class Acquisition(object):
 #                "The sampling input has an invalid type '{}'.".format(
 #                    type(instrument).__name__))
 
-        self.instrument = instrument
-        self.sampling = sampling
-        self.commin = instrument.commin
-        self.commout = instrument.commout
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        if nprocs_instrument is None and nprocs_sampling is None:
+            nprocs_sampling = comm.size
+        if nprocs_instrument is None:
+            if nprocs_sampling < 1 or nprocs_sampling > comm.size:
+                raise ValueError("Invalid value for nprocs_sampling '{0}'.".
+                                 format(nprocs_sampling))
+            nprocs_instrument = comm.size // nprocs_sampling
+        elif nprocs_sampling is None:
+            if nprocs_instrument < 1 or nprocs_sampling > comm.size:
+                raise ValueError("Invalid value for nprocs_instrument '{0}'.".
+                                 format(nprocs_instrument))
+            nprocs_sampling = comm.size // nprocs_instrument
+        if nprocs_instrument * nprocs_sampling != comm.size:
+            raise ValueError('Invalid distribution of the acquisition.')
+
+        commgrid = comm.Create_cart(
+            [nprocs_sampling, nprocs_instrument], reorder=True)
+
+        comm_instrument = commgrid.Sub([False, True])
+        comm_sampling = commgrid.Sub([True, False])
+        self.instrument = instrument.scatter(comm_instrument)
+        self.sampling = sampling.scatter(comm_sampling)
+        self.comm = commgrid
 
     def __str__(self):
         return '{}\nSamplings: {}'.format(self.instrument, len(self.sampling))
@@ -428,7 +448,7 @@ class AcquisitionImager(Acquisition):
                                    crpix=(-ixmin + 2, -iymin + 2))
 
         # gather and combine the FITS headers
-        headers = self.commin.allgather(header)
+        headers = self.sky.comm.allgather(header)
         return combine_fitsheader(headers)
 
     def get_projection_matrix(self, header, npixels_per_sample=0, method=None):
@@ -464,7 +484,8 @@ class AcquisitionImager(Acquisition):
             raise ValueError("Invalid method '" + method + "'. Expected values"
                              " are " + strenum(choices) + '.')
 
-        header = gather_fitsheader_if_needed(header, comm=self.commin)
+        comm = self.sky.comm
+        header = gather_fitsheader_if_needed(header, comm=comm)
         shape_input = fitsheader2shape(header)
         if product(shape_input) > np.iinfo(np.int32).max:
             raise RuntimeError('The map is too large: pixel indices cannot be '
