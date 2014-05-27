@@ -1,10 +1,11 @@
 from __future__ import division
-
+import copy
 try:
     from matplotlib import pyplot as mp
 except ImportError:
     pass
 from pyoperators import I, asoperator
+from pyoperators.utils import split
 from pyoperators.utils.mpi import MPI
 
 from .layouts import Layout
@@ -22,19 +23,11 @@ class Instrument(object):
         The instrument configuration name.
     layout : Layout
         The detector layout.
-    commin : mpi4py.MPI.COMM
-        The MPI communicator for the input map.
-    commout : mpi4py.MPI.COMM
-        The MPI communicator for the output time-ordered data.
 
     """
-    def __init__(self, name, layout, default_resolution=None,
-                 commin=MPI.COMM_WORLD, commout=MPI.COMM_WORLD):
+    def __init__(self, name, layout):
         self.name = str(name)
         self.detector = layout
-        self.default_resolution = default_resolution
-        self.commin = commin
-        self.commout = commout
 
     def __getitem__(self, selection):
         """
@@ -42,11 +35,7 @@ class Instrument(object):
         non-removed detectors.
 
         """
-        class _EmptyClass(object):
-            pass
-        out = _EmptyClass()
-        out.__class__ = self.__class__
-        out.__dict__.update(self.__dict__)
+        out = copy.copy(self)
         out.detector = self.detector[selection]
         return out
 
@@ -64,6 +53,38 @@ class Instrument(object):
     def unpack(self, x):
         return self.detector.unpack(x)
     unpack.__doc__ = Layout.unpack.__doc__
+
+    def scatter(self, comm=None):
+        """
+        MPI-scatter of the instrument.
+
+        Parameter
+        ---------
+        comm : MPI.Comm
+            The MPI communicator of the group of processes in which
+            the instrument will be scattered.
+
+        """
+        if self.detector.comm.size > 1:
+            raise ValueError('The instrument is already distributed.')
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        out = copy.copy(self)
+        out.detector = out.detector.scatter(comm)
+        return out
+
+    def split(self, n):
+        """
+        Split the instrument in partitioning groups.
+
+        Example
+        -------
+        >>> instr = Instrument('instr', Layout((4, 4)))
+        >>> [len(_) for _ in instr.split(2)]
+        [8, 8]
+
+        """
+        return tuple(self[_] for _ in split(len(self), n))
 
     def plot(self, transform=None, autoscale=True, **keywords):
         """
@@ -135,15 +156,11 @@ class Imager(Instrument):
         Transform from image plane to object plane coordinates.
 
     """
-    def __init__(self, name, layout, default_resolution=None,
-                 commin=MPI.COMM_WORLD, commout=MPI.COMM_WORLD,
-                 image2object=None, object2image=None):
+    def __init__(self, name, layout, image2object=None, object2image=None):
         if image2object is None and object2image is None:
             raise ValueError('Neither the image2object nor the object2image tr'
                              'ansforms are speficied.')
-        Instrument.__init__(self, name, layout,
-                            default_resolution=default_resolution,
-                            commin=commin, commout=commout)
+        Instrument.__init__(self, name, layout)
         if object2image is not None:
             self.object2image = asoperator(object2image)
             self.image2object = self.object2image.I
