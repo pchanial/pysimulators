@@ -22,16 +22,16 @@ Currently, the world-to-pixel transform is specified through a FITS header.
 
 h2. 3.2.2. Use in conjonction with the Layout class
 
-Let's consider an array of detectors placed on the detector focal plane. The Layout will collect information on the individual detectors, but it bears no information on how the focal plane is discretised. It's precisely the purpose of the DiscretePlane class. The detector @Layout@ instance can be created so that the detector positions are expressed in the world coordinates of the @DiscretePlane@ instance associated with the focal plane. By doing so, it will be easy to compute the coordinates of the detector centers or corners in the detector plane pixel coordinates.
+Let's consider an array of detectors placed on the detector focal plane. The @Layout@ will collect information on the individual detectors, but it bears no information on how the focal plane is discretised. It's precisely the purpose of the DiscretePlane class. The detector @Layout@ instance can be created so that the detector positions are expressed in the world coordinates of the @DiscretePlane@ instance associated with the focal plane. By doing so, it will be easy to compute the coordinates of the detector centers or corners in the detector plane pixel coordinates.
 
 {% highlight python %}
->>> layout = LayoutGridSquares((8, 8), Quantity(200, 'um'))
+>>> layout = LayoutSpatialGridSquares((8, 8), Quantity(200, 'um'))
 >>> header = create_fitsheader((64, 64), cdelt=25, cunit='um', crval=(0, 0),
                                ctype=['X---CAR', 'Y---CAR'])
 >>> plane = DiscreteSurface.fromfits(header)
->>> print plane.topixel(layout.center[7,0])
+>>> print(plane.topixel(layout.all.center[7,0]))
 [ 3.5  3.5 ]
->>> print plane.topixel(layout.vertex[7,0,2])
+>>> print(plane.topixel(layout.all.vertex[7,0,2]))
 [-0.5 -0.5]
 {% endhighlight %}
 
@@ -51,23 +51,23 @@ where <code>\( P_j \)</code> denotes the fraction of pixel <code>\( j \)</code> 
 >>> from pysimulators.geometry import create_regular_polygon
 >>> nx, ny = 8, 6
 >>> header = create_fitsheader((nx, ny), cdelt=200, cunit='um', crval=(0, 0),
-                               ctype=['X---CAR', 'Y---CAR'])
+...                            ctype=['X---CAR', 'Y---CAR'])
 >>> plane = DiscreteSurface.fromfits(header)
 >>> polygon = create_regular_polygon(6, 400, angle=10, center=(200, 0))
 >>> fig = figure()
 >>> ax = fig.add_subplot(111)
 >>> ax.add_patch(Polygon(plane.topixel(polygon), closed=True, alpha=0.2,
-                         color='k'))
+...                      color='k'))
 >>> indices = np.arange(nx * ny)
 >>> for (x, y), s in zip(plane.toNd(indices), indices):
 >>>     text(x, y, s, horizontalalignment='center',
-             verticalalignment='center', alpha=0.2)
+...          verticalalignment='center', alpha=0.2)
 >>> ax.set_xlabel('Pixel X-coordinate')
 >>> ax.set_ylabel('Pixel Y-coordinate')
 >>> for i in range(nx-1):
-        ax.axvline(i+0.5, color='k')
+...     ax.axvline(i+0.5, color='k')
 >>> for i in range(ny-1):
-        ax.axhline(i+0.5, color='k')
+...     ax.axhline(i+0.5, color='k')
 >>> ax2 = ax.twiny()
 >>> ax2.set_xticks(np.arange(nx-1) + 0.5)
 >>> ax2.set_xticklabels(np.linspace(-600, 600, nx-1))
@@ -77,9 +77,9 @@ where <code>\( P_j \)</code> denotes the fraction of pixel <code>\( j \)</code> 
 >>> ax3.set_yticklabels(np.linspace(-400, 400, ny-1))
 >>> ax3.set_ylabel(u'World Y-coordinate [µm]')
 >>> for a in (ax, ax2, ax3):
-        a.set_xlim(-0.5, nx - 0.5)
-        a.set_ylim(-0.5, ny - 0.5)
-        a.set_aspect('equal')
+...     a.set_xlim(-0.5, nx - 0.5)
+...     a.set_ylim(-0.5, ny - 0.5)
+...     a.set_aspect('equal')
 {% endhighlight %}
 
 <img src="{{site.baseurl}}/documentation/figures/discretesurface-polygon.png">
@@ -92,7 +92,7 @@ The sparse matrix <code>\( P \)</code> can be accessed through the @matrix@ attr
 >>> proj.matrix.shape  # number of pixels intersected by the hexagon
 (16,)
 >>> for k, (x, y), v in zip(proj.matrix.index, plane.toNd(proj.matrix.index), proj.matrix.value):
-        print '{} => ({}, {}) : {}'.format(k, x, y, v)
+...     print('{} => ({}, {}) : {}'.format(k, x, y, v))
 11 => (3, 1) : 0.106082
 12 => (4, 1) : 0.778646
 13 => (5, 1) : 0.670607
@@ -109,7 +109,6 @@ The sparse matrix <code>\( P \)</code> can be accessed through the @matrix@ attr
 36 => (4, 4) : 0.670607
 37 => (5, 4) : 0.778646
 38 => (6, 4) : 0.106082
-
 {% endhighlight %}
 
 We can check that the sum of the intersected fractions
@@ -128,6 +127,6 @@ A = \frac{3\sqrt{3}}{2}\times \left(\frac{400}{200}\right)^2\approx 10.39230
 The reason why an @Operator@ is obtained from the @DiscreteSurface@ instance (instead of the sparse matrix), is that integration inside a detector is simply performed by calling the operator. In the case of a flat field (but any values for the surface could be used) it would be written as:
 
 {% highlight python %}
->>> proj(np.ones((ny, nx)))
-10.392304763197899
+>>> print(proj(np.ones((ny, nx))))
+10.3923047632
 {% endhighlight %}
