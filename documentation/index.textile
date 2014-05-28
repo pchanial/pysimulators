@@ -6,15 +6,17 @@ excerpt: Documentation
 
 h1. {{ page.title }}
 
-# Building the instrument model
-## The Instrument class
+# Building the acquisition model
+## The scene model
+## The instrument model
+## The sampling model
+# The inversion problem
+## The acquisition as an operator
+## The noise model
+## Using solvers
+# Some useful classes
 ## "The Layout class":{{site.baseurl}}/2000/doc-layout-class
 ## "The DiscreteSurface class":{{site.baseurl}}/2000/doc-discretesurface-class
-# Building the observation model
-# Combining the instrument and observation models into an acquisition model
-## The Acquisition class
-## Operators
-# Defining a noise model
 # Manupulating data
 ## Quantity
 ## FitsArray

@@ -1,10 +1,10 @@
 ---
 layout: post
-title: 1.3 The DiscreteSurface Class
+title: 3.2 The DiscreteSurface Class
 category: doc
 ---
 
-h2. 1.3.1 Definition
+h2. 3.2.1 Definition
 
 This class represents the 2-dimensional discretisation of a surface and is usually used for the focal planes.
 The surface coordinates are called world coordinates and the pixelised ones the pixel coordinates. The adopted convention is that the coordinates of the bottom-left pixel center is (0, 0).
@@ -20,7 +20,7 @@ Currently, the world-to-pixel transform is specified through a FITS header.
 [-31875. -31875.]
 {% endhighlight %}
 
-h2. 1.3.2. Use in conjonction with the Layout class
+h2. 3.2.2. Use in conjonction with the Layout class
 
 Let's consider an array of detectors placed on the detector focal plane. The Layout will collect information on the individual detectors, but it bears no information on how the focal plane is discretised. It's precisely the purpose of the DiscretePlane class. The detector @Layout@ instance can be created so that the detector positions are expressed in the world coordinates of the @DiscretePlane@ instance associated with the focal plane. By doing so, it will be easy to compute the coordinates of the detector centers or corners in the detector plane pixel coordinates.
 
@@ -35,7 +35,7 @@ Let's consider an array of detectors placed on the detector focal plane. The Lay
 [-0.5 -0.5]
 {% endhighlight %}
 
-h2. 1.3.3. Polygon intersections
+h2. 3.2.3. Polygon intersections
 
 The @DiscreteSurface@ class facilitates the computation of the intersections between polygons (usually detector squares) and the pixels of a discretised surface. Let's assume that we are dealing with a hexagon-shaped detector. We are interested in determining which pixels it intersects and quantify the intersected fraction for each of them. This information is computed through a projection Operator, which has a detector plane array as input <code>\( x \)</code> and the integration inside the detector polygon as output <code>\( y \)</code>. Both of them are related through:
 
