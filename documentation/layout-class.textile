@@ -133,9 +133,9 @@ In the previous examples, the ordering of the packed components follows the row-
 <div class="highlight_figure">
 
 {% highlight python %}
->>> i = arange(16).reshape((4, 4))
->>> ordering = np.vstack([np.hstack([i, i + 16]),
-                          np.hstack([i + 32, i + 48])])
+>>> a = arange(16).reshape((4, 4))
+>>> ordering = np.vstack([np.hstack([a, a + 16]),
+                          np.hstack([a + 32, a + 48])])
 >>> detectors = LayoutSpatialGridSquares((8, 8), 0.250, ordering=ordering)
 >>> detectors.plot()
 >>> for (x, y), s in zip(detectors.center, np.arange(len(detectors))):
@@ -241,7 +241,7 @@ This one is correct:
 >>> layout.all.val = unpacked
 {% endhighlight %}
 
-but the following is better, because it avoid copies:
+but the following is better, because it avoids copies:
 
 {% highlight python %}
 >>> layout.val[0] = 10
@@ -264,8 +264,15 @@ These functions must return packed arrays. They can have:
 <div class="highlight_figure">
 
 {% highlight python %}
+>>> a = arange(16).reshape((4, 4))
+>>> ordering = np.vstack([np.hstack([a, a + 16]),
+                          np.hstack([a + 32, a + 48])])
+>>> def subarray(self):
+...    i = self.index // 32
+...    j = (self.index % 8) // 4
+...    return i * 2 + j + 1
 >>> layout = LayoutSpatialGridSquares((8, 8), 0.250, ordering=ordering,
-                                      subarray=lambda self: self.index // 16 + 1)
+                                      subarray=subarray)
 >>> layout.plot()
 >>> for (x, y), s in zip(layout.center, layout.subarray):
 >>>     text(x, y, s, horizontalalignment='center', verticalalignment='center')
