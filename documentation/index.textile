@@ -15,8 +15,8 @@ h1. {{ page.title }}
 ## The noise model
 ## Using solvers
 # Some useful classes
-## "The Layout class":{{site.baseurl}}/2000/doc-layout-class
-## "The DiscreteSurface class":{{site.baseurl}}/2000/doc-discretesurface-class
+## "The Layout class":layout-class.html
+## "The DiscreteSurface class":discretesurface-class.html
 # Manupulating data
 ## Quantity
 ## FitsArray

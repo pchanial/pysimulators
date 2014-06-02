@@ -184,7 +184,7 @@ h2. 3.1.5. Layout MPI-scattering
 
 During the execution of an MPI job, a @Layout@ instance can be MPI-scattered, i.e. distributed to a set of MPI processes. Accessing the unpacked attributes through the @all@ attribute or calling the method @unpack@ will MPI-gather the local arrays into a global one.
 
-In the following example, the property @angle1@ will be set globally and the other property @angle2@ locally. Given the file:
+In the following example, the property @angle1@ will be set globally and the other property @angle2@ locally. Given the "file":{{site.baseurl}}/documentation/src/test_scatter.py:
 
 {% highlight python %}
 # file test_scatter.py
