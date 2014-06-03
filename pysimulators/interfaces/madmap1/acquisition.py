@@ -17,7 +17,7 @@ from pyoperators import (
 from ...acquisitions import Acquisition
 from ...datatypes import Map, Tod
 from ...instruments import Instrument
-from ...layouts import Layout
+from ...packedtables import PackedTable
 from ...operators import PointingMatrix, ProjectionInMemoryOperator
 from ...wcsutils import create_fitsheader
 
@@ -87,7 +87,7 @@ class MadMap1Observation(Acquisition):
             )
 
         # Store instrument information
-        layout = Layout(ndetectors)
+        layout = PackedTable(ndetectors)
         self.instrument = Instrument(name, layout, commin=commin, commout=commout)
 
         # Store observation information

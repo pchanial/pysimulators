@@ -1,51 +1,109 @@
 from __future__ import division
 
 import numpy as np
-from pyoperators.utils import tointtuple
 from pyoperators import (
     BlockDiagonalOperator,
+    IdentityOperator,
     MinMaxOperator,
     RoundOperator,
     To1dOperator,
     asoperator,
 )
+from pyoperators.utils import strenum
 
-from . import _flib as flib
-from .operators import PointingMatrix, ProjectionInMemoryOperator
-from .wcsutils import fitsheader2shape, WCSToPixelOperator
+from .core import PackedTable
+from .. import _flib as flib
+from ..operators import PointingMatrix, ProjectionInMemoryOperator
+from ..wcsutils import fitsheader2shape, WCSToPixelOperator
 
-__all__ = ['DiscreteSurface']
+__all__ = ['Scene', 'SceneGrid']
 
 
-class DiscreteSurface(object):
+class Scene(PackedTable):
     """
     Class to handle plane pixelisation and 1-d indexing.
 
     """
 
-    def __init__(self, shape, topixel, to1d):
+    def __init__(self, shape, topixel=None, ndim=None, **keywords):
         """
         Parameters
         ----------
         shape : tuple of integers
             The surface shape.
-        topixel : Operator
+        ndim : int, optional
+            The number of splittable (indexable) dimensions. It is the actual
+            number of dimensions of the layout. It can be lower than that
+            specified by the layout shape, in which case the extra dimensions
+            are instructed not to be split.
+            ndim : int
+        topixel : Operator, None
             World-to-pixel coordinate transform.
-        to1d : Operator
-            Nd-to-1d pixel index transform.
+
         """
-        self.shape = tointtuple(shape)
-        topixel = asoperator(topixel)
+        PackedTable.__init__(self, shape, ndim=ndim)
+        if topixel is None:
+            topixel = IdentityOperator(self.shape[: self.ndim])
+        else:
+            topixel = asoperator(topixel)
         self.topixel = topixel
         self.toworld = topixel.I
-        to1d = asoperator(to1d)
-        self.to1d = to1d
-        self.toNd = to1d.I
+        for k, v in keywords.items():
+            setattr(self, k, v)
+
+
+class SceneGrid(Scene):
+    """
+    Class for 2-dimensional scenes.
+
+    """
+
+    def __init__(
+        self,
+        shape,
+        topixel=None,
+        to1d=None,
+        origin='upper',
+        startswith1=False,
+        **keywords,
+    ):
+        """
+        Parameters
+        ----------
+        shape : tuple of integers
+            The surface shape.
+        startswith1 : bool
+            If True, columns and row starts with 1 instead of 0.
+        topixel : Operator, optional
+            World-to-pixel coordinate transform.
+        to1d : Operator, optional
+            Nd-to-1d pixel index transform.
+
+        """
+        origins = 'upper', 'lower'
+        if not isinstance(origin, str):
+            raise TypeError('Invalid origin.')
+        origin = origin.lower()
+        if origin not in origins:
+            raise ValueError(
+                'Invalid origin {0!r}. Expected values are {1}.'.format(
+                    origin, strenum(origins)
+                )
+            )
+        Scene.__init__(self, shape, topixel=topixel, to1d=to1d, **keywords)
+        if self.ndim != 2:
+            raise ValueError('The scene is not 2-dimensional.')
+        self.origin = origin
+        self.startswith1 = bool(startswith1)
+        if to1d is not None:
+            to1d = asoperator(to1d)
+            self.to1d = to1d
+            self.toNd = to1d.I
 
     @classmethod
     def fromfits(cls, header):
         """
-        Return a DiscreteSurface described by the WCS of a FITS header.
+        Return a Scene grid described by the WCS of a FITS header.
 
         Parameters
         ----------
@@ -56,7 +114,13 @@ class DiscreteSurface(object):
         shape = fitsheader2shape(header)
         topixel = WCSToPixelOperator(header)
         to1d = To1dOperator(shape[::-1], order='f')
-        return cls(shape, topixel, to1d)
+        return cls(shape, topixel, to1d, origin='lower')
+
+    def column(self):
+        return self.index % self.shape[1] + self.startswith1
+
+    def row(self):
+        return self.index // self.shape[1] + self.startswith1
 
     def get_integration_operator(self, vertices, npixels_per_sample=0):
         """

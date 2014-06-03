@@ -3,7 +3,14 @@ from __future__ import division
 import numpy as np
 from numpy.testing import assert_allclose
 from pyoperators.utils.testing import assert_eq, assert_raises
-from pysimulators import Acquisition, Instrument, Layout, LayoutTemporal, MaskPolicy
+from pysimulators import (
+    Acquisition,
+    Instrument,
+    MaskPolicy,
+    PackedTable,
+    Sampling,
+    Scene,
+)
 
 flags = ['bad', 'u1', 'u2']
 
@@ -28,13 +35,14 @@ def test_mask_policy2():
 def test_get_noise():
     fsamp = 5
     sigma = 0.3
-    sampling = LayoutTemporal(2e4, sampling_period=1 / fsamp)
+    scene = Scene(10)
+    sampling = Sampling(2e4, period=1 / fsamp)
     shapes = ((1,), (2, 3))
     np.random.seed(0)
 
     def func1(shape, fknee):
-        instrument = Instrument('', Layout(shape))
-        acq = Acquisition(instrument, sampling)
+        instrument = Instrument('', PackedTable(shape))
+        acq = Acquisition(instrument, sampling, scene)
         noise = acq.get_noise(sigma=sigma, fknee=fknee)
         assert noise.shape == (len(acq.instrument), len(acq.sampling))
         assert_allclose(np.std(noise), sigma, rtol=1e-2)
@@ -47,8 +55,8 @@ def test_get_noise():
     psd = np.array([0, 1, 1, 1, 1, 1], float) * sigma**2 / fsamp
 
     def func2(shape):
-        instrument = Instrument('', Layout(shape))
-        acq = Acquisition(instrument, sampling)
+        instrument = Instrument('', PackedTable(shape))
+        acq = Acquisition(instrument, sampling, scene)
         noise = acq.get_noise(psd=psd, bandwidth=freq[1], twosided=True)
         assert noise.shape == (len(acq.instrument), len(acq.sampling))
         assert_allclose(np.std(noise), sigma, rtol=1e-2)
@@ -60,8 +68,8 @@ def test_get_noise():
     psd = np.array([0, 2, 2, 1], float) * sigma**2 / fsamp
 
     def func3(shape):
-        instrument = Instrument('', Layout(shape))
-        acq = Acquisition(instrument, sampling)
+        instrument = Instrument('', PackedTable(shape))
+        acq = Acquisition(instrument, sampling, scene)
         noise = acq.get_noise(bandwidth=freq[1], psd=psd, twosided=False)
         assert noise.shape == (len(acq.instrument), len(acq.sampling))
         assert_allclose(np.std(noise), sigma, rtol=1e-2)

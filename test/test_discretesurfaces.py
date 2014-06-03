@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 from pyoperators.utils import product
 from pyoperators.utils.testing import assert_same
-from pysimulators import Quantity, create_fitsheader, DiscreteSurface
+from pysimulators import Quantity, create_fitsheader, SceneGrid
 from pysimulators.geometry import create_grid_squares
 
 
@@ -28,7 +28,7 @@ def test_spatial_integration():
         crval=(0, 0),
         cunit=['um', 'um'],
     )
-    plane = DiscreteSurface.fromfits(header)
+    plane = SceneGrid.fromfits(header)
 
     def func(center, npps, expected):
         detectors = create_grid_squares((2, 2), Quantity(pixsize, 'um'), center=center)

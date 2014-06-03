@@ -9,7 +9,7 @@ from pyoperators import I, asoperator
 from pyoperators.utils import split
 from pyoperators.utils.mpi import MPI
 
-from .layouts import Layout
+from .packedtables import Layout
 
 __all__ = ['Instrument', 'Imager']
 
