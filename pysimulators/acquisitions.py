@@ -2,7 +2,6 @@
 # All rights reserved
 
 from __future__ import division
-import copy
 import numpy as np
 import time
 from pyoperators import (DiagonalOperator, SymmetricBandToeplitzOperator, MPI)
@@ -14,12 +13,11 @@ from . import _flib as flib
 from .datatypes import Map, Tod
 from .geometry import convex_hull
 from .instruments import Instrument, Imager
-from .layouts import Layout
+from .packedtables import Layout, Sampling, Scene
 from .mpiutils import gather_fitsheader_if_needed
 from .noises import (_fold_psd, _gaussian_psd_1f, _gaussian_sample,
                      _logloginterp_psd, _psd2invntt, _unfold_psd)
 from .operators import PointingMatrix, ProjectionOperator
-from .pointings import Pointing
 from .wcsutils import (RotationBoresightEquatorialOperator, barycenter_lonlat,
                        combine_fitsheader, create_fitsheader, fitsheader2shape)
 
@@ -32,25 +30,42 @@ class Acquisition(object):
     pointing configurations.
 
     """
-    def __init__(self, instrument, sampling, nprocs_instrument=None,
+    def __init__(self, instrument, sampling, scene, nprocs_instrument=None,
                  nprocs_sampling=None, comm=None):
         """
         Parameters
         ----------
         instrument : Instrument
             The Instrument instance.
-        sampling : LayoutTemporal
-            The sampling information (pointing, etc.)
+        sampling : Sampling
+            The sampling information (pointings, etc.)
+        scene : Scene
+            Discretization of the observed scene.
+        nprocs_instrument : int
+            For a given sampling slice, number of procs dedicated to
+            the instrument.
+        nprocs_sampling : int
+            For a given detector slice, number of procs dedicated to
+            the sampling.
+        comm : mpi4py.MPI.Comm
+            The acquisition's MPI communicator. Note that it is transformed
+            into a 2d cartesian communicator before being stored as the 'comm'
+            attribute. The following relationship must hold:
+                comm.size = nprocs_instrument * nprocs_sampling
 
         """
         if not isinstance(instrument, Instrument):
             raise TypeError(
                 "The instrument input has an invalid type '{}'.".format(
                     type(instrument).__name__))
-#        if not isinstance(sampling, LayoutTemporal):
-#            raise TypeError(
-#                "The sampling input has an invalid type '{}'.".format(
-#                    type(instrument).__name__))
+        if not isinstance(sampling, Sampling):
+            raise TypeError(
+                "The sampling input has an invalid type '{}'.".format(
+                    type(instrument).__name__))
+        if not isinstance(scene, Scene):
+            raise TypeError(
+                "The scene input has an invalid type '{}'.".format(
+                    type(scene).__name__))
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -67,13 +82,14 @@ class Acquisition(object):
                                  format(nprocs_instrument))
             nprocs_sampling = comm.size // nprocs_instrument
         if nprocs_instrument * nprocs_sampling != comm.size:
-            raise ValueError('Invalid distribution of the acquisition.')
+            raise ValueError('Invalid MPI distribution of the acquisition.')
 
         commgrid = comm.Create_cart(
             [nprocs_sampling, nprocs_instrument], reorder=True)
 
         comm_instrument = commgrid.Sub([False, True])
         comm_sampling = commgrid.Sub([True, False])
+        self.scene = scene
         self.instrument = instrument.scatter(comm_instrument)
         self.sampling = sampling.scatter(comm_sampling)
         self.comm = commgrid
@@ -267,7 +283,7 @@ class Acquisition(object):
             return out
 
         if sampling_frequency is None:
-            sampling_frequency = 1 / self.sampling.sampling_period
+            sampling_frequency = 1 / self.sampling.period
 
         if out is None:
             out = empty(shape)
@@ -301,9 +317,9 @@ class Acquisition(object):
         raise NotImplementedError()
 
     @classmethod
-    def create_scan(cls, center, length, step, sampling_period, speed,
-                    acceleration, nlegs=3, angle=0, instrument_angle=45,
-                    cross_scan=True, dtype=None):
+    def create_scan(cls, center, length, step, period, speed, acceleration,
+                    nlegs=3, angle=0, instrument_angle=45, cross_scan=True,
+                    dtype=None):
         """
         Return a sky scan as a Pointing array.
 
@@ -315,7 +331,7 @@ class Acquisition(object):
             Length of the scan lines, in arcseconds.
         step : float
             Separation between scan legs, in arcseconds.
-        sampling_period : float
+        period : float
             Duration between two pointings.
         speed : float
             Scan speed, in arcsec/s.
@@ -335,13 +351,14 @@ class Acquisition(object):
             Pointing data type.
 
         """
-        scan = _create_scan(center, length, step, sampling_period, speed,
-                            acceleration, nlegs, angle, dtype)
+        raise NotImplementedError()
+        scan = _create_scan(center, length, step, period, speed, acceleration,
+                            nlegs, angle, dtype)
         if cross_scan:
-            cross = _create_scan(center, length, step, sampling_period, speed,
+            cross = _create_scan(center, length, step, period, speed,
                                  acceleration, nlegs, angle + 90, dtype)
-            cross.time += scan.time[-1] + sampling_period
-            scan, scan.header = (np.hstack([scan, cross]).view(Pointing),
+            cross.time += scan.time[-1] + period
+            scan, scan.header = (np.hstack([scan, cross]).view(),
                                  scan.header)
 
         scan.pa = angle + instrument_angle
@@ -378,21 +395,22 @@ class AcquisitionImager(Acquisition):
     instrument and the pointing.
 
     """
-    def __init__(self, instrument, sampling):
+    def __init__(self, instrument, sampling, scene):
         """
         Parameters
         ----------
         instrument : Imager
             The Imager instance.
-        sampling : array-like of shape (n,3) or structured array of shape (n,),
-                   or sequence of
-            The pointing directions.
+        sampling : Sampling
+            The sampling information (pointings, etc.)
+        scene : Scene
+            Discretization of the observed scene.
 
         """
         if not isinstance(instrument, Imager):
             raise TypeError("The instrument has an invalid type '{}'.".format(
                             type(instrument).__name__))
-        Acquisition.__init__(self, instrument, sampling)
+        Acquisition.__init__(self, instrument, sampling, scene)
         self.object2world = RotationBoresightEquatorialOperator(self.sampling)
 
     def get_map_header(self, resolution=None):
@@ -658,14 +676,15 @@ class AcquisitionImager(Acquisition):
         return out
 
 
-def _create_scan(center, length, step, sampling_period, speed, acceleration,
-                 nlegs, angle, dtype):
+def _create_scan(center, length, step, period, speed, acceleration, nlegs,
+                 angle, dtype):
     """
     compute the pointing timeline of the instrument reference point
     from the description of a scan map
     Authors: R. Gastaud, P. Chanial
 
     """
+    raise NotImplementedError()
     ra0, dec0 = center
 
     length = float(length)
@@ -676,9 +695,9 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
     if step <= 0:
         raise ValueError('Input step must be strictly positive.')
 
-    sampling_period = float(sampling_period)
-    if sampling_period <= 0:
-        raise ValueError('Input sampling_period must be strictly positive.')
+    period = float(period)
+    if period <= 0:
+        raise ValueError('Input sampling period must be strictly positive.')
 
     speed = float(speed)
     if speed <= 0:
@@ -710,7 +729,7 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
     total_time = full_line_time * nlegs - 2 * extra_time2
 
     # Number of samples
-    nsamples = int(np.ceil(total_time / sampling_period))
+    nsamples = int(np.ceil(total_time / period))
 
     # initialization
     time          = np.zeros(nsamples)
@@ -775,12 +794,12 @@ def _create_scan(center, length, step, sampling_period, speed, acceleration,
                     0.5 * acceleration * dt**2
             info = Pointing.TURNAROUND
 
-        time[i] = i * sampling_period
+        time[i] = i * period
         infos[i] = info
         latitude[i] = delta
         longitude[i] = alpha
         line_counters[i] = line_counter
-        working_time = working_time + sampling_period
+        working_time = working_time + period
 
     # Convert the longitude and latitude *expressed in degrees) to ra and dec
     ra, dec = _change_coord(ra0, dec0, angle - 90, longitude / 3600,

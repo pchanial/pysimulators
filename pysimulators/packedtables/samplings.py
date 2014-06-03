@@ -9,19 +9,50 @@ try:
     import matplotlib.pyplot as mp
 except ImportError:
     pass
+from astropy.time import Time, TimeDelta
 from pyoperators import (
-    DifferenceOperator, NormalizeOperator, RadiansOperator,
-    Spherical2CartesianOperator)
-from pyoperators.utils import isscalarlike
-from .datatypes import Map
-from .layouts import LayoutTemporal
-from .quantities import Quantity
-from .wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
+    DifferenceOperator, NormalizeOperator, Spherical2CartesianOperator)
+from pyoperators.utils import isscalarlike, tointtuple
+from .core import PackedTable
+from ..datatypes import Map
+from ..operators import (
+    SphericalEquatorial2GalacticOperator,
+    SphericalHorizontal2EquatorialOperator)
+from ..quantities import Quantity
+from ..wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
 
-__all__ = ['Pointing', 'PointingEquatorial', 'PointingHorizontal']
+__all__ = ['Sampling', 'Pointing', 'PointingEquatorial', 'PointingHorizontal']
 
 
-class Pointing(LayoutTemporal):
+class Sampling(PackedTable):
+    DEFAULT_DATE_OBS = '2000-01-01'
+    DEFAULT_PERIOD = 1
+
+    def __init__(self, n, date_obs=None, period=None, **keywords):
+        if date_obs is None:
+            date_obs = self.DEFAULT_DATE_OBS
+        if isinstance(date_obs, str):
+            # XXX astropy.time bug needs []
+            date_obs = Time([date_obs], scale='utc')
+        elif not isinstance(date_obs, Time):
+            raise TypeError('The observation start date is invalid.')
+        elif date_obs.is_scalar:  # work around astropy.time bug
+            date_obs = Time([str(date_obs)], scale='utc')
+        if period is None:
+            if hasattr(keywords, 'time'):
+                period = np.median(np.diff(keywords['time']))
+            else:
+                period = self.DEFAULT_PERIOD
+        time = keywords.pop('time', None)
+        PackedTable.__init__(self, n, time=time, **keywords)
+        self.date_obs = date_obs
+        self.period = float(period)
+
+    def time(self):
+        return self.index * self.period
+
+
+class Pointing(Sampling):
 
     def __init__(self, *args, **keywords):
         """
@@ -46,44 +77,58 @@ class Pointing(LayoutTemporal):
         degrees = keywords.pop('degrees', False)
         if len(names) != 3:
             raise ValueError('The 3 pointing angles are not named.')
-        if len(args) == 1 and isscalarlike(args[0]):
-            shape = args[0]
-            args = ()
-        else:
-            shape = None
-        if len(args) == 0:
+
+        if len(args) <= 1:
+            if names[0] in keywords and names[1] not in keywords or \
+               names[1] in keywords and names[0] not in keywords:
+                raise ValueError('The pointing is not specified.')
             if names[0] not in keywords:
-                raise ValueError(
-                    'The pointing {0!r} is not specified.'.format(names[0]))
+                keywords[names[0]] = None
             if names[1] not in keywords:
-                raise ValueError(
-                    'The pointing {0!r} is not specified.'.format(names[1]))
+                keywords[names[1]] = None
             if names[2] not in keywords:
                 keywords[names[2]] = 0
-        else:
-            if len(args) == 1 or len(args) > 3:
-                raise ValueError('Invalid number of arguments.')
+        elif len(args) <= 3:
             keywords[names[0]] = args[0]
             keywords[names[1]] = args[1]
             keywords[names[2]] = args[2] if len(args) == 3 else 0
-        if shape is None:
+        else:
+            raise ValueError('Invalid number of arguments.')
+
+        if len(args) == 1:
+            if not isscalarlike(args[0]):
+                raise ValueError('Invalid number of arguments.')
+            shape = tointtuple(args[0])
+        else:
             shape = np.broadcast(*([keywords[_] for _ in names] +
                                    [keywords.get('time', None)])).shape
         if len(shape) == 0:
             shape = (1,)
         elif len(shape) != 1:
             raise ValueError('Invalid dimension for the pointing.')
-        LayoutTemporal.__init__(self, shape, cartesian=None, **keywords)
+        Sampling.__init__(self, shape, angular=None, cartesian=None,
+                          velocity=None, **keywords)
+        self.names = names
         self.degrees = bool(degrees)
 
-    @property
+    def angular(self):
+        """
+        Return the angular coordinates as an (N, 2) ndarray.
+
+        """
+        return np.array([getattr(self, self.names[0]),
+                         getattr(self, self.names[1])]).T
+
     def cartesian(self):
+        """
+        Return the cartesian coordinates.
+
+        """
         raise NotImplementedError()
 
-    @property
     def velocity(self):
         op = NormalizeOperator() * DifferenceOperator(axis=-2) / \
-             self.sampling_period
+             self.period
         velocity = Quantity(op(self.coordinates_cartesian), 'rad/s')
         return velocity.tounit(self.DEFAULT_VELOCITY_UNIT)
 
@@ -116,12 +161,25 @@ class PointingEquatorial(Pointing):
         The position angle, in degrees (by default: 0).
         """
         Pointing.__init__(self, degrees=True, names=('ra', 'dec', 'pa'),
-                          *args, **keywords)
+                          galactic=None, *args, **keywords)
 
     def cartesian(self):
+        """
+        Return the cartesian coordinates in the equatorial referential.
+
+        """
         op = Spherical2CartesianOperator('azimuth,elevation',
                                          degrees=self.degrees)
-        return op(np.array([self.ra, self.dec]).T)
+        return op(self.angular)
+
+
+    def galactic(self):
+        """
+        Return the angular coordinates in the galactic referential.
+
+        """
+        e2g = SphericalEquatorial2GalacticOperator(degrees=True)
+        return e2g(self.angular)
 
     def get_map_header(self, resolution=None, naxis=None):
         """
@@ -211,7 +269,7 @@ class PointingEquatorial(Pointing):
         return image
 
 
-class PointingHorizontal(LayoutTemporal):
+class PointingHorizontal(Pointing):
     DEFAULT_LATITUDE = None
     DEFAULT_LONGITUDE = None
 
@@ -249,9 +307,38 @@ class PointingHorizontal(LayoutTemporal):
                 raise ValueError('The reference longitude is not specified.')
         self.longitude = longitude
 
-        LayoutTemporal.__init__(self, degrees=True,
-                                names=('azimuth', 'elevation', 'pitch'),
-                                *args, **keywords)
+        Pointing.__init__(self, degrees=True,
+                          names=('azimuth', 'elevation', 'pitch'),
+                          equatorial=None, galactic=None, *args, **keywords)
+
+    def cartesian(self):
+        """
+        Return the cartesian coordinates in the horizontal referential.
+
+        """
+        s2c = Spherical2CartesianOperator('azimuth,elevation', degrees=True)
+        return s2c(self.angular)
+
+    def equatorial(self):
+        """
+        Return the angular coordinates in the equatorial referential.
+
+        """
+        time = self.date_obs + TimeDelta(self.time, format='sec')
+        h2e = SphericalHorizontal2EquatorialOperator(
+            'NE', time, self.latitude, self.longitude, degrees=True)
+        return h2e(self.angular, preserve_input=False)
+
+    def galactic(self):
+        """
+        Return the angular coordinates in the galactic referential.
+
+        """
+        time = self.date_obs + TimeDelta(self.time, format='sec')
+        h2e = SphericalHorizontal2EquatorialOperator(
+            'NE', time, self.latitude, self.longitude, degrees=True)
+        e2g = SphericalEquatorial2GalacticOperator(degrees=True)
+        return e2g(h2e)(self.angular, preserve_input=False)
 
 
 class PointingScanEquatorial(PointingEquatorial):
