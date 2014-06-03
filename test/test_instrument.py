@@ -1,11 +1,11 @@
 from pyoperators import I
 from pyoperators.utils.testing import assert_raises, assert_same
-from pysimulators import Instrument, Imager, Layout
+from pysimulators import Instrument, Imager, PackedTable
 
 
 def test_instrument():
     def func(cls, keywords):
-        instrument = cls(name, Layout(shape), **keywords)
+        instrument = cls(name, PackedTable(shape), **keywords)
         assert instrument.name == name
         assert instrument.detector.shape == shape
         assert len(instrument.detector) == len(instrument.detector.all)
@@ -23,7 +23,7 @@ def test_error():
 
 
 def test_pack_unpack():
-    layout = Layout(4, selection=[True, False, True, True])
+    layout = PackedTable(4, selection=[True, False, True, True])
     instrument = Instrument('instrument', layout)
     v = [1, 2, 3, 4]
     assert_same(instrument.pack(v), [1, 3, 4])

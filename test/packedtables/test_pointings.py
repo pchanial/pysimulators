@@ -1,7 +1,8 @@
 import numpy as np
-from pysimulators import Pointing, PointingEquatorial
+from pysimulators import PointingEquatorial
 from numpy.testing import assert_equal, assert_raises
-from pyoperators.utils.testing import assert_same
+from pyoperators.utils import isscalarlike
+from pyoperators.utils.testing import assert_is_none, assert_same
 
 
 def test_coords():
@@ -13,6 +14,12 @@ def test_coords():
 
     def func1(fmt, ra):
         args, keywords = fmt(ra)
+        if len(args) > 0 and isscalarlike(args[0]):
+            p = PointingEquatorial(*args, **keywords)
+            assert_is_none(p.ra)
+            assert_is_none(p.dec)
+            assert_equal(p.pa, 0)
+            return
         assert_raises(ValueError, PointingEquatorial, *args, **keywords)
 
     for ra in ras:

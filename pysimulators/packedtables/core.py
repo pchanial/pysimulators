@@ -1,13 +1,19 @@
 """
-Define Layout classes:
+Define PackedTable classes:
 
-Layout:
-  - LayoutSpatial
-      - LayoutSpatialGrid
-          - LayoutSpatialGridCircles
-      - LayoutSpatialVertex
-          - LayoutSpatialGridSquares
-  - LayoutTemporal
+PackedTable:
+  - Layout
+      - LayoutGrid
+          - LayoutGridCircles
+      - LayoutVertex
+          - LayoutGridSquares
+  - Sampling
+      - Pointing
+          - PointingEquatorial
+          - PointingHorizontal
+  - Scene
+      - SceneGrid
+      - SceneHealpix
 
 """
 from __future__ import division
@@ -15,14 +21,8 @@ from __future__ import division
 import copy
 import functools
 import inspect
-
-try:
-    from matplotlib import pyplot as mp
-except:  # pragma: no coverage
-    pass
 import numpy as np
 import types
-from astropy.time import Time
 from pyoperators import MPI
 from pyoperators.utils import (
     ilast_is_not,
@@ -33,56 +33,46 @@ from pyoperators.utils import (
     split,
     tointtuple,
 )
+from ..warnings import PySimulatorsWarning, warn
 
-from .geometry import create_circle, create_grid, create_grid_squares
-from .quantities import Quantity
-
-__all__ = [
-    'Layout',
-    'LayoutSpatial',
-    'LayoutSpatialVertex',
-    'LayoutSpatialGrid',
-    'LayoutSpatialGridCircles',
-    'LayoutSpatialGridSquares',
-    'LayoutTemporal',
-]
+__all__ = ['PackedTable']
 
 
-class Layout(object):
+class PackedTable(object):
     """
-    The Layout class represents a set of elements. Characteristics of
-    the components can transparently be accessed as packed or unpacked arrays.
+    The PackedTable class gathers information from a set of elements which can
+    have a multi-dimensional layout. This information can transparently be
+    accessed as packed or unpacked arrays.
 
     Example
     -------
     Let's consider a 3x3 array of detectors, in which the top-left detector
-    does not working. We will define a mask to flag this detector.
+    is not working. We will define a mask to flag this detector.
     >>> selection = [[True, True, False],
     ...              [True, True, True],
     ...              [True, True, True]]
-    >>> gain = [[1.0, 1.0, 1.0],
+    >>> gain = [[1.0, 1.2, 1.5],
     ...         [0.9, 1.0, 1.0],
     ...         [0.8, 1.0, 1.0]]
-    >>> layout = Layout((3, 3), selection=selection, gain=gain)
-    >>> layout.plot()
+    >>> table = PackedTable((3, 3), selection=selection, gain=gain)
 
     Only the values for the selected detectors are stored, in 1-dimensional
     arrays:
-    >>> layout.gain
-    array([ 1. ,  1. ,  0.9,  1. ,  1. ,  0.8,  1. ,  1. ])
+    >>> table.gain
+    array([ 1. ,  1.2,  0.9,  1. ,  1. ,  0.8,  1. ,  1. ])
 
-    But the 2-dimensional layout can be recovered:
-    >>> layout.all.gain
-    array([[ 1. ,  1. ,  nan],
+    But the 2-dimensional table can be recovered:
+    >>> table.all.gain
+    array([[ 1. ,  1.2,  nan],
            [ 0.9,  1. ,  1. ],
            [ 0.8,  1. ,  1. ]])
 
     The number of selected detectors is:
-    >>> len(layout)
+    >>> len(table)
     8
 
     and the number of all detectors is:
-    >>> len(layout.all)
+    >>> len(table.all)
     9
 
     Now, let's have a more complex example: an array of detectors made of
@@ -108,40 +98,50 @@ class Layout(object):
     ...              [ True,  True,  True, False, False, False],
     ...              [ True,  True,  True, False, False, False],
     ...              [ True,  True,  True, False, False, False]]
-    >>> layout = Layout((6, 6), selection=selection, ordering=ordering)
+    >>> table = PackedTable((6, 6), selection=selection, ordering=ordering)
 
-    Then, the numbering of the layout fields follows the list of selected
+    Then, the numbering of the table fields follows the list of selected
     indices stored in:
 
-    >>> print(layout.index)
+    >>> print(table.index)
     [12  6 13  7  1 14  8  2 32 31 26 25 24 20 19 18]
 
     which are the 1d-collapsed indices of the following array coordinates:
 
-    >>> print [(i // 6, i % 6) for i in layout.index]
+    >>> print [(i // 6, i % 6) for i in table.index]
     [(2, 0), (1, 0), (2, 1), (1, 1), (0, 1), (2, 2), (1, 2), (0, 2),
      (5, 2), (5, 1), (4, 2), (4, 1), (4, 0), (3, 2), (3, 1), (3, 0)]
 
     """
 
-    def __init__(self, shape, selection=None, ordering=None, **keywords):
+    def __init__(self, shape, selection=None, ordering=None, ndim=None, **keywords):
         """
         shape : tuple of int
-            The layout unpacked shape. For 2-dimensional layouts, the shape would
-            be (nrows, ncolumns).
+            The shape of the unpacked table attributes. For 2-dimensional
+            attributes, the shape would be (nrows, ncolumns).
+        ndim : int, optional
+            The number of splittable (indexable) dimensions. It is the actual
+            number of dimensions of the layout. It can be lower than that
+            specified by the layout shape, in which case the extra dimensions
+            are instructed not to be split.
         selection : array-like of bool or int, slices, optional
             The slices or the integer or boolean selection that specifies
             the selected components (and reject those that are not physically
             present or those not handled by the current MPI process when the
-            layout is distributed in a parallel processing).
+            table is distributed in a parallel processing).
         ordering : array-like of int, optional
             The values in this array specify an ordering of the components. It is
             used to define the 1-dimensional indexing of the packed components.
             A negative value means that the component is removed.
 
         """
-        object.__setattr__(self, 'shape', tointtuple(shape))
-        object.__setattr__(self, 'ndim', len(self.shape))
+        shape = tointtuple(shape)
+        if ndim is None:
+            ndim = len(shape)
+        elif ndim < 1 or ndim > len(shape):
+            raise ValueError("Invalid ndim value '{0}'.".format(ndim))
+        object.__setattr__(self, 'shape', shape)
+        object.__setattr__(self, 'ndim', ndim)
         object.__setattr__(self, 'comm', MPI.COMM_SELF)
         self._dtype_index = np.int64
         self._index = self._get_index(selection, ordering)
@@ -162,13 +162,13 @@ class Layout(object):
         Give access to the unpacked attributes, without creating a cyclic
         reference.
         """
-        return LayoutUnpacked(self)
+        return UnpackedTable(self)
 
     @property
     def index(self):
         """Return the index as an int array."""
         if self._index is Ellipsis:
-            return np.arange(product(self.shape), dtype=self._dtype_index)
+            return np.arange(self._size_actual, dtype=self._dtype_index)
         if isinstance(self._index, slice):
             index = self._normalize_slice_no_none(self._index)
             return np.arange(
@@ -180,12 +180,20 @@ class Layout(object):
     def removed(self):
         return np.array(False)
 
+    @property
+    def _shape_actual(self):
+        return self.shape[: self.ndim]
+
+    @property
+    def _size_actual(self):
+        return product(self._shape_actual)
+
     def _get_index(self, selection, ordering):
-        selection = self._normalize_selection(selection, self.shape)
+        selection = self._normalize_selection(selection, self._shape_actual)
 
         if ordering is not None:
             ordering = np.asarray(ordering)
-            if ordering.shape != self.shape:
+            if ordering.shape != self._shape_actual:
                 raise ValueError('Invalid ordering dimensions.')
 
         if ordering is None:
@@ -194,13 +202,13 @@ class Layout(object):
                 return selection
             if isinstance(selection, np.ndarray) and selection.dtype == int:
                 out = np.asarray(selection, self._dtype_index)
-                return self._normalize_int_selection(out, product(self.shape))
+                return self._normalize_int_selection(out, self._size_actual)
             if isinstance(selection, tuple):
                 s = selection[0]
                 if isinstance(s, slice) and (
                     self.ndim == 1 or len(selection) == 1 and s.step == 1
                 ):
-                    n = product(self.shape[1:])
+                    n = product(self._shape_actual[1:])
                     return slice(s.start * n, s.stop * n, s.step)
                 selection = self._selection2bool(selection)
 
@@ -210,7 +218,7 @@ class Layout(object):
             out = np.asarray(
                 np.argsort(selection.ravel())[-npacked:], self._dtype_index
             )
-            return self._normalize_int_selection(out, product(self.shape))
+            return self._normalize_int_selection(out, self._size_actual)
 
         if selection is not Ellipsis and (
             not isinstance(selection, np.ndarray) or selection.dtype == int
@@ -225,13 +233,13 @@ class Layout(object):
         if npacked == 0:
             return np.array([], self._dtype_index)
         out = np.asarray(np.argsort(ordering.ravel())[-npacked:], self._dtype_index)
-        return self._normalize_int_selection(out, product(self.shape))
+        return self._normalize_int_selection(out, self._size_actual)
 
     def __len__(self):
-        """Return the number of actual elements in the layout."""
+        """Return the number of actual elements in the table."""
         index = self._index
         if index is Ellipsis:
-            return product(self.shape)
+            return self._size_actual
         if isinstance(index, slice):
             index = self._normalize_slice_no_none(index)
             return (index.stop - index.start) // index.step
@@ -254,23 +262,32 @@ class Layout(object):
         object.__setattr__(self, key, value)
 
     def __getattribute__(self, key):
+        if key == 'packed':
+            warn(
+                "Please update your code: the 'packed' attribute is not requi"
+                "red anymore: the attributes are already packed. To access th"
+                "e unpacked ones, use the 'all' attribute.",
+                PySimulatorsWarning,
+            )
+            return self
         value = object.__getattribute__(self, key)
-        if key in object.__getattribute__(self, '_special_attributes') and callable(
-            value
-        ):
-            spec = inspect.getargspec(value)
-            nargs = len(spec.args)
-            if spec.defaults is not None:
-                nargs -= len(spec.defaults)
-            if isinstance(value, types.MethodType):
-                nargs -= 1
-            if nargs == 0:
-                return value()
+        if key not in object.__getattribute__(
+            self, '_special_attributes'
+        ) or not callable(value):
+            return value
+        spec = inspect.getargspec(value)
+        nargs = len(spec.args)
+        if spec.defaults is not None:
+            nargs -= len(spec.defaults)
+        if isinstance(value, types.MethodType):
             if nargs == 1:
-                return value(self)
-            else:
-                return functools.partial(value, self)
-        return value
+                return value()
+            return value
+        if nargs == 0:
+            return value()
+        if nargs == 1:
+            return value(self)
+        return functools.partial(value, self)
 
     def __getitem__(self, selection):
         selection = self._normalize_selection(selection, (len(self),))
@@ -301,7 +318,7 @@ class Layout(object):
             index = index[selection]
 
         if isinstance(index, np.ndarray):
-            index = self._normalize_int_selection(index, product(self.shape))
+            index = self._normalize_int_selection(index, self._size_actual)
 
         out = copy.copy(self)
         out._index = index
@@ -317,7 +334,7 @@ class Layout(object):
         return out
 
     def __str__(self):
-        out = type(self).__name__ + '({0}, '.format(self.shape)
+        out = type(self).__name__ + '({0}, '.format(self._shape_actual)
         attributes = ['index'] + sorted(
             _ for _ in self._special_attributes if _ not in ('index', 'removed')
         )
@@ -341,7 +358,7 @@ class Layout(object):
         ----------
         x : ndarray
             Array to be packed, whose first dimensions are equal to those
-            of the layout.
+            of the table attributes.
         out : ndarray, optional
             Placeholder for the packed array.
         copy : boolean, optional
@@ -370,13 +387,13 @@ class Layout(object):
         x = np.asanyarray(x)
         if x.ndim == 0:
             return x
-        if x.shape[: self.ndim] != self.shape:
+        if x.shape[: self.ndim] != self._shape_actual:
             raise ValueError(
                 "Invalid unpacked shape '{0}'. The first dimension(s) must be "
-                "'{1}'.".format(x.shape, self.shape)
+                "'{1}'.".format(x.shape, self._shape_actual)
             )
         packed_shape = (len(self),) + x.shape[self.ndim :]
-        flat_shape = (product(self.shape),) + x.shape[self.ndim :]
+        flat_shape = (self._size_actual,) + x.shape[self.ndim :]
         if out is not None:
             if not isinstance(out, np.ndarray):
                 raise TypeError('The output array is not an ndarray.')
@@ -406,17 +423,17 @@ class Layout(object):
 
     def scatter(self, comm=None):
         """
-        MPI-scatter of the layout.
+        MPI-scatter of the table.
 
         Parameter
         ---------
         comm : MPI.Comm
-            The MPI communicator of the group of processes in which the layout
+            The MPI communicator of the group of processes in which the table
             will be scattered.
 
         """
         if self.comm.size > 1:
-            raise ValueError('The layout is already distributed.')
+            raise ValueError('The table is already distributed.')
         if comm is None:
             comm = MPI.COMM_WORLD
         if comm.size == 1:
@@ -438,14 +455,14 @@ class Layout(object):
 
     def split(self, n):
         """
-        Split the layout in partitioning groups.
+        Split the table in partitioning groups.
 
         Example
         -------
-        >>> layout = Layout((4, 4), selection=[0, 1, 4, 5])
-        >>> print(layout.split(2))
-        (Layout((4, 4), index=slice(0, 2, 1)),
-         Layout((4, 4), index=slice(4, 6, 1)))
+        >>> table = PackedTable((4, 4), selection=[0, 1, 4, 5])
+        >>> print(table.split(2))
+        (PackedTable((4, 4), index=slice(0, 2, 1)),
+         PackedTable((4, 4), index=slice(4, 6, 1)))
 
         """
         return tuple(self[_] for _ in split(len(self), n))
@@ -473,7 +490,7 @@ class Layout(object):
         -------
         output : ndarray
             Unpacked array, whose first dimensions are equal to those of the
-            layout.
+            table attributes.
 
         See Also
         --------
@@ -494,8 +511,8 @@ class Layout(object):
                 "Invalid input packed shape '{0}'. The expected first dimensio"
                 "n is '{1}'.".format(x.shape, len(self))
             )
-        unpacked_shape = self.shape + x.shape[1:]
-        flat_shape = (product(self.shape),) + x.shape[1:]
+        unpacked_shape = self._shape_actual + x.shape[1:]
+        flat_shape = (self._size_actual,) + x.shape[1:]
         has_out = out is not None
         if has_out:
             if not isinstance(out, np.ndarray):
@@ -516,7 +533,7 @@ class Layout(object):
             out = np.empty(unpacked_shape, dtype=x.dtype).view(type(x))
             if out.__array_finalize__ is not None:
                 out.__array_finalize__(x)
-        if product(self.shape) > len(self):
+        if self._size_actual > len(self):
             if missing_value is None:
                 missing_value = self._get_default_missing_value(x.dtype)
             out[...] = missing_value
@@ -650,12 +667,12 @@ class Layout(object):
         return slice(s.start, -1, s.step)
 
     def _selection2bool(self, selection):
-        out = np.zeros(self.shape, bool)
+        out = np.zeros(self._shape_actual, bool)
         out[selection] = True
         return out
 
 
-class LayoutUnpacked(object):
+class UnpackedTable(object):
     def __init__(self, packed):
         object.__setattr__(self, '_packed', packed)
         for k in packed._special_attributes:
@@ -677,7 +694,7 @@ class LayoutUnpacked(object):
             return object.__getattribute__(self, key)
         if key not in self._packed._special_attributes:
             raise AttributeError(
-                'The unpacked layout has no attribute {0!r}.'.format(key)
+                'The unpacked table has no attribute {0!r}.'.format(key)
             )
         v = getattr(self._packed, key)
         if v is None:
@@ -706,425 +723,3 @@ class LayoutUnpacked(object):
         if callable(value):
             raise TypeError('A function cannot be set as an unpacked attribute.')
         object.__setattr__(p, key, p.pack(value, copy=True))
-
-
-class LayoutSpatial(Layout):
-    """
-    A class for spatial layout, handling position of components.
-
-    Attributes
-    ----------
-    shape : tuple of integers
-        Tuple containing the layout dimensions
-    ndim : int
-        The number of layout dimensions.
-    center : array of shape (ncomponents, 2)
-        Position of the component centers. The last dimension stands for
-        the (X, Y) coordinates.
-    all : object
-        Access to the unpacked attributes.
-
-    """
-
-    def __init__(self, shape, **keywords):
-        """
-        shape : tuple of int
-            The layout unpacked shape. For 2-dimensional layouts, the shape would
-            be (nrows, ncolumns).
-        selection : array-like of bool or int, slices, optional
-            The slices or the integer or boolean selection that specifies
-            the selected components (and reject those that are not physically
-            present or those not handled by the current MPI process when the
-            layout is distributed in a parallel processing).
-        ordering : array-like of int, optional
-            The values in this array specify an ordering of the components. It is
-            used to define the 1-dimensional indexing of the packed components.
-            A negative value means that the component is removed.
-        center : array-like, Quantity, optional
-            The position of the components. For 2-dimensional layouts, its shape
-            must be (nrows, ncolumns, 2). If not provided, these positions are
-            derived from the vertex keyword.
-
-        """
-        if hasattr(self, 'center'):
-            keywords['center'] = None
-        elif keywords.get('center', None) is None:
-            raise ValueError('The spatial layout is not defined.')
-        Layout.__init__(self, shape, **keywords)
-
-    def plot(self, transform=None, **keywords):
-        """
-        Plot the layout.
-
-        Parameters
-        ----------
-        transform : function, Operator
-            Operator to be used to transform the layout coordinates into
-            the data coordinate system.
-
-        """
-        self._plot(self.center, transform, **keywords)
-
-    def _plot(self, coords, transform, **keywords):
-        if transform is not None:
-            coords = transform(coords)
-
-        if coords.ndim == 3:
-            a = mp.gca()
-            for p in coords:
-                a.add_patch(mp.Polygon(p, closed=True, fill=False, **keywords))
-            a.autoscale_view()
-        elif coords.ndim == 2:
-            if 'color' not in keywords:
-                keywords['color'] = 'black'
-            if 'marker' not in keywords:
-                keywords['marker'] = 'o'
-            if 'linestyle' not in keywords:
-                keywords['linestyle'] = ''
-            mp.plot(coords[:, 0], coords[:, 1], **keywords)
-        else:
-            raise ValueError('Invalid number of dimensions.')
-
-        mp.show()
-
-
-class LayoutSpatialGrid(LayoutSpatial):
-    """
-    The components are laid out in a rectangular grid (nrows, ncolumns).
-    Their positions are expressed in the (X, Y) referential.
-
-       Y ^
-         |
-         +--> X
-
-    Before rotation, rows increase along the -Y axis (unless yreflection is
-    set to True) and columns increase along the X axis (unless xreflection
-    is set to True).
-
-    Example
-    -------
-    >>> spacing = 0.001
-    >>> layout = LayoutSpatialGrid((16, 16), spacing)
-    >>> layout.plot()
-
-    Attributes
-    ----------
-    shape : tuple of integers (nrows, ncolumns)
-        Tuple containing the number of rows and columns of the grid.
-    ndim : int
-        The number of layout dimensions.
-    center : array of shape (len(self), 2)
-        Position of the component centers. The last dimension stands for
-        the (X, Y) coordinates.
-    all : object
-        Access to the unpacked attributes of shape (nrows, ncolumns, ...)
-
-    """
-
-    def __init__(
-        self,
-        shape,
-        spacing,
-        xreflection=False,
-        yreflection=False,
-        angle=0,
-        origin=(0, 0),
-        startswith1=False,
-        **keywords,
-    ):
-        """
-        shape : tuple of two integers (nrows, ncolumns)
-            Number of rows and columns of the grid.
-        spacing : float, Quantity
-            Physical spacing between components.
-        xreflection : boolean, optional
-            Reflection along the X-axis (before rotation).
-        yreflection : boolean, optional
-            Reflection along the Y-axis (before rotation).
-        angle : float, optional
-            Counter-clockwise rotation angle in degrees (before translation).
-        origin : array-like of shape (2,), optional
-            The (X, Y) coordinates of the grid center
-        startswith1 : boolean, optional
-            If True, start column and row indewing with one.
-        selection : array-like of bool or int, slices, optional
-            The slices or the integer or boolean selection that specifies
-            the selected components (and reject those that are not physically
-            present or those not handled by the current MPI process when the
-            layout is distributed in a parallel processing).
-        ordering : array-like of int, optional
-            The values in this array specify an ordering of the components. It is
-            used to define the 1-dimensional indexing of the packed components.
-            A negative value means that the component is removed.
-
-        """
-        if not isinstance(shape, (list, tuple)):
-            raise TypeError('Invalid grid shape.')
-        if len(shape) != 2:
-            raise ValueError('The layout grid is not 2-dimensional.')
-
-        unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
-        if len(origin) != len(shape):
-            raise ValueError('Invalid dimensions of the layout center.')
-        if unit:
-            spacing = Quantity(spacing).tounit(unit)
-            origin = Quantity(origin).tounit(unit)
-        center = create_grid(
-            shape,
-            spacing,
-            xreflection=xreflection,
-            yreflection=yreflection,
-            center=origin,
-            angle=angle,
-        )
-        if unit:
-            center = Quantity(center, unit, copy=False)
-        self.spacing = spacing
-        self.origin = origin
-        self.xreflection = xreflection
-        self.yreflection = yreflection
-        self.angle = angle
-        self.startswith1 = startswith1
-        self.unit = unit
-        LayoutSpatial.__init__(self, shape, center=center, **keywords)
-        self._special_attributes += ('column', 'row')
-
-    def column(self):
-        return self.index % self.shape[1] + self.startswith1
-
-    def row(self):
-        return self.index // self.shape[1] + self.startswith1
-
-
-class LayoutSpatialGridCircles(LayoutSpatialGrid):
-    """
-    The circle components are laid out in a rectangular grid (nrows, ncolumns).
-    Their positions are expressed in the (X, Y) referential.
-
-       Y ^
-         |
-         +--> X
-
-    Before rotation, rows increase along the -Y axis (unless yreflection is
-    set to True) and columns increase along the X axis (unless xreflection
-    is set to True).
-
-    Example
-    -------
-    >>> spacing = 0.001
-    >>> layout = LayoutSpatialGridCircles((16, 16), spacing)
-    >>> layout.plot()
-
-    Attributes
-    ----------
-    shape : tuple of integers (nrows, ncolumns)
-        Tuple containing the number of rows and columns of the grid.
-    ndim : int
-        The number of layout dimensions.
-    center : array of shape (len(self), 2)
-        Position of the component centers. The last dimension stands for
-        the (X, Y) coordinates.
-    all : object
-        Access to the unpacked attributes of shape (nrows, ncolumns, ...)
-
-    """
-
-    def __init__(self, shape, spacing, radius=None, **keywords):
-        """
-        shape : tuple of two integers (nrows, ncolumns)
-            Number of rows and columns of the grid.
-        spacing : float, Quantity
-            Physical spacing between components.
-        radius : array-like, float
-            The component radii.
-        xreflection : boolean
-            Reflection along the X-axis (before rotation).
-        yreflection : boolean
-            Reflection along the Y-axis (before rotation).
-        angle : float
-            Counter-clockwise rotation angle in degrees (before translation).
-        origin : array-like of shape (2,)
-            The (X, Y) coordinates of the grid center
-        startswith1 : boolean, optional
-            If True, start column and row indewing with one.
-        selection : array-like of bool or int, slices, optional
-            The slices or the integer or boolean selection that specifies
-            the selected components (and reject those that are not physically
-            present or those not handled by the current MPI process when the
-            layout is distributed in a parallel processing).
-        ordering : array-like of int, optional
-            The values in this array specify an ordering of the components. It is
-            used to define the 1-dimensional indexing of the packed components.
-            A negative value means that the component is removed.
-
-        """
-        if radius is None:
-            radius = spacing / 2
-        unit = getattr(spacing, 'unit', '') or getattr(radius, 'unit', '')
-        if unit:
-            spacing = Quantity(spacing).tounit(unit)
-            radius = Quantity(radius, copy=False).tounit(unit)
-        LayoutSpatialGrid.__init__(self, shape, spacing, radius=radius, **keywords)
-
-    def plot(self, transform=None, **keywords):
-        coords = create_circle(self.radius, center=self.center)
-        self._plot(coords, transform, **keywords)
-
-    plot.__doc__ = LayoutSpatialGrid.plot.__doc__
-
-
-class LayoutSpatialVertex(LayoutSpatial):
-    def __init__(self, shape, nvertices, **keywords):
-        """
-        vertex : array-like of shape self.shape + (nvertices, 2), optional
-            The vertices of the components. For 2-dimensional layouts of squares,
-            its shape must be (nrows, ncolumns, 4, 2)
-        """
-        if hasattr(self, 'vertex'):
-            keywords['vertex'] = None
-        elif keywords.get('vertex', None) is None:
-            raise ValueError('The layout vertices are not defined.')
-        LayoutSpatial.__init__(self, shape, **keywords)
-        self.nvertices = nvertices
-
-    @property
-    def center(self):
-        try:
-            return np.mean(self.vertex, axis=-2)
-        except:
-            return None
-
-    def plot(self, transform=None, **keywords):
-        self._plot(self.vertex, transform, **keywords)
-
-    plot.__doc__ = LayoutSpatialGrid.plot.__doc__
-
-
-class LayoutSpatialGridSquares(LayoutSpatialVertex):
-    """
-    The square components are laid out in a rectangular grid (nrows, ncolumns).
-    The positions of their corners are expressed in the (X, Y) referential.
-
-       Y ^
-         |
-         +--> X
-
-    Before rotation, rows increase along the -Y axis (unless yreflection is
-    set to True) and columns increase along the X axis (unless xreflection
-    is set to True).
-
-    Example
-    -------
-    >>> spacing = 0.001
-    >>> layout = LayoutSpatialGridSquares((8, 8), spacing, filling_factor=0.8)
-    >>> layout.plot()
-
-    Attributes
-    ----------
-    shape : tuple of integers (nrows, ncolumns)
-        See below.
-    ndim : int
-        The number of layout dimensions.
-    center : array of shape (len(self), 2)
-        Position of the component centers. The last dimension stands for
-        the (X, Y) coordinates.
-    vertex : array of shape (len(self), 4, 2)
-        Corners of the components. The dimensions refers to the component
-        number, the corner number counted counter-clockwise starting from
-        the top-right and the (X, Y) coordinates.
-    all : object
-        Access to the unpacked attributes of shape (nrows, ncolumns, ...)
-
-    """
-
-    def __init__(
-        self,
-        shape,
-        spacing,
-        filling_factor=1,
-        xreflection=False,
-        yreflection=False,
-        angle=0,
-        origin=(0, 0),
-        startswith1=False,
-        **keywords,
-    ):
-        """
-        shape : tuple of two integers (nrows, ncolumns)
-            Number of rows and columns of the grid.
-        spacing : float, Quantity
-            Physical spacing between components.
-        filling_factor : float
-            Ratio of the component area over spacing**2.
-        xreflection : boolean
-            Reflection along the X-axis (before rotation).
-        yreflection : boolean
-            Reflection along the Y-axis (before rotation).
-        angle : float
-            Counter-clockwise rotation angle in degrees (before translation).
-        origin : array-like of shape (2,)
-            The (X, Y) coordinates of the grid center
-        startswith1 : boolean, optional
-            If True, start column and row indewing with one.
-        selection : array-like of bool or int, slices, optional
-            The slices or the integer or boolean selection that specifies
-            the selected components (and reject those that are not physically
-            present or those not handled by the current MPI process when the
-            layout is distributed in a parallel processing).
-        ordering : array-like of int, optional
-            The values in this array specify an ordering of the components. It is
-            used to define the 1-dimensional indexing of the packed components.
-            A negative value means that the component is removed.
-
-        """
-        unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
-        if unit:
-            spacing = Quantity(spacing).tounit(unit)
-            origin = Quantity(origin).tounit(unit)
-        vertex = create_grid_squares(
-            shape,
-            spacing,
-            filling_factor=filling_factor,
-            xreflection=xreflection,
-            yreflection=yreflection,
-            center=origin,
-            angle=angle,
-        )
-        if unit:
-            vertex = Quantity(vertex, unit, copy=False)
-        LayoutSpatialVertex.__init__(self, shape, 4, vertex=vertex, **keywords)
-        self.angle = angle
-        self.filling_factor = filling_factor
-        self.origin = origin
-        self.spacing = spacing
-        self.startswith1 = startswith1
-        self.unit = unit
-        self.xreflection = xreflection
-        self.yreflection = yreflection
-
-
-class LayoutTemporal(Layout):
-    DEFAULT_DATE_OBS = '2000-01-01'
-    DEFAULT_SAMPLING_PERIOD = 1
-
-    def __init__(self, n, date_obs=None, sampling_period=None, **keywords):
-        if date_obs is None:
-            date_obs = self.DEFAULT_DATE_OBS
-        if isinstance(date_obs, str):
-            # XXX astropy.time bug needs []
-            date_obs = Time([date_obs], scale='utc')
-        elif not isinstance(date_obs, Time):
-            raise TypeError('The observation start date is invalid.')
-        elif date_obs.is_scalar:  # work around astropy.time bug
-            date_obs = Time([str(date_obs)], scale='utc')
-        if sampling_period is None:
-            if hasattr(keywords, 'time'):
-                sampling_period = np.median(np.diff(keywords['time']))
-            else:
-                sampling_period = self.DEFAULT_SAMPLING_PERIOD
-        Layout.__init__(self, n, time=keywords.pop('time', None), **keywords)
-        self.date_obs = date_obs
-        self.sampling_period = float(sampling_period)
-
-    def time(self):
-        return self.index * self.sampling_period

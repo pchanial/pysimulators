@@ -79,6 +79,7 @@ setup(
         'pysimulators/interfaces',
         'pysimulators/interfaces/healpy',
         'pysimulators/interfaces/madmap1',
+        'pysimulators/packedtables',
     ],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
