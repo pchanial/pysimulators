@@ -188,7 +188,8 @@ class Acquisition(object):
             shapein, invntt, fftw_flag=fftw_flag, nthreads=nthreads)
 
     def get_projection_operator(self, header, npixels_per_sample=0,
-                                method=None, units=None, derived_units=None):
+                                method=None, units=None, derived_units=None,
+                                verbose=True):
         if method == 'nearest':
             npixels_per_sample = 1
         time0 = time.time()
@@ -229,6 +230,16 @@ class Acquisition(object):
         return ProjectionOperator(matrix, attrin={'_header': header},
                                   classin=Map, classout=Tod, units=units,
                                   derived_units=derived_units)
+
+    def get_projection_nbytes(self, **keywords):
+        """
+        Return the number of bytes of the projection matrix.
+
+        """
+        keywords['verbose'] = False
+        acq = type(self)(self.instrument, self.sampling[0], self.scene)
+        proj = acq.get_projection_operator(**keywords)
+        return proj.nbytes * len(self.sampling)
 
     def get_noise(self, psd=None, bandwidth=None, twosided=False, sigma=None,
                   fknee=0, fslope=1, sampling_frequency=None, out=None):
