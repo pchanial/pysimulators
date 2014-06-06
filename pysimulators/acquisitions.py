@@ -237,7 +237,13 @@ class Acquisition(object):
         )
 
     def get_projection_operator(
-        self, header, npixels_per_sample=0, method=None, units=None, derived_units=None
+        self,
+        header,
+        npixels_per_sample=0,
+        method=None,
+        units=None,
+        derived_units=None,
+        verbose=True,
     ):
         if method == 'nearest':
             npixels_per_sample = 1
@@ -294,6 +300,16 @@ class Acquisition(object):
             units=units,
             derived_units=derived_units,
         )
+
+    def get_projection_nbytes(self, **keywords):
+        """
+        Return the number of bytes of the projection matrix.
+
+        """
+        keywords['verbose'] = False
+        acq = type(self)(self.instrument, self.sampling[0], self.scene)
+        proj = acq.get_projection_operator(**keywords)
+        return proj.nbytes * len(self.sampling)
 
     def get_noise(
         self,
