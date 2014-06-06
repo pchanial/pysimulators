@@ -8,7 +8,7 @@ from numpy.distutils.core import setup
 from numpy.distutils.misc_util import Configuration
 from hooks import get_cmdclass, get_version
 
-VERSION = '0.8'
+VERSION = '1.0'
 
 name = 'pysimulators'
 long_description = open('README.rst').read()
@@ -77,7 +77,7 @@ setup(configuration=configuration,
           'Programming Language :: Python',
           'Programming Language :: Python :: 2 :: Only',
           'Programming Language :: Fortran',
-          'Development Status :: 4 - Beta',
+          'Development Status :: 5 - Production/Stable',
           'Intended Audience :: Science/Research',
           'Operating System :: OS Independent',
           'Topic :: Scientific/Engineering',
