@@ -8,7 +8,7 @@ from numpy.distutils.core import setup
 from numpy.distutils.misc_util import Configuration
 from hooks import get_cmdclass, get_version
 
-VERSION = '1.0'
+VERSION = '1.1'
 
 name = 'pysimulators'
 long_description = open('README.rst').read()
