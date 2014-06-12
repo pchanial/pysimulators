@@ -13,10 +13,12 @@ except ImportError:
 from astropy.time import Time, TimeDelta
 from pyoperators import (
     DifferenceOperator,
+    MPI,
     NormalizeOperator,
-    Spherical2CartesianOperator,
+    Cartesian2SphericalOperator,
 )
 from pyoperators.utils import isscalarlike, tointtuple
+from pyoperators.utils.mpi import as_mpi
 from .core import PackedTable
 from ..datatypes import Map
 from ..operators import (
@@ -24,9 +26,8 @@ from ..operators import (
     SphericalHorizontal2EquatorialOperator,
 )
 from ..quantities import Quantity
-from ..wcsutils import angle_lonlat, barycenter_lonlat, create_fitsheader
 
-__all__ = ['Sampling', 'Pointing', 'PointingEquatorial', 'PointingHorizontal']
+__all__ = ['Sampling', 'PointingSpherical', 'PointingEquatorial', 'PointingHorizontal']
 
 
 class Sampling(PackedTable):
@@ -48,8 +49,9 @@ class Sampling(PackedTable):
                 period = np.median(np.diff(keywords['time']))
             else:
                 period = self.DEFAULT_PERIOD
+        masked = keywords.pop('masked', False)
         time = keywords.pop('time', None)
-        PackedTable.__init__(self, n, time=time, **keywords)
+        PackedTable.__init__(self, n, masked=masked, time=time, **keywords)
         self.date_obs = date_obs
         self.period = float(period)
 
@@ -57,12 +59,12 @@ class Sampling(PackedTable):
         return self.index * self.period
 
 
-class Pointing(Sampling):
+class PointingSpherical(Sampling):
     def __init__(self, *args, **keywords):
         """
-        ptg = Pointing(n)
-        ptg = Pointing(precession=..., nutation=..., intrinsic_rotation=...)
-        ptg = Pointing(precession, nutation, intrinsic_rotation)
+        ptg = PointingSpherical(n)
+        ptg = PointingSpherical(precession=, nutation=, intrinsic_rotation=)
+        ptg = PointingSpherical(precession, nutation, intrinsic_rotation)
 
         Parameters
         ----------
@@ -115,41 +117,73 @@ class Pointing(Sampling):
         elif len(shape) != 1:
             raise ValueError('Invalid dimension for the pointing.')
         Sampling.__init__(
-            self, shape, angular=None, cartesian=None, velocity=None, **keywords
+            self, shape, cartesian=None, spherical=None, velocity=None, **keywords
         )
         self.names = names
         self.degrees = bool(degrees)
 
-    def angular(self):
+    def cartesian(self):
         """
-        Return the angular coordinates as an (N, 2) ndarray.
+        Return the cartesian coordinates in the equatorial referential.
+
+        """
+        return self.tocartesian(self.spherical)
+
+    def spherical(self):
+        """
+        Return the spherical coordinates as an (N, 2) ndarray.
 
         """
         return np.array([getattr(self, self.names[0]), getattr(self, self.names[1])]).T
 
-    def cartesian(self):
+    @property
+    def cartesian2spherical(self):
         """
-        Return the cartesian coordinates.
+        Return the cartesian-to-spherical transform.
 
         """
         raise NotImplementedError()
 
+    @property
+    def spherical2cartesian(self):
+        """
+        Return the spherical-to-cartesian transform.
+
+        """
+        raise self.cartesian2spherical.I
+
     def velocity(self):
         op = NormalizeOperator() * DifferenceOperator(axis=-2) / self.period
-        velocity = Quantity(op(self.coordinates_cartesian), 'rad/s')
+        velocity = Quantity(op(self.cartesian), 'rad/s')
         return velocity.tounit(self.DEFAULT_VELOCITY_UNIT)
 
+    def get_center(self):
+        """
+        Return the average pointing direction.
 
-#    def get_valid(self):
-#        valid = np.ones(self.shape, bool)
-#        if 'masked' in self.dtype.names:
-#            valid &= ~self.masked
-#        if 'removed' in self.dtype.names:
-#            valid &= ~self.removed
-#        return valid
+        """
+        if isscalarlike(self.masked) and self.masked:
+            n = 0
+            coords = np.zeros((1, 3))
+        else:
+            coords = self.cartesian
+            if not isscalarlike(self.masked):
+                valid = 1 - self.masked
+                coords *= valid[:, None]
+                n = np.sum(valid)
+            else:
+                n = len(self)
+        n = np.asarray(n)
+        center = np.sum(coords, axis=0)
+        self.comm.Allreduce(MPI.IN_PLACE, as_mpi(n))
+        self.comm.Allreduce(MPI.IN_PLACE, as_mpi(center))
+        if n == 0:
+            raise ValueError('There is no valid pointing.')
+        center /= n
+        return self.cartesian2spherical(center)
 
 
-class PointingEquatorial(Pointing):
+class PointingEquatorial(PointingSpherical):
     def __init__(self, *args, **keywords):
         """
         ptg = PointingEquatorial(n)
@@ -167,7 +201,7 @@ class PointingEquatorial(Pointing):
         pa : array-like, optional
             The position angle, in degrees (by default: 0).
         """
-        Pointing.__init__(
+        PointingSpherical.__init__(
             self,
             degrees=True,
             names=('ra', 'dec', 'pa'),
@@ -176,49 +210,18 @@ class PointingEquatorial(Pointing):
             **keywords,
         )
 
-    def cartesian(self):
-        """
-        Return the cartesian coordinates in the equatorial referential.
+    @property
+    def cartesian2spherical(self):
+        return Cartesian2SphericalOperator('azimuth,elevation', degrees=self.degrees)
 
-        """
-        op = Spherical2CartesianOperator('azimuth,elevation', degrees=self.degrees)
-        return op(self.angular)
-
+    @property
     def galactic(self):
         """
-        Return the angular coordinates in the galactic referential.
+        Return the spherical coordinates in the galactic referential.
 
         """
         e2g = SphericalEquatorial2GalacticOperator(degrees=True)
-        return e2g(self.angular)
-
-    def get_map_header(self, resolution=None, naxis=None):
-        """
-        Returns a FITS header that encompasses all non-removed and
-        non-masked pointings.
-        """
-        mask = self.get_valid()
-        ra = self.ra[mask]
-        dec = self.dec[mask]
-        crval = barycenter_lonlat(ra, dec)
-        angles = angle_lonlat((ra, dec), crval)
-        angle_max = np.nanmax(angles)
-        if angle_max >= 90.0:
-            print(
-                'Warning: some coordinates have an angular distance to the p'
-                'rojection point greater than 90 degrees.'
-            )
-            angles[angles >= 90] = np.nan
-            angle_max = np.nanmax(angles)
-        angle_max = np.deg2rad(angle_max)
-        if resolution is None:
-            cdelt = 2 * np.rad2deg(np.tan(angle_max)) / naxis
-        else:
-            cdelt = resolution / 3600
-            naxis = 2 * np.ceil(np.rad2deg(np.tan(angle_max)) / cdelt)
-        return create_fitsheader(
-            2 * [naxis], cdelt=cdelt, crval=crval, crpix=2 * [naxis // 2 + 1]
-        )
+        return e2g(self.spherical)
 
     def plot(
         self,
@@ -252,14 +255,18 @@ class PointingEquatorial(Pointing):
         """
         if km is None:
             raise RuntimeError('The kapteyn library is required.')
-        invalid = ~self.get_valid()
-        ra, dec = self.ra.copy(), self.dec.copy()
-        ra[invalid] = np.nan
-        dec[invalid] = np.nan
-        if np.all(invalid):
+        if isscalarlike(self.masked) and self.masked or np.all(self.masked):
             if new_figure:
                 raise ValueError('There is no valid coordinates.')
             return
+        if not isscalarlike(self.masked):
+            ra = self.ra.copy()
+            dec = self.dec.copy()
+            ra[self.masked] = np.nan
+            dec[self.masked] = np.nan
+        else:
+            ra = self.ra
+            dec = self.dec
 
         if header is None:
             header = getattr(map, 'header', None)
@@ -292,7 +299,7 @@ class PointingEquatorial(Pointing):
         return image
 
 
-class PointingHorizontal(Pointing):
+class PointingHorizontal(PointingSpherical):
     DEFAULT_LATITUDE = None
     DEFAULT_LONGITUDE = None
 
@@ -330,7 +337,7 @@ class PointingHorizontal(Pointing):
                 raise ValueError('The reference longitude is not specified.')
         self.longitude = longitude
 
-        Pointing.__init__(
+        PointingSpherical.__init__(
             self,
             degrees=True,
             names=('azimuth', 'elevation', 'pitch'),
@@ -340,28 +347,26 @@ class PointingHorizontal(Pointing):
             **keywords,
         )
 
-    def cartesian(self):
-        """
-        Return the cartesian coordinates in the horizontal referential.
+    @property
+    def cartesian2spherical(self):
+        return Cartesian2SphericalOperator('azimuth,elevation', degrees=self.degrees)
 
-        """
-        s2c = Spherical2CartesianOperator('azimuth,elevation', degrees=True)
-        return s2c(self.angular)
-
+    @property
     def equatorial(self):
         """
-        Return the angular coordinates in the equatorial referential.
+        Return the spherical coordinates in the equatorial referential.
 
         """
         time = self.date_obs + TimeDelta(self.time, format='sec')
         h2e = SphericalHorizontal2EquatorialOperator(
             'NE', time, self.latitude, self.longitude, degrees=True
         )
-        return h2e(self.angular, preserve_input=False)
+        return h2e(self.spherical, preserve_input=False)
 
+    @property
     def galactic(self):
         """
-        Return the angular coordinates in the galactic referential.
+        Return the spherical coordinates in the galactic referential.
 
         """
         time = self.date_obs + TimeDelta(self.time, format='sec')
@@ -369,7 +374,7 @@ class PointingHorizontal(Pointing):
             'NE', time, self.latitude, self.longitude, degrees=True
         )
         e2g = SphericalEquatorial2GalacticOperator(degrees=True)
-        return e2g(h2e)(self.angular, preserve_input=False)
+        return e2g(h2e)(self.spherical, preserve_input=False)
 
 
 class PointingScanEquatorial(PointingEquatorial):
