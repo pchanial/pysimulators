@@ -4,12 +4,13 @@
 from __future__ import division
 import numpy as np
 import time
-from pyoperators import DiagonalOperator, SymmetricBandToeplitzOperator, MPI
+from pyoperators import BlockDiagonalOperator, MPI
 from pyoperators.memory import empty
 from pyoperators.utils import (
     ifirst,
     isscalarlike,
     product,
+    split,
     strelapsed,
     strenum,
     strnbytes,
@@ -17,23 +18,12 @@ from pyoperators.utils import (
 
 from . import _flib as flib
 from .datatypes import Map, Tod
-from .geometry import convex_hull
 from .instruments import Instrument, Imager
 from .packedtables import Layout, Sampling, Scene
 from .mpiutils import gather_fitsheader_if_needed
-from .noises import (
-    _fold_psd,
-    _gaussian_psd_1f,
-    _gaussian_sample,
-    _logloginterp_psd,
-    _psd2invntt,
-    _unfold_psd,
-)
 from .operators import PointingMatrix, ProjectionOperator
 from .wcsutils import (
     RotationBoresightEquatorialOperator,
-    barycenter_lonlat,
-    combine_fitsheader,
     create_fitsheader,
     fitsheader2shape,
 )
@@ -43,8 +33,8 @@ __all__ = ['Acquisition', 'AcquisitionImager', 'MaskPolicy']
 
 class Acquisition(object):
     """
-    The Acquisition class, which represents the instrument and
-    pointing configurations.
+    The Acquisition class, which combines the instrument, sampling and scene
+    models.
 
     """
 
@@ -53,6 +43,8 @@ class Acquisition(object):
         instrument,
         sampling,
         scene,
+        block=None,
+        max_nbytes=None,
         nprocs_instrument=None,
         nprocs_sampling=None,
         comm=None,
@@ -66,6 +58,11 @@ class Acquisition(object):
             The sampling information (pointings, etc.)
         scene : Scene
             Discretization of the observed scene.
+        block : tuple of slices, optional
+            Partition of the samplings.
+        max_nbytes : int or None, optional
+            Maximum number of bytes to be allocated for the acquisition's
+            operator.
         nprocs_instrument : int
             For a given sampling slice, number of procs dedicated to
             the instrument.
@@ -121,119 +118,50 @@ class Acquisition(object):
 
         comm_instrument = commgrid.Sub([False, True])
         comm_sampling = commgrid.Sub([True, False])
+
         self.scene = scene
         self.instrument = instrument.scatter(comm_instrument)
         self.sampling = sampling.scatter(comm_sampling)
         self.comm = commgrid
+        if block is None:
+            if max_nbytes is None:
+                block = (slice(0, len(self.sampling)),)
+            else:
+                nbytes = self.get_operator_nbytes()
+                if nbytes <= max_nbytes:
+                    block = (slice(0, len(self.sampling)),)
+                else:
+                    nblocks = int(np.ceil(nbytes / max_nbytes))
+                    block = split(len(self.sampling), nblocks)
+        elif not isinstance(block, (list, tuple)) or any(
+            not isinstance(b, slice) for b in block
+        ):
+            raise TypeError("Invalid block argument '{}'.".format(block))
+        self.block = block
 
     def __str__(self):
         return '{}\nSamplings: {}'.format(self.instrument, len(self.sampling))
 
     __repr__ = __str__
 
-    def pack(self, x):
+    def pack(self, x, out=None, copy=False):
         return self.instrument.detector.pack(x)
 
     pack.__doc__ = Layout.pack.__doc__
 
-    def unpack(self, x):
+    def unpack(self, x, out=None, missing_value=None, copy=False):
         return self.instrument.detector.unpack(x)
 
     unpack.__doc__ = Layout.unpack.__doc__
 
-    def get_invntt_operator(
-        self,
-        psd=None,
-        bandwidth=None,
-        twosided=False,
-        sigma=None,
-        fknee=0,
-        fslope=1,
-        sampling_frequency=None,
-        ncorr=None,
-        fftw_flag='FFTW_MEASURE',
-        nthreads=None,
-    ):
+    def get_invntt_operator(self):
         """
         Return the inverse time-time noise correlation matrix as an Operator.
 
-        The input Power Spectrum Density can either be fully specified by using
-        the 'bandwidth' and 'psd' keywords, or by providing the parameters of
-        the gaussian distribution:
-            psd = sigma**2 * (1 + (fknee/f)**fslope) / B
-        where B is the sampling bandwidth equal to sampling_frequency / N.
-
-        Parameters
-        ----------
-        psd : array-like
-            The one-sided or two-sided power spectrum density
-            [signal unit/sqrt Hz].
-        bandwidth : float, optional
-            The PSD frequency increment [Hz].
-        twosided : boolean, optional
-            Whether or not the input psd is one-sided (only positive
-            frequencies) or two-sided (positive and negative frequencies).
-        sigma : float
-            Standard deviation of the white noise component.
-        fknee : float
-            The 1/f noise knee frequency [Hz].
-        fslope : float
-            The 1/f noise slope.
-        sampling_frequency : float
-            The sampling frequency [Hz].
-        ncorr : int
-            The correlation length of the time-time noise correlation matrix.
-        fftw_flag : string, optional
-            The flags FFTW_ESTIMATE, FFTW_MEASURE, FFTW_PATIENT and
-            FFTW_EXHAUSTIVE can be used to describe the increasing amount of
-            effort spent during the planning stage to create the fastest
-            possible transform. Usually, FFTW_MEASURE is a good compromise
-            and is the default.
-        nthreads : int, optional
-            Tells how many threads to use when invoking FFTW or MKL. Default is
-            the number of cores.
-
         """
-        if (
-            bandwidth is None
-            and psd is not None
-            or bandwidth is not None
-            and psd is None
-        ):
-            raise ValueError('The bandwidth or the PSD is not specified.')
-        if bandwidth is None and psd is None and sigma is None:
-            raise ValueError('The noise model is not specified.')
-
-        # handle the non-correlated case first
-        if bandwidth is None and fknee == 0:
-            return DiagonalOperator(1 / sigma**2, broadcast='rightward')
-
-        if sampling_frequency is None:
-            if not hasattr(self.sampling, 'sampling_frequency'):
-                raise ValueError('The sampling frequency is not specified.')
-            sampling_frequency = self.sampling.sampling_frequency
-
-        nsamples_max = len(self.sampling)
-        fftsize = 2
-        while fftsize < nsamples_max:
-            fftsize *= 2
-
-        new_bandwidth = sampling_frequency / fftsize
-        if bandwidth is not None and psd is not None:
-            if twosided:
-                psd = _fold_psd(psd)
-            f = np.arange(fftsize // 2 + 1, dtype=float) * new_bandwidth
-            p = _unfold_psd(_logloginterp_psd(f, bandwidth, psd))
-        else:
-            p = _gaussian_psd_1f(
-                fftsize, sampling_frequency, sigma, fknee, fslope, twosided=True
-            )
-        p[..., 0] = p[..., 1]
-        invntt = _psd2invntt(p, new_bandwidth, ncorr, fftw_flag=fftw_flag)
-
-        shapein = (len(self.instrument), len(self.sampling))
-        return SymmetricBandToeplitzOperator(
-            shapein, invntt, fftw_flag=fftw_flag, nthreads=nthreads
+        return BlockDiagonalOperator(
+            [self.instrument.get_invntt_operator(self.sampling[b]) for b in self.block],
+            axisin=1,
         )
 
     def get_projection_operator(
@@ -311,105 +239,21 @@ class Acquisition(object):
         proj = acq.get_projection_operator(**keywords)
         return proj.nbytes * len(self.sampling)
 
-    def get_noise(
-        self,
-        psd=None,
-        bandwidth=None,
-        twosided=False,
-        sigma=None,
-        fknee=0,
-        fslope=1,
-        sampling_frequency=None,
-        out=None,
-    ):
+    def get_noise(self, out=None):
         """
-        Return the noise realization following a given PSD.
-
-        The input Power Spectrum Density can either be fully specified by using
-        the 'bandwidth' and 'psd' keywords, or by providing the parameters of
-        the gaussian distribution:
-            psd = sigma**2 * (1 + (fknee/f)**fslope) / B
-        where B is equal to sampling_frequency / N.
+        Return the noise realization according the instrument's noise model.
 
         Parameters
         ----------
-        psd : array-like, optional
-            The one-sided or two-sided Power Spectrum Density,
-            [signal unit**2/Hz].
-        bandwidth : float, optional
-            The PSD frequency increment [Hz].
-        twosided : boolean, optional
-            Whether or not the output psd is one-sided (only positive
-            frequencies) or two-sided (positive and negative frequencies).
-        sigma : float, optional
-            Standard deviation of the white noise component.
-        fknee : float, optional
-            The 1/f noise knee frequency [Hz].
-        fslope : float, optional
-            The 1/f noise slope.
-        sampling_frequency : float, optional
-            The sampling frequency of the output timeline [Hz]. By default,
-            it is taken from the acquisition's sampling attribute.
         out : ndarray, optional
             Placeholder for the output noise.
 
         """
-        if (
-            bandwidth is None
-            and psd is not None
-            or bandwidth is not None
-            and psd is None
-        ):
-            raise ValueError('The bandwidth or the PSD is not specified.')
-        if bandwidth is None and psd is None and sigma is None:
-            raise ValueError('The noise model is not specified.')
-
-        shape = (len(self.instrument), len(self.sampling))
-
-        # handle non-correlated case first
-        if bandwidth is None and fknee == 0:
-            noise = np.random.randn(*shape)
-            if out is None:
-                out = noise
-            else:
-                out[...] = noise
-            np.multiply(out.T, sigma, out.T)
-            return out
-
-        if sampling_frequency is None:
-            sampling_frequency = 1 / self.sampling.period
-
         if out is None:
-            out = empty(shape)
-
-        # fold two-sided input PSD
-        if bandwidth is not None and psd is not None:
-            if twosided:
-                psd = _fold_psd(psd)
-                twosided = False
-        else:
-            twosided = True
-
-        n = len(self.sampling)
-        if bandwidth is None and psd is None:
-            p = _gaussian_psd_1f(
-                n, sampling_frequency, sigma, fknee, fslope, twosided=twosided
-            )
-        else:
-            # log-log interpolation of one-sided PSD
-            f = np.arange(n // 2 + 1, dtype=float) * (sampling_frequency / n)
-            p = _logloginterp_psd(f, bandwidth, psd)
-
-        # looping over the detectors
-        for out_ in out:
-            out_[...] = _gaussian_sample(n, sampling_frequency, p, twosided=twosided)
-
+            out = empty((len(self.instrument), len(self.sampling)))
+        for b in self.block:
+            self.instrument.get_noise(self.sampling[b], out=out[:, b])
         return out
-
-    def get_projection_matrix(
-        self, header, start, stop, npixels_per_sample=0, method=None
-    ):
-        raise NotImplementedError()
 
     @classmethod
     def create_scan(
@@ -534,68 +378,6 @@ class AcquisitionImager(Acquisition):
             )
         Acquisition.__init__(self, instrument, sampling, scene)
         self.object2world = RotationBoresightEquatorialOperator(self.sampling)
-
-    def get_map_header(self, resolution=None):
-        """
-        Return the FITS header of the smallest map that encompasses the config-
-        uration pointings, by taking into account the instrument geometry.
-
-        Parameters
-        ----------
-        resolution : float
-            Sky pixel increment, in arc seconds. The default value is the
-            Instrument default_resolution.
-
-        Returns
-        -------
-        header : astropy.io.Header
-            The resulting FITS header.
-
-        """
-        if resolution is None:
-            resolution = self.instrument.default_resolution
-        if hasattr(self.instrument.detector, 'vertex'):
-            coords = self.instrument.detector.vertex
-        else:
-            coords = self.instrument.detector.center
-        coords = convex_hull(coords)
-        self.instrument.image2object(coords, out=coords)
-
-        valid = ~self.sampling['masked']
-        if not np.any(valid):
-            raise ValueError(
-                'The FITS header cannot be inferred: there is no ' 'valid pointing.'
-            )
-        sampling = self.sampling[valid]
-
-        # get a dummy header, with correct cd and crval
-        ra0, dec0 = barycenter_lonlat(sampling.ra, sampling.dec)
-        header = create_fitsheader(
-            (1, 1), cdelt=resolution / 3600, crval=(ra0, dec0), crpix=(1, 1)
-        )
-
-        # compute coordinate boundaries according to the header's astrometry
-        xmin, ymin, xmax, ymax = self._object2xy_minmax(
-            coords, sampling, str(header).replace('\n', '')
-        )
-        ixmin = int(np.round(xmin))
-        ixmax = int(np.round(xmax))
-        iymin = int(np.round(ymin))
-        iymax = int(np.round(ymax))
-        nx = ixmax - ixmin + 1
-        ny = iymax - iymin + 1
-
-        # move the reference pixel (not the reference value!)
-        header = create_fitsheader(
-            (nx, ny),
-            cdelt=resolution / 3600,
-            crval=(ra0, dec0),
-            crpix=(-ixmin + 2, -iymin + 2),
-        )
-
-        # gather and combine the FITS headers
-        headers = self.sky.comm.allgather(header)
-        return combine_fitsheader(headers)
 
     def get_projection_matrix(self, header, npixels_per_sample=0, method=None):
         """
