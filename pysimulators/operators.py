@@ -324,24 +324,24 @@ class ConvolutionTruncatedExponentialOperator(Operator):
         Operator.__init__(self, dtype=dtype, **keywords)
 
     def direct(self, input, output):
-        input_, ishape, istride = _ravel_strided(input)
-        output_, oshape, ostride = _ravel_strided(output)
+        input_, nd, nt, int_all = _ravel_strided(input)
+        output_, nd, nt, ont_all = _ravel_strided(output)
         f = 'trexp_direct_v{0}'.format(input.dtype.itemsize)
         try:
             getattr(flib.operators, f)(
-                input_, ishape[0], ishape[1], istride,
-                output_, oshape[1], ostride, self.tau.astype(input.dtype))
+                input_, nd, nt, int_all,
+                output_, nt, ont_all, self.tau.astype(input.dtype))
         except AttributeError:
             raise NotImplementedError()
 
     def transpose(self, input, output):
-        input_, ishape, istride = _ravel_strided(input)
-        output_, oshape, ostride = _ravel_strided(output)
+        input_, nd, nt, int_all = _ravel_strided(input)
+        output_, nd, nt, ont_all = _ravel_strided(output)
         f = 'trexp_transpose_v{0}'.format(input.dtype.itemsize)
         try:
             getattr(flib.operators, f)(
-                input_, ishape[0], ishape[1], istride,
-                output_, oshape[1], ostride, self.tau.astype(input.dtype))
+                input_, nd, nt, int_all,
+                output_, nt, ont_all, self.tau.astype(input.dtype))
         except AttributeError:
             raise NotImplementedError()
 
@@ -354,23 +354,16 @@ class ConvolutionTruncatedExponentialOperator(Operator):
                 "of scales '{1}'.".format(shape, self.tau.size))
 
 
-def _ravel_strided(array):
-    array_ = array.reshape(-1, array.shape[-1])
-    n2, n1 = array_.shape
-    if array_.flags.c_contiguous:
-        return array_.ravel(), array_.shape, n1
-    if not array_[0, :].flags.c_contiguous:
-        raise RuntimeError()
-    s2, s1 = array_.strides
-    s2 //= s1
-    base = array
-    while not base.flags.c_contiguous:
-        base = base.base
-    start = (array.__array_interface__['data'][0] -
-             base.__array_interface__['data'][0]) // s1
-    stop = start + (n2 - 1) * s2 + n1
-    flat = base.ravel()[start:stop]
-    return flat, array_.shape, s2
+def _ravel_strided(x):
+    if x.ndim == 1:
+        return x, 1, x.size, x.size
+    if x.ndim != 2:
+        raise NotImplementedError()
+    if x.strides[1] != 8:
+        raise ValueError('The array is not C-contiguous.')
+    shape_all = x.shape[0], x.strides[0] // 8
+    x_ = np.lib.stride_tricks.as_strided(x, (product(shape_all),), (8,))
+    return x_, x.shape[0], x.shape[1], shape_all[1]
 
 
 @real
