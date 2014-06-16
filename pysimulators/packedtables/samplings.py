@@ -11,7 +11,7 @@ except ImportError:
     pass
 from astropy.time import Time, TimeDelta
 from pyoperators import (
-    DifferenceOperator, MPI, NormalizeOperator, Cartesian2SphericalOperator)
+    DifferenceOperator, MPI, NormalizeOperator, Spherical2CartesianOperator)
 from pyoperators.utils import isscalarlike, tointtuple
 from pyoperators.utils.mpi import as_mpi
 from .core import PackedTable
@@ -120,7 +120,7 @@ class PointingSpherical(Sampling):
         Return the cartesian coordinates in the equatorial referential.
 
         """
-        return self.tocartesian(self.spherical)
+        return self.spherical2cartesian(self.spherical)
 
     def spherical(self):
         """
@@ -131,7 +131,7 @@ class PointingSpherical(Sampling):
                          getattr(self, self.names[1])]).T
 
     @property
-    def cartesian2spherical(self):
+    def spherical2cartesian(self):
         """
         Return the cartesian-to-spherical transform.
 
@@ -139,12 +139,12 @@ class PointingSpherical(Sampling):
         raise NotImplementedError()
 
     @property
-    def spherical2cartesian(self):
+    def cartesian2spherical(self):
         """
         Return the spherical-to-cartesian transform.
 
         """
-        raise self.cartesian2spherical.I
+        raise self.spherical2cartesian.I
 
     def velocity(self):
         op = NormalizeOperator() * DifferenceOperator(axis=-2) / self.period
@@ -201,8 +201,8 @@ class PointingEquatorial(PointingSpherical):
             *args, **keywords)
 
     @property
-    def cartesian2spherical(self):
-        return Cartesian2SphericalOperator('azimuth,elevation',
+    def spherical2cartesian(self):
+        return Spherical2CartesianOperator('azimuth,elevation',
                                            degrees=self.degrees)
 
     @property
@@ -324,8 +324,8 @@ class PointingHorizontal(PointingSpherical):
             equatorial=None, galactic=None, *args, **keywords)
 
     @property
-    def cartesian2spherical(self):
-        return Cartesian2SphericalOperator('azimuth,elevation',
+    def spherical2cartesian(self):
+        return Spherical2CartesianOperator('azimuth,elevation',
                                            degrees=self.degrees)
 
     @property
