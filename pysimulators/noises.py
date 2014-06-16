@@ -113,6 +113,23 @@ def _gaussian_sample(nsamples, sampling_frequency, psd, twosided=False,
     return out
 
 
+def _sampling2psd(sampling, sampling_frequency, fftw_flag='FFTW_MEASURE'):
+    """
+    Return folded PSD without binning.
+
+    """
+    sampling = np.asarray(sampling)
+    n = sampling.size
+    nthreads = multiprocessing.cpu_count()
+    psd = np.abs(fft.fft(sampling, axis=-1, planner_effort=fftw_flag,
+                         threads=nthreads))**2
+    freq = np.fft.fftfreq(n, d=1/sampling_frequency)[:n//2+1]
+    freq[-1] += sampling_frequency
+    psd = np.concatenate([[0.], 2 * psd[1:n//2], [psd[n//2]]]) / \
+          (n * sampling_frequency)
+    return freq, psd
+
+
 def _psd2invntt(psd, bandwidth, ncorr, fftw_flag='FFTW_MEASURE'):
     """
     Compute the first row of the inverse of the noise time-time correlation
