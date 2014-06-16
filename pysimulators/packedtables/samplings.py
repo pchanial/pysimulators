@@ -15,7 +15,7 @@ from pyoperators import (
     DifferenceOperator,
     MPI,
     NormalizeOperator,
-    Cartesian2SphericalOperator,
+    Spherical2CartesianOperator,
 )
 from pyoperators.utils import isscalarlike, tointtuple
 from pyoperators.utils.mpi import as_mpi
@@ -127,7 +127,7 @@ class PointingSpherical(Sampling):
         Return the cartesian coordinates in the equatorial referential.
 
         """
-        return self.tocartesian(self.spherical)
+        return self.spherical2cartesian(self.spherical)
 
     def spherical(self):
         """
@@ -137,7 +137,7 @@ class PointingSpherical(Sampling):
         return np.array([getattr(self, self.names[0]), getattr(self, self.names[1])]).T
 
     @property
-    def cartesian2spherical(self):
+    def spherical2cartesian(self):
         """
         Return the cartesian-to-spherical transform.
 
@@ -145,12 +145,12 @@ class PointingSpherical(Sampling):
         raise NotImplementedError()
 
     @property
-    def spherical2cartesian(self):
+    def cartesian2spherical(self):
         """
         Return the spherical-to-cartesian transform.
 
         """
-        raise self.cartesian2spherical.I
+        raise self.spherical2cartesian.I
 
     def velocity(self):
         op = NormalizeOperator() * DifferenceOperator(axis=-2) / self.period
@@ -211,8 +211,8 @@ class PointingEquatorial(PointingSpherical):
         )
 
     @property
-    def cartesian2spherical(self):
-        return Cartesian2SphericalOperator('azimuth,elevation', degrees=self.degrees)
+    def spherical2cartesian(self):
+        return Spherical2CartesianOperator('azimuth,elevation', degrees=self.degrees)
 
     @property
     def galactic(self):
@@ -348,8 +348,8 @@ class PointingHorizontal(PointingSpherical):
         )
 
     @property
-    def cartesian2spherical(self):
-        return Cartesian2SphericalOperator('azimuth,elevation', degrees=self.degrees)
+    def spherical2cartesian(self):
+        return Spherical2CartesianOperator('azimuth,elevation', degrees=self.degrees)
 
     @property
     def equatorial(self):
