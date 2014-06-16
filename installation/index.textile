@@ -17,30 +17,6 @@ The "pip":http://www.pip-installer.org/en/latest/index.html program allows the i
 $ sudo easy_install pip
 {% endhighlight %}
 
-h2. The FFTW package
-
-The FFTW package and its Python wrapper need to be installed first.
-
-
-* on Linux/Ubuntu, this will be something like:
-
-{% highlight bash %}
-$ sudo apt-get install libfftw3-dev
-$ sudo pip install pyFFTW
-{% endhighlight %}
-
-* on MacOS X, using the MacPorts Python interpreter:
-
-{% highlight bash %}
-$ sudo port install py-pyfftw
-{% endhighlight %}
-
-* on MacOS X, using a non-MacPorts Python interpreter (such as Enthought's):
-
-{% highlight bash %}
-$ sudo port install fftw-3 fftw-3-long fftw-3-single
-$ sudo CPATH=/opt/local/include LIBRARY_PATH=/opt/local/lib pip install pyFFTW
-{% endhighlight %}
 
 h2. Gfortran
 
@@ -54,11 +30,45 @@ $ sudo apt-get install gfortran
 
 * on MacOS X:
 
+First, make sure that "Xcode":https://developer.apple.com/xcode and "MacPorts":https://www.macports.org are installed (and make sure that /opt/local/bin is in your @PATH@). Then search for and install the latest stable gcc version:
+
 {% highlight bash %}
-$ sudo port install gcc_select gcc47
-$ sudo port select --set gcc mp-gcc47
+$ port search --glob "gcc??"
+...skipped...
+gcc47 @4.7.3_3 (lang)
+    The GNU compiler collection
+
+gcc48 @4.8.2 (lang)
+    The GNU compiler collection
+
+gcc49 @4.9-20140416 (lang)
+    The GNU compiler collection, prerelease BETA
+
+$ sudo port install gcc_select gcc48
+$ sudo port select --set gcc mp-gcc48
 {% endhighlight %}
 
+h2. The FFTW package
+
+* on Linux/Ubuntu:
+
+{% highlight bash %}
+$ sudo apt-get install libfftw3-dev
+$ sudo pip install pyFFTW
+{% endhighlight %}
+
+* on MacOS X, using the MacPorts Python interpreter:
+
+{% highlight bash %}
+$ sudo port install py-pyfftw
+{% endhighlight %}
+
+* on MacOS X, using a non-MacPorts Python interpreter (such as Anaconda's or Enthought's):
+
+{% highlight bash %}
+$ sudo port install fftw-3 fftw-3-long fftw-3-single
+$ sudo CPATH=/opt/local/include LIBRARY_PATH=/opt/local/lib pip install pyFFTW
+{% endhighlight %}
 
 h1. Installation
 
