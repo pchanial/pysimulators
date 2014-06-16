@@ -199,7 +199,7 @@ class Acquisition(object):
 
         """
         if out is None:
-            out = empty(len(self.instrument), len(self.sampling))
+            out = empty((len(self.instrument), len(self.sampling)))
         for b in self.block:
             self.instrument.get_noise(self.sampling[b], out=out[:, b])
         return out
