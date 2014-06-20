@@ -320,8 +320,8 @@ def test_equ2hor():
     assert_allclose(gst, 4.668119)
     assert_allclose(lst, 0.401453, rtol=1e-6)
 
-    ra = Angle(lst - 5.862222, unit='hour').radians
-    dec = Angle((23, 13, 10), unit='degree').radians
+    ra = Angle(lst - 5.862222, unit='hour').radian
+    dec = Angle((23, 13, 10), unit='degree').radian
     s2c = Spherical2CartesianOperator('azimuth,elevation')
     op = CartesianEquatorial2HorizontalOperator('NE', date, lat, lon)
     incoords = s2c([ra, dec])
