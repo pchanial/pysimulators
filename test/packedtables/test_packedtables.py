@@ -7,6 +7,15 @@ from pyoperators.utils.testing import assert_eq, assert_is_none, assert_same, sk
 from pysimulators import PackedTable
 from pysimulators.geometry import create_grid_squares
 
+if np.__version__ < '1.8':
+
+    def full(shape, fill_value, dtype=None, order='C'):
+        out = np.empty(shape, dtype=dtype, order=order)
+        out[...] = fill_value
+        return out
+
+    np.full = full
+
 
 def setattr_unpacked(x, a, v):
     setattr(x.all, a, v)
