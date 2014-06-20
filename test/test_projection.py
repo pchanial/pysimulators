@@ -93,7 +93,11 @@ def test_kernel():
 
 def test_pT1():
     def func(cls, itype, ftype, vtype):
-        expected_ = np.asarray(expected, min(ftype, vtype))
+        if np.__version__ >= '1.8':
+            expected_ = np.asarray(expected, min(ftype, vtype))
+        else:
+            expected_ = np.asarray(expected, min(ftype, vtype,
+                                                 key=lambda x: x().itemsize))
         proj = _get_projection[cls](itype, ftype, vtype)
         pT1 = proj.pT1()
         assert_same(pT1, expected_)
@@ -126,8 +130,14 @@ def test_pTx_pT1():
     def func(cls, itype, ftype, vtype):
         proj = _get_projection[cls](itype, ftype, vtype)
         input = np.asarray(inputs[cls], vtype)
-        expectedx_ = np.asarray(expectedx, min(ftype, vtype))
-        expected1_ = np.asarray(expected1, min(ftype, vtype))
+        if np.__version__ >= '1.8':
+            expectedx_ = np.asarray(expectedx, min(ftype, vtype))
+            expected1_ = np.asarray(expected1, min(ftype, vtype))
+        else:
+            expectedx_ = np.asarray(expectedx, min(ftype, vtype,
+                                                   key=lambda x: x().itemsize))
+            expected1_ = np.asarray(expected1, min(ftype, vtype,
+                                                   key=lambda x: x().itemsize))
         pTx, pT1 = proj.pTx_pT1(input)
         assert_same(pTx, expectedx_)
         assert_same(pT1, expected1_)

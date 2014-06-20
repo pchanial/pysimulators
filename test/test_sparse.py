@@ -295,7 +295,11 @@ def test_rot2d():
         for ftype2 in ftypes[:-1]:
             out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
-            assert_same(out, ref.astype(min(ftype, ftype2)))
+            if np.__version__ >= '1.8':
+                assert_same(out, ref.astype(min(ftype, ftype2)))
+            else:
+                assert_same(out, ref.astype(min(ftype, ftype2,
+                                                key=lambda x: x().itemsize)))
         ref = (2 * (mat_fsc * input_fsc)).astype(ftype)
         assert_same((mat_fsc * 2) * input_fsc, ref)
         assert_same((2 * mat_fsc) * input_fsc, ref)
@@ -310,7 +314,11 @@ def test_rot2d():
         for ftype2 in ftypes[:-1]:
             out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
-            assert_same(out, ref.astype(min(ftype, ftype2)))
+            if np.__version__ >= '1.8':
+                assert_same(out, ref.astype(min(ftype, ftype2)))
+            else:
+                assert_same(out, ref.astype(min(ftype, ftype2,
+                                                key=lambda x: x().itemsize)))
         ref = (2 * (mat_fsr * input_fsr)).astype(ftype)
         assert_same((mat_fsr * 2) * input_fsr, ref)
         assert_same((2 * mat_fsr) * input_fsr, ref)
@@ -415,7 +423,11 @@ def test_rot3d():
         for ftype2 in ftypes[:-1]:
             out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
-            assert_same(out, ref.astype(min(ftype, ftype2)))
+            if np.__version__ >= '1.8':
+                assert_same(out, ref.astype(min(ftype, ftype2)))
+            else:
+                assert_same(out, ref.astype(min(ftype, ftype2,
+                                                key=lambda x: x().itemsize)))
         ref = (3 * (mat_fsc * input_fsc)).astype(ftype)
         assert_same((mat_fsc * 3) * input_fsc, ref)
         assert_same((3 * mat_fsc) * input_fsc, ref)
@@ -430,7 +442,11 @@ def test_rot3d():
         for ftype2 in ftypes[:-1]:
             out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
-            assert_same(out, ref.astype(min(ftype, ftype2)))
+            if np.__version__ >= '1.8':
+                assert_same(out, ref.astype(min(ftype, ftype2)))
+            else:
+                assert_same(out, ref.astype(min(ftype, ftype2,
+                                                key=lambda x: x().itemsize)))
         ref = (3 * (mat_fsr * input_fsr)).astype(ftype)
         assert_same((mat_fsr * 3) * input_fsr, ref)
         assert_same((3 * mat_fsr) * input_fsr, ref)
