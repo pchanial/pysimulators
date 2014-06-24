@@ -14,12 +14,10 @@ name = 'pysimulators'
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
+define_macros = [('GFORTRAN', None), ('PRECISION_REAL', 8)]
+extra_f90_compile_args = ['-cpp -fopenmp -fpack-derived']
 
-if any(c in sys.argv for c in ('build', 'build_ext', 'config', 'install')):
-    sys.argv += ['config_fc',
-                 "--f90flags='-cpp -DGFORTRAN -DPRECISION_REAL=8 -fopenmp "
-                 "-fpack-derived'"]
-
+if any(c in sys.argv for c in ('build', 'build_ext')):
     # write f2py's type mapping file
     root = os.path.dirname(__file__)
     with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
@@ -37,7 +35,9 @@ def configuration(parent_package='', top_path=None):
                                 'src/module_sort.f90',
                                 'src/module_projection.f90',
                                 'src/module_wcs.f90',
-                                'src/module_pointingmatrix.f90'])
+                                'src/module_pointingmatrix.f90'],
+                       macros=define_macros,
+                       extra_f90_compile_args=extra_f90_compile_args)
 
     # how to get the build base ?
     temp_dir = 'build/temp.' + get_platform() + '-%s.%s' % sys.version_info[:2]
@@ -48,6 +48,8 @@ def configuration(parent_package='', top_path=None):
                                   'pysimulators/module_pointingmatrix.f90',
                                   'pysimulators/module_sparse.f90.src',
                                   'pysimulators/module_wcsutils.f90'],
+                         define_macros=define_macros,
+                         extra_f90_compile_args=extra_f90_compile_args,
                          include_dirs=['.', np.get_include(), temp_dir],
                          libraries=['fmod', 'gomp'])
     return config
