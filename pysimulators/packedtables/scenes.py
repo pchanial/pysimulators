@@ -98,7 +98,9 @@ class SceneGrid(Scene):
         shape = fitsheader2shape(header)
         topixel = WCSToPixelOperator(header)
         to1d = To1dOperator(shape[::-1], order='f')
-        return cls(shape, topixel, to1d, origin='lower')
+        scene = cls(shape, topixel, to1d, origin='lower')
+        scene.header = header
+        return scene
 
     def column(self):
         return self.index % self.shape[1] + self.startswith1
