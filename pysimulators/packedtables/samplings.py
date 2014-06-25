@@ -144,7 +144,7 @@ class PointingSpherical(Sampling):
         Return the spherical-to-cartesian transform.
 
         """
-        raise self.spherical2cartesian.I
+        return self.spherical2cartesian.I
 
     def velocity(self):
         op = NormalizeOperator() * DifferenceOperator(axis=-2) / self.period
