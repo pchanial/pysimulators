@@ -15,13 +15,16 @@ long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 define_macros = [('GFORTRAN', None), ('PRECISION_REAL', 8)]
-extra_f90_compile_args = ['-cpp -fopenmp -fpack-derived']
+extra_f90_compile_args = ['-g -cpp -fopenmp -fpack-derived']
 
 if any(c in sys.argv for c in ('build', 'build_ext')):
     # write f2py's type mapping file
     root = os.path.dirname(__file__)
     with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
-        f.write("{'real':{'p':'double'}, 'complex':{'p':'complex_double'}}\n")
+        f.write(
+            "{'real': {'sp': 'float', 'dp': 'double', 'p': 'double'},"
+            " 'complex': {'sp': 'complex', 'dp': 'complex_double', 'p': 'complex_double'}}\n"
+        )
 
 
 def configuration(parent_package='', top_path=None):
@@ -33,9 +36,10 @@ def configuration(parent_package='', top_path=None):
             'src/module_tamasis.f90',
             'src/module_string.f90',
             'src/module_fitstools.f90',
+            'src/module_geometry.f90.src',
             'src/module_math.f90',
+            'src/module_math2.f90.src',
             'src/module_sort.f90',
-            'src/module_projection.f90',
             'src/module_wcs.f90',
             'src/module_pointingmatrix.f90',
         ],
@@ -50,9 +54,10 @@ def configuration(parent_package='', top_path=None):
         sources=[
             'pysimulators/module_datautils.f90',
             'pysimulators/module_geometry.f90',
-            'pysimulators/module_operators.f90.src',
+            'src/operators.f90.src',
             'pysimulators/module_pointingmatrix.f90',
-            'pysimulators/module_sparse.f90.src',
+            'src/projection.f90.src',
+            'src/sparse.f90.src',
             'pysimulators/module_wcsutils.f90',
         ],
         define_macros=define_macros,

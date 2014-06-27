@@ -1,0 +1,155 @@
+! Copyright 2010-2014 Pierre Chanial
+! All rights reserved
+!
+module module_geometry
+
+    use, intrinsic :: iso_fortran_env, only : real32, real64
+    implicit none
+
+contains
+
+    ! <kind=real32,real64>
+    ! <size=4,8>
+
+    pure function intersection_polygon_unity_square_r<size>(xy, nvertices) result(out)
+
+        real(<kind>)             :: out
+        real(<kind>), intent(in) :: xy(2,nvertices)
+        integer, intent(in)      :: nvertices
+
+        integer                  :: i, j
+
+        out = 0
+        j = nvertices
+        do i=1, nvertices
+            call intersection_segment_unity_square_r<size>(xy(1,i), xy(2,i), xy(1,j), xy(2,j), out)
+            j = i
+        end do
+
+    end function
+
+
+    !---------------------------------------------------------------------------
+
+
+    pure subroutine intersection_segment_unity_square_r<size>(x1,  y1, x2,  y2, out)
+
+        real(<kind>), intent(in)    :: x1, y1, x2, y2 ! first and second point coordinates
+        real(<kind>), intent(inout) :: out
+
+        real(<kind>) :: a        ! The slope of the straight line going through p1, p2
+        real(<kind>) :: b        ! The point where the straight line crosses y-axis
+        real(<kind>) :: x1_, x2_ ! minimum and maximum values of x to consider
+                                 ! (clipped in the square (0,0),(1,0),(1,1),(0,1)
+        real(<kind>) :: y1_, y2_ ! minimum and maximum values of y to consider
+                                 ! (clipped in the square (0,0),(1,0),(1,1),(0,1)
+        real(<kind>) :: tmp
+
+        ! check for vertical line
+        if (x1 == x2) return
+
+        if (x1 < x2) then
+            if (x1 >= 1 .or. x2 <= 0) return
+            x1_ = max(x1, 0._<kind>)
+            x2_ = min(x2, 1._<kind>)
+        else
+            if (x2 >= 1 .or. x1 <= 0) return
+            x1_ = min(x1, 1._<kind>)
+            x2_ = max(x2, 0._<kind>)
+        end if
+
+        a = (y2 - y1) / (x2 - x1)
+        b = y1 - a * x1
+        y1_ = a * x1_ + b
+        y2_ = a * x2_ + b
+
+        ! segment is below x-axis
+        if (y1_ <= 0 .and. y2_ <= 0) return
+
+        ! adjust bounds if the segment crosses the x-axis
+        if (y1_ < 0) then
+            x1_ = -b / a
+            y1_ = 0
+        else if (y2_ < 0) then
+            x2_ = -b / a
+            y2_ = 0
+        end if
+
+        ! segment is entirely above square
+        if (y1_ >= 1 .and. y2_ >= 1) then
+            out = out + x2_ - x1_
+            return
+        end if
+
+        ! adjust bounds if the segment crosses the (0,1)-(1,1) line
+        if (y1_ > 1) then
+            tmp = (1 - b) / a
+!            out = out + tmp - x1_ + 0.5_<kind> * (x2_ - tmp) * (1 + y2_)
+            out = out + tmp - x1_
+            x1_ = tmp
+            y1_ = 1
+        else if (y2_ > 1) then
+            tmp = (1 - b) / a
+!            out = out + x2_ - tmp + 0.5_<kind> * (tmp - x1_) * (y1_ + 1)
+            out = out + x2_ - tmp
+            x2_ = tmp
+            y2_ = 1
+        end if
+
+        out = out + 0.5_<kind> * (x2_ - x1_) * (y1_ + y2_)
+
+    end subroutine
+
+
+    !---------------------------------------------------------------------------
+
+
+    ! returns 1, 0, -1 if a point is inside, on an edge or outside a polygon
+    ! algo from Simulation of Simplicity: A Technique to Cope with Degenerate Cases in Geometric Algorithms
+    ! modified to cope with the cases in which the point lies on an edge
+    function point_in_polygon_r<size>(point, polygon) result(out)
+
+        real(<kind>), intent(in) :: point(2), polygon(:,:)
+        integer                  :: out
+
+        integer                  :: i, j, n
+        real(<kind>)             :: a, b
+
+        out = -1
+        n = size(polygon, 2)
+
+        ! first, test if a point is on one of the vertices
+        do i = 1, n
+            if (all(polygon(:,i) == point)) then
+                out = 0
+                return
+            end if
+        end do
+
+        ! loop over the edges. Count how many time a horizontal rightwards ray crosses the polygon
+        ! if it crosses an even number of times, the point is outside (Jordan curve theorem).
+        j = n
+        do i = 1, n
+            if ((polygon(2,i) > point(2)) .neqv. (polygon(2,j) > point(2))) then
+                a = point(1) - polygon(1,i)
+                b = (polygon(1,j) - polygon(1,i)) * (point(2)-polygon(2,i)) / &
+                    (polygon(2,j) - polygon(2,i))
+                if (a == b) then
+                    out = 0
+                    return
+                end if
+                if (a < b) then
+                    out = - out;
+                end if
+            else if (polygon(2,i) == polygon(2,j) .and. point(2) == polygon(2,i) .and. (polygon(1,i) > point(1) .neqv. polygon(1,j)&
+                     > point(1))) then
+                out = 0
+                return
+            endif
+            j = i
+        end do
+
+    end function
+
+
+end module module_geometry

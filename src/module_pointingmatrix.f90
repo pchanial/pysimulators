@@ -3,10 +3,10 @@
 !
 module module_pointingmatrix
 
-    use module_math,       only : NaN, nint_down, nint_up
-    use module_projection, only : intersection_polygon_unity_square
-    use module_precision,  only : sp
-    use module_tamasis,    only : p
+    use module_math,      only : NaN, nint_down, nint_up
+    use module_geometry,  only : intersection_polygon_unity_square_r8
+    use module_precision, only : sp
+    use module_tamasis,   only : p
     implicit none
     private
 
@@ -488,7 +488,7 @@ contains
 
                     polygon(1,:) = coords(1,:,icoord) - (ix - 0.5_p)
                     polygon(2,:) = coords(2,:,icoord) - (iy - 0.5_p)
-                    val = abs(intersection_polygon_unity_square(polygon, nvertices))
+                    val = abs(intersection_polygon_unity_square_r8(polygon, nvertices))
                     if (val == 0) cycle
                     if (npixels <= npixels_per_sample) then
                         pmatrix(npixels,icoord)%index  = ix + iy * nx

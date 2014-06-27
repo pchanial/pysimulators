@@ -18,7 +18,7 @@ contains
             matrix(ncolmax, m)
         logical(1), intent(inout)   :: kernel(0:n-1)
         integer*<itype> :: col
-        integer*8 :: i, j        
+        integer*8 :: i, j
 
         !$omp parallel do private(col)
         do i = 1, m
@@ -99,7 +99,7 @@ contains
             matrix(ncolmax, ninput)
         real*<vtype>, intent(inout) :: pT1(0:noutput-1)
         integer*<itype> :: col
-        integer*8 :: i, j        
+        integer*8 :: i, j
 
         !$omp parallel do private(col)
         do i = 1, ninput
@@ -184,7 +184,7 @@ contains
         real*<vtype>, intent(inout) :: pT1(0:noutput-1)
         real*<mtype> :: val
         integer*<itype> :: col
-        integer*8 :: i, j        
+        integer*8 :: i, j
 
         !$omp parallel do private(col, val)
         do i = 1, ninput

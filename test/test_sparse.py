@@ -281,6 +281,8 @@ def test_rot2d():
         for i, (j, v, a) in enumerate(zip(index, value, angle)):
             array[i, n].index = j
             if j == -1:
+                array[i, n].r11 = 0
+                array[i, n].r21 = 0
                 continue
             r = v * Rotation2dOperator(a, degrees=True).todense(shapein=2)
             array[i, n].r11 = r[0, 0]
@@ -409,6 +411,9 @@ def test_rot3d():
         for i, (j, v, a) in enumerate(zip(index, value, angle)):
             array[i, n].index = j
             if j == -1:
+                array[i, n].r11 = 0
+                array[i, n].r22 = 0
+                array[i, n].r32 = 0
                 continue
             r = v * Rotation3dOperator('X', a, degrees=True).todense(shapein=3)
             array[i, n].r11 = r[0, 0]
