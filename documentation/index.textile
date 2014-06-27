@@ -16,7 +16,7 @@ h1. {{ page.title }}
 ## Using solvers
 # Some useful classes
 ## "The Layout class":layout-class.html
-## "The DiscreteSurface class":discretesurface-class.html
+## "The SceneGrid class":scenegrid-class.html
 # Manupulating data
 ## Quantity
 ## FitsArray

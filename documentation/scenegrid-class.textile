@@ -1,19 +1,19 @@
 ---
 layout: post
-title: 3.2 The DiscreteSurface Class
+title: 3.2 The SceneGrid Class
 category: doc
 ---
 
 h2. 3.2.1 Definition
 
-This class represents the 2-dimensional discretisation of a surface and is usually used for the focal planes.
+This class represents the 2-dimensional discretisation of a surface. It can be used for instance to describe a focal plane.
 The surface coordinates are called world coordinates and the pixelised ones the pixel coordinates. The adopted convention is that the coordinates of the bottom-left pixel center is (0, 0).
 Currently, the world-to-pixel transform is specified through a FITS header.
 
 {% highlight python %}
 >>> header = create_fitsheader((256, 256), cdelt=250, cunit='um', crval=(0, 0),
                                ctype=['X---CAR', 'Y---CAR'])
->>> plane = DiscreteSurface.fromfits(header)
+>>> plane = SceneGrid.fromfits(header)
 >>> print plane.topixel((0, 0))
 [ 127.5  127.5]
 >>> print plane.toworld((0, 0))
@@ -25,10 +25,10 @@ h2. 3.2.2. Use in conjonction with the Layout class
 Let's consider an array of detectors placed on the detector focal plane. The @Layout@ will collect information on the individual detectors, but it bears no information on how the focal plane is discretised. It's precisely the purpose of the DiscretePlane class. The detector @Layout@ instance can be created so that the detector positions are expressed in the world coordinates of the @DiscretePlane@ instance associated with the focal plane. By doing so, it will be easy to compute the coordinates of the detector centers or corners in the detector plane pixel coordinates.
 
 {% highlight python %}
->>> layout = LayoutSpatialGridSquares((8, 8), Quantity(200, 'um'))
+>>> layout = LayoutGridSquares((8, 8), Quantity(200, 'um'))
 >>> header = create_fitsheader((64, 64), cdelt=25, cunit='um', crval=(0, 0),
                                ctype=['X---CAR', 'Y---CAR'])
->>> plane = DiscreteSurface.fromfits(header)
+>>> plane = SceneGrid.fromfits(header)
 >>> print(plane.topixel(layout.all.center[7,0]))
 [ 3.5  3.5 ]
 >>> print(plane.topixel(layout.all.vertex[7,0,2]))
@@ -37,7 +37,7 @@ Let's consider an array of detectors placed on the detector focal plane. The @La
 
 h2. 3.2.3. Polygon intersections
 
-The @DiscreteSurface@ class facilitates the computation of the intersections between polygons (usually detector squares) and the pixels of a discretised surface. Let's assume that we are dealing with a hexagon-shaped detector. We are interested in determining which pixels it intersects and quantify the intersected fraction for each of them. This information is computed through a projection Operator, which has a detector plane array as input <code>\( x \)</code> and the integration inside the detector polygon as output <code>\( y \)</code>. Both of them are related through:
+The @SceneGrid@ class facilitates the computation of the intersections between polygons (usually detector squares) and the pixels of a discretised surface. Let's assume that we are dealing with a hexagon-shaped detector. We are interested in determining which pixels it intersects and quantify the intersected fraction for each of them. This information is computed through a projection Operator, which has a detector plane array as input <code>\( x \)</code> and the integration inside the detector polygon as output <code>\( y \)</code>. Both of them are related through:
 
 \[
 y = \sum_j P_{j}\,x_j
@@ -52,7 +52,7 @@ where <code>\( P_j \)</code> denotes the fraction of pixel <code>\( j \)</code> 
 >>> nx, ny = 8, 6
 >>> header = create_fitsheader((nx, ny), cdelt=200, cunit='um', crval=(0, 0),
 ...                            ctype=['X---CAR', 'Y---CAR'])
->>> plane = DiscreteSurface.fromfits(header)
+>>> plane = SceneGrid.fromfits(header)
 >>> polygon = create_regular_polygon(6, 400, angle=10, center=(200, 0))
 >>> fig = figure()
 >>> ax = fig.add_subplot(111)
@@ -88,33 +88,34 @@ where <code>\( P_j \)</code> denotes the fraction of pixel <code>\( j \)</code> 
 The sparse matrix <code>\( P \)</code> can be accessed through the @matrix@ attribute. It is a structured @ndarray@ containing information on the intersected pixels, whose field @index@ is the 1-dimensional pixel index and whose field @value@ is the fraction of the pixel intersected by the polygon, ranging from 0 if there is no overlap to 1 if the polygon encompasses the surface pixel.
 
 {% highlight python %}
->>> proj = plane.get_integration_operator(polygon)
->>> proj.matrix.shape  # number of pixels intersected by the hexagon
+>>> proj = plane.get_integration_operator(plane.topixel(polygon))
+>>> proj.matrix.ncolmax  # number of pixels intersected by the hexagon
 (16,)
->>> for k, (x, y), v in zip(proj.matrix.index, plane.toNd(proj.matrix.index), proj.matrix.value):
+>>> data = proj.matrix.data.squeeze()
+>>> for k, (x, y), v in zip(data.index, plane.toNd(data.index), data.value):
 ...     print('{} => ({}, {}) : {}'.format(k, x, y, v))
-11 => (3, 1) : 0.106082
-12 => (4, 1) : 0.778646
-13 => (5, 1) : 0.670607
-14 => (6, 1) : 0.210665
-19 => (3, 2) : 0.768928
+11 => (3, 1) : 0.106081987181
+12 => (4, 1) : 0.778645861985
+13 => (5, 1) : 0.670606992789
+14 => (6, 1) : 0.210664784161
+19 => (3, 2) : 0.768927943509
 20 => (4, 2) : 1.0
 21 => (5, 2) : 1.0
-22 => (6, 2) : 0.661225
-27 => (3, 3) : 0.661225
+22 => (6, 2) : 0.661224853081
+27 => (3, 3) : 0.661224853081
 28 => (4, 3) : 1.0
 29 => (5, 3) : 1.0
-30 => (6, 3) : 0.768928
-35 => (3, 4) : 0.210665
-36 => (4, 4) : 0.670607
-37 => (5, 4) : 0.778646
-38 => (6, 4) : 0.106082
+30 => (6, 3) : 0.768927943509
+35 => (3, 4) : 0.210664784161
+36 => (4, 4) : 0.670606992789
+37 => (5, 4) : 0.778645861985
+38 => (6, 4) : 0.106081987181
 {% endhighlight %}
 
 We can check that the sum of the intersected fractions
 
 {% highlight python %}
->>> sum(proj.matrix.value)
+>>> sum(proj.matrix.data.value)
 10.392303
 {% endhighlight %}
 
@@ -124,7 +125,7 @@ is equal to the area <code>\( A \)</code> of the hexagon, in units of pixels. Re
 A = \frac{3\sqrt{3}}{2}\times \left(\frac{400}{200}\right)^2\approx 10.39230
 \]
 
-The reason why an @Operator@ is obtained from the @DiscreteSurface@ instance (instead of the sparse matrix), is that integration inside a detector is simply performed by calling the operator. In the case of a flat field (but any values for the surface could be used) it would be written as:
+The reason why an @Operator@ is obtained from the @SceneGrid@ instance (instead of the sparse matrix), is that integration inside a detector is simply performed by calling the operator. In the case of a flat field (but any values for the surface could be used) it would be written as:
 
 {% highlight python %}
 >>> print(proj(np.ones((ny, nx))))
