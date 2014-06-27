@@ -8,6 +8,8 @@ _site
 htmlcov
 pysimulators/__init__.py
 pysimulators/_flib.so
-pysimulators/module_operators.f90
-pysimulators/module_polarization.f90
-pysimulators/module_sparse.f90
+src/module_geometry.f90
+src/module_math2.f90
+src/operators.f90
+src/projection.f90
+src/sparse.f90

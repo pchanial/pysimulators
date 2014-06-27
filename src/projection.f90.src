@@ -1,0 +1,77 @@
+module projection
+
+    use module_pointingmatrix
+    use module_precision, only : sp, dp
+    use module_geometry, only : intersection_polygon_unity_square_v4, intersection_polygon_unity_square_v8
+    use module_math2, only : round_htmi_v4, round_htmi_v8, round_htpi_v4, round_htpi_v8
+    implicit none
+
+contains
+
+    ! <isize=4,4,8,8>
+    ! <vsize=4,8,4,8>
+    ! <vkind=sp,dp,sp,dp>
+
+    subroutine matrix_polygon_integration_i<isize>_v<vsize>(vertex, nvertices, &
+            ninputs, nx, ny, matrix, ncolmax, min_ncolmax, out)
+        integer, parameter        :: s = <isize> + <vsize>
+        integer, intent(in)       :: nvertices
+        integer*8, intent(in)     :: ninputs
+        integer, intent(in)       :: ncolmax
+        real(<vkind>), intent(in) :: vertex(2, nvertices, ninputs)
+        integer, intent(in)       :: nx, ny
+        !f2py integer*1, intent(in) :: matrix(max(ncolmax * ninputs * s, 1))
+        type(PointingElement_i<isize>_m<vsize>), intent(inout) ::              &
+            matrix(ncolmax, ninputs)
+        integer, intent(out) :: min_ncolmax
+        logical, intent(out) :: out
+
+        integer*8 :: isample
+        integer   :: xmin, xmax, ymin, ymax, ix, iy, ncols
+        real(<vkind>) :: polygon(2,nvertices), val
+
+        min_ncolmax = 0
+        !$omp parallel do private(xmin, xmax, ymin, ymax, ncols, polygon)      &
+        !$omp             private(val), reduction(max: min_ncolmax)
+        do isample = 1, ninputs
+
+            xmin = round_htpi_v<vsize>(minval(vertex(1,:,isample)))
+            xmax = round_htmi_v<vsize>(maxval(vertex(1,:,isample)))
+            ymin = round_htpi_v<vsize>(minval(vertex(2,:,isample)))
+            ymax = round_htmi_v<vsize>(maxval(vertex(2,:,isample)))
+            ! we use '.ge.' instead of '>=' because of a limitation in the
+            ! template parser
+            if (xmin < 0 .or. xmax .ge. nx .or. ymin < 0 .or. ymax .ge. ny) then
+               out = .true.
+            end if
+
+            ncols = 0
+            do iy = max(ymin, 0), min(ymax, ny - 1)
+
+                do ix = max(xmin, 0), min(xmax, nx - 1)
+
+                    polygon(1,:) = vertex(1,:,isample) - (ix - 0.5_<vkind>)
+                    polygon(2,:) = vertex(2,:,isample) - (iy - 0.5_<vkind>)
+                    val = abs(intersection_polygon_unity_square_v<vsize>(polygon, nvertices))
+                    if (val == 0) cycle
+                    ncols = ncols + 1
+                    if (ncols <= ncolmax) then
+                        matrix(ncols,isample)%index = ix + iy * nx
+                        matrix(ncols,isample)%value = val
+                    end if
+
+                end do
+
+            end do
+
+            ! fill the rest of the pointing matrix
+            matrix(ncols+1:,isample)%index  = -1
+            matrix(ncols+1:,isample)%value = 0
+            min_ncolmax = max(min_ncolmax, ncols)
+
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+end module projection

@@ -1,0 +1,27 @@
+module module_math2
+
+    use module_precision, only : sp, dp
+    implicit none
+
+contains
+
+    ! <size=4,8>
+    ! <kind=sp,dp>
+
+    elemental function round_htmi_v<size>(x) result(y)
+        real(<kind>), intent(in) :: x
+        integer                  :: y
+        y = ceiling(x - 0.5_<kind>)
+    end function
+
+
+    !---------------------------------------------------------------------------
+
+
+    elemental function round_htpi_v<size>(x) result(y)
+        real(<kind>), intent(in) :: x
+        integer                  :: y
+        y = floor(x + 0.5_<kind>)
+    end function
+
+end module module_math2

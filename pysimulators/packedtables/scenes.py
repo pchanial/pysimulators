@@ -4,11 +4,12 @@ import numpy as np
 from pyoperators import (
     BlockDiagonalOperator, IdentityOperator, MinMaxOperator, RoundOperator,
     To1dOperator, asoperator)
-from pyoperators.utils import strenum
+from pyoperators.utils import strenum, product
 
 from .core import PackedTable
 from .. import _flib as flib
-from ..operators import PointingMatrix, ProjectionInMemoryOperator
+from ..operators import ProjectionOperator
+from ..sparse import FSRMatrix
 from ..wcsutils import fitsheader2shape, WCSToPixelOperator
 
 __all__ = ['Scene', 'SceneGrid']
@@ -108,52 +109,53 @@ class SceneGrid(Scene):
     def row(self):
         return self.index // self.shape[1] + self.startswith1
 
-    def get_integration_operator(self, vertices, npixels_per_sample=0):
+    def get_integration_operator(self, polygons, ncolmax=0, **keywords):
         """
         Return the Projection Operator that spatially integrates
-        the plane pixel values enclosed by a sequence of vertices.
+        the plane pixel values enclosed by a sequence of polygons.
 
         Parameters
         ----------
-        vertices : array-like of shape (..., nvertices, 2)
+        polygons : array-like of shape (..., nvertices, 2)
             The vertices defining the polygons inside which the spatial
-            integration is done, in the surface world coordinate units.
-        npixels_per_sample : integer
+            integration is done, in pixel coordinate units.
+        ncolmax : integer
             The maximum number of surface pixel intersected by the polygons.
             If set to zero, or less than the required value, a two-pass
-            computation will be performed to determine it.x
+            computation will be performed to determine it.
 
         """
-        xy = self.topixel(vertices)
-        roi_operator = BlockDiagonalOperator(
-            [RoundOperator('rhtpi'), RoundOperator('rhtmi')],
-            new_axisin=-2)(MinMaxOperator(axis=-2, new_axisout=-2))
-        roi = roi_operator(xy).astype(np.int32)
+        itype = np.dtype(np.int64)
+        dtype = np.dtype(np.float64)
+        shape = polygons.shape[:-2]
+        matrix = FSRMatrix((product(shape), product(self.shape)), dtype=dtype,
+                           dtype_index=itype, ncolmax=ncolmax)
 
-        shape = vertices.shape[:-2] + (npixels_per_sample,)
-        pmatrix = PointingMatrix.empty(shape, self.shape, verbose=False)
-
-        if pmatrix.size == 0:
+        if matrix.data.size == 0:
             # f2py doesn't accept zero-sized opaque arguments
-            pmatrix_ = np.empty(1, np.int64)
+            data = np.empty(1, np.int8)
         else:
-            pmatrix_ = pmatrix.ravel().view(np.int64)
+            data = matrix.data.ravel().view(np.int8)
 
-        nvertices = vertices.shape[-2]
-        new_npps, outside = flib.pointingmatrix.roi2pmatrix_cartesian(
-            roi.reshape((-1, 2, 2)).T, xy.reshape((-1, nvertices, 2)).T,
-            npixels_per_sample, self.shape[1], self.shape[0], pmatrix_)
+        nvertices = polygons.shape[-2]
+        func = 'matrix_polygon_integration_i{0}_v{1}'.format(itype.itemsize,
+                                                             dtype.itemsize)
+        try:
+            min_ncolmax, outside = getattr(flib.projection, func)(
+                polygons.reshape(-1, nvertices, 2).T, self.shape[1],
+                self.shape[0], data, ncolmax)
+        except AttributeError:
+            raise TypeError(
+                'The projection matrix cannot be created with types: {0} and {'
+                '1}.'.format(dtype, itype))
 
-        if new_npps > npixels_per_sample:
-            shape = vertices.shape[:-2] + (new_npps,)
-            pmatrix = PointingMatrix.empty(shape, self.shape)
-            pmatrix_ = pmatrix.ravel().view(np.int64)
-            flib.pointingmatrix.roi2pmatrix_cartesian(
-                roi.reshape((-1, 2, 2)).T, xy.reshape((-1, nvertices, 2)).T,
-                new_npps, self.shape[1], self.shape[0], pmatrix_)
+        if min_ncolmax > ncolmax:
+            return self.get_integration_operator(polygons, ncolmax=min_ncolmax,
+                                                 **keywords)
 
-        pmatrix.header['method'] = 'sharp'
-        pmatrix.header['outside'] = bool(outside)
-        pmatrix.header['HIERARCH min_npixels_per_sample'] = new_npps
-
-        return ProjectionInMemoryOperator(pmatrix)
+        out = ProjectionOperator(matrix, shapein=self.shape, shapeout=shape,
+                                 **keywords)
+        out.method = 'polygon integration'
+        out.outside = bool(outside)
+        out.min_ncolmax = min_ncolmax
+        return out

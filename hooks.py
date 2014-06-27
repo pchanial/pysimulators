@@ -22,6 +22,7 @@ When working on the master branch, the dev number is the number of commits
 since the last branch of name "v[0-9.]+"
 
 """
+import numpy
 import os
 import re
 import sys
@@ -229,3 +230,7 @@ def get_cmdclass():
             'test': TestCommand}
 
 filterwarnings('ignore', "Unknown distribution option: 'install_requires'")
+
+# monkey patch to allow pure and elemental routines in the Fortran library
+numpy.distutils.from_template.routine_start_re = re.compile(r'(\n|\A)((     (\$|\*))|)\s*((im)?pure\s+|elemental\s+)*(subroutine|function)\b', re.I)
+numpy.distutils.from_template.function_start_re = re.compile(r'\n     (\$|\*)\s*((im)?pure\s+|elemental\s+)*function\b', re.I)
