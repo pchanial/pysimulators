@@ -102,7 +102,7 @@ class SceneGrid(Scene):
             self.toNd = to1d.I
 
     @classmethod
-    def fromfits(cls, header):
+    def fromfits(cls, header, **keywords):
         """
         Return a Scene grid described by the WCS of a FITS header.
 
@@ -115,7 +115,7 @@ class SceneGrid(Scene):
         shape = fitsheader2shape(header)
         topixel = WCSToPixelOperator(header)
         to1d = To1dOperator(shape[::-1], order='f')
-        scene = cls(shape, topixel, to1d, origin='lower')
+        scene = cls(shape, topixel, to1d, origin='lower', **keywords)
         scene.header = header
         return scene
 
