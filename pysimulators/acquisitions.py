@@ -4,6 +4,7 @@
 from __future__ import division
 import numpy as np
 import time
+from copy import copy
 from pyoperators import BlockDiagonalOperator, MPI
 from pyoperators.memory import empty
 from pyoperators.utils import (
@@ -111,6 +112,31 @@ class Acquisition(object):
              any(not isinstance(b, slice) for b in block):
             raise TypeError("Invalid block argument '{}'.".format(block))
         self.block = block
+
+    def __getitem__(self, x):
+        """
+        Used to select instrument detectors and samplings.
+
+        new_acq = acq[selection_instrument, selection_sampling]
+
+        """
+        out = copy(self)
+        if isinstance(x, tuple):
+            if len(x) == 0:
+                x = (Ellipsis, Ellipsis)
+            elif len(x) == 1:
+                x += (Ellipsis,)
+            elif len(x) > 2:
+                raise ValueError('Invalid selection.')
+            instrument = self.instrument[x[0]]
+            sampling = self.sampling[x[1]]
+            #XXX FIX BLOCKS!!!
+        else:
+            instrument = self.instrument[x]
+            sampling = self.sampling
+        out.instrument = instrument
+        out.sampling = sampling
+        return out
 
     def __str__(self):
         return '{}\nSamplings: {}'.format(self.instrument, len(self.sampling))
