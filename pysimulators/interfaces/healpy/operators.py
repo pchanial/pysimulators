@@ -291,7 +291,6 @@ class HealpixConvolutionGaussianOperator(Operator):
         lmax=None,
         mmax=None,
         use_weights=False,
-        regression=True,
         datapath=None,
         dtype=float,
         **keywords,
@@ -306,7 +305,6 @@ class HealpixConvolutionGaussianOperator(Operator):
         self.lmax = lmax
         self.mmax = mmax
         self.use_weights = use_weights
-        self.regression = regression
         self.datapath = datapath
         Operator.__init__(self, dtype=dtype, **keywords)
 
@@ -323,8 +321,8 @@ class HealpixConvolutionGaussianOperator(Operator):
                 lmax=self.lmax,
                 mmax=self.mmax,
                 use_weights=self.use_weights,
-                regression=self.regression,
                 datapath=self.datapath,
+                verbose=False,
             )
 
     def validatein(self, shape):
