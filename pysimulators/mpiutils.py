@@ -8,7 +8,7 @@ import os
 import sys
 
 from astropy.io import fits as pyfits
-from pyoperators.utils import openmp_num_threads, product, split, strshape
+from pyoperators.utils import omp_num_threads, product, split, strshape
 from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine
 from .wcsutils import create_fitsheader_for, has_wcs
 
@@ -97,7 +97,7 @@ def distribute_observation(detectors, observations, rank=None, comm=MPI.COMM_WOR
 
     if rank is None:
         rank = comm.Get_rank()
-    nthreads = openmp_num_threads()
+    nthreads = omp_num_threads()
     ndetectors = np.sum(~detectors)
     nobservations = len(observations)
 
