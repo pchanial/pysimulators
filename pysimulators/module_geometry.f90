@@ -165,9 +165,9 @@ contains
 
     subroutine surface_simple_polygon(xy, output, nvertices, npolygons)
         !f2py threadsafe
+        integer*8, intent(in) :: nvertices, npolygons
         real*8, intent(in)    :: xy(2, nvertices, npolygons)
         real*8, intent(inout) :: output(npolygons)
-        integer*8, intent(in) :: nvertices, npolygons
         integer               :: i, j, k
 
         !$omp parallel do private(j)
