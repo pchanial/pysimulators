@@ -73,7 +73,11 @@ def get_version_git(default):
         ).split('\n')
 
     def get_branch_name():
-        return run(['rev-parse', '--abbrev-ref', 'HEAD'])
+        branch = run(['rev-parse', '--abbrev-ref', 'HEAD'])
+        if branch != 'HEAD':
+            return branch
+        branch = run(['branch', '--no-color', '--contains', 'HEAD']).splitlines()
+        return branch[min(1, len(branch) - 1)].strip()
 
     def get_description():
         try:
