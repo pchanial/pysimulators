@@ -1,5 +1,6 @@
 module operators
 
+    use, intrinsic :: iso_fortran_env
     use module_pointingmatrix
     implicit none
 
@@ -229,6 +230,119 @@ contains
                 pTx(col) = pTx(col) + val * input(1,i)
                 !$omp atomic
                 pT1(col) = pT1(col) + val
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    ! <isize=4,4,8,8>
+    ! <ikind=int32,int32,int64,int64>
+    ! <msize=4,8,4,8>
+    ! <mkind=real32,real64,real32,real64>
+
+    subroutine fsr_restrict_i<isize>_m<msize>(matrix, mask, ncolmax, m, n, ncol)
+        integer, parameter          :: s = <isize> + <msize>
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(inout) :: matrix(ncolmax*m*s)
+        type(PointingElement_i<isize>_m<msize>), intent(inout) ::              &
+            matrix(ncolmax, m)
+        logical*1, intent(in)         :: mask(0:n-1)
+        integer(<ikind>), intent(out) :: ncol
+        integer(<ikind>)              :: new_index(0:n-1), col
+        integer(int64)                :: i, j
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1
+            else
+                new_index(i) = -1
+            end if
+        end do
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                matrix(j,i)%index = new_index(col)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+    subroutine fsr_rot2d_restrict_i<isize>_m<msize>(matrix, mask, ncolmax, m,  &
+                                                    n, ncol)
+        integer, parameter          :: s = <isize> + 2 * <msize>
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(inout) :: matrix(ncolmax*m*s)
+        type(PointingElementRot2d_i<isize>_m<msize>), intent(inout) ::         &
+            matrix(ncolmax, m)
+        logical*1, intent(in)         :: mask(0:n-1)
+        integer(<ikind>), intent(out) :: ncol
+        integer(<ikind>)              :: new_index(0:n-1), col
+        integer(int64)                :: i, j
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1
+            else
+                new_index(i) = -1
+            end if
+        end do
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                matrix(j,i)%index = new_index(col)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+    subroutine fsr_rot3d_restrict_i<isize>_m<msize>(matrix, mask, ncolmax, m,  &
+                                                    n, ncol)
+        integer, parameter          :: s = <isize> + 3 * <msize>
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(inout) :: matrix(ncolmax*m*s)
+        type(PointingElementRot3d_i<isize>_m<msize>), intent(inout) ::         &
+            matrix(ncolmax, m)
+        logical*1, intent(in)         :: mask(0:n-1)
+        integer(<ikind>)              :: new_index(0:n-1), col
+        integer(<ikind>), intent(out) :: ncol
+        integer(int64)                :: i, j
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1
+            else
+                new_index(i) = -1
+            end if
+        end do
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                matrix(j,i)%index = new_index(col)
             end do
         end do
         !$omp end parallel do
