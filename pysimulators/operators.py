@@ -973,14 +973,15 @@ class ProjectionOperator(SparseOperator):
                 operation(pTx, self.T(x)[..., 0])
         return pTx, pT1
 
-    def restrict(self, mask, n=None):
+    def restrict(self, mask):
         """
         Restrict the projection to a subspace defined by a mask
         (True means that the element is kept). Indices are renumbered in-place.
 
         """
-        idtype = self.matrix.data.index.dtype
         mask = np.asarray(mask)
+        if mask.dtype != bool:
+            raise TypeError('The mask is not boolean.')
         if isinstance(self.matrix, FSRMatrix):
             expected = self.shapein
         else:
@@ -988,23 +989,31 @@ class ProjectionOperator(SparseOperator):
         if mask.shape != expected:
             raise ValueError("Invalid shape '{}'. Expected value is '{}'.".
                              format(mask.shape, expected))
-        if mask.dtype == bool:
-            if n is None:
-                n = np.sum(mask)
-            new_index = empty(mask.shape, idtype)
-            new_index[...] = -1
-            new_index[mask] = np.arange(n, dtype=idtype)
-        elif n is None:
-            raise ValueError('The size of the restriction is not specified.')
-        if isinstance(self.matrix, FSRMatrix):
-            shapein = n
-        elif isinstance(self.matrix, FSRRotation2dMatrix):
-            shapein = (n, 2)
+
+        itype = self.matrix.data.index.dtype
+        mtype = self.matrix.dtype
+        if itype in (np.int32, np.int64) and mtype in (np.float32, np.float64):
+            f = 'fsr{0}_restrict_i{1}_m{2}'.format(
+                self._flib_id, itype.itemsize, mtype.itemsize)
+            func = getattr(flib.operators, f)
+            ncol = func(self.matrix.data.view(np.int8).ravel(),
+                        mask.ravel(), self.matrix.ncolmax,
+                        self.matrix.shape[0] // self.matrix.block_size)
         else:
-            shapein = (n, 3)
-        undef = self.matrix.data.index < 0
-        self.matrix.data.index = new_index[self.matrix.data.index]
-        self.matrix.data.index[undef] = -1
+            ncol = np.sum(mask)
+            new_index = empty(mask.shape, itype)
+            new_index[...] = -1
+            new_index[mask] = np.arange(ncol, dtype=itype)
+            undef = self.matrix.data.index < 0
+            self.matrix.data.index = new_index[self.matrix.data.index]
+            self.matrix.data.index[undef] = -1
+
+        if isinstance(self.matrix, FSRMatrix):
+            shapein = ncol
+        elif isinstance(self.matrix, FSRRotation2dMatrix):
+            shapein = (ncol, 2)
+        else:
+            shapein = (ncol, 3)
         self.matrix.shape = (self.matrix.shape[0], product(shapein))
         self._reset(shapein=shapein)
 
