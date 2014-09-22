@@ -1,0 +1,34 @@
+---
+layout: post
+title: PySimulators 1.0
+excerpt: Release of PySimulators 1.0
+category: blog
+---
+
+What's new ?
+* New operator: @ConvolutionTruncatedExponentialOperator@
+* An @Acquisition@ contains now a @Scene@, an @Instrument@ and a @Sampling@ instance
+* MPI-fied @Acquisition@
+* MPI-fied @Instrument@
+* MPI-fied @PackedTable@
+* @PackedTable@ improvements:
+    - generic superclass for: @Scene@, @Layout@ and @Sampling@
+    - instance attributes now correspond to the packed arrays. Unpacked arrays are available through the @all@ attribute
+    - optimisation when no element is removed or when the packed elements are a slice of all the elements.
+    - implement @__getitem__@
+    - add @column@ and @row@ special attributes to @LayoutGrid@ as functions.
+    - Add @startswith1@ keyword in @LayoutGrid@ to start column and row indexing from 0 or 1.
+
+* Implement @FSCRot2dMatrix@ and @FSRRot2dMatrix@ sparse storage schemes.
+
+* Add method @get_projection_nbytes@ to estimate the size of the pointing matrix without requiring to build it
+
+* Implement @Instrument@ @__getitem__@ to select detectors
+
+* Implement @Acquisition@ @__getitem__@ to select detectors and/or samplings
+
+Under the hood:
+* Orthogonalize the Galactic-to-Ecliptic rotation matrix to machine precision to avoid loss of precision when using the transpose for the inverse.
+* Fix in get_noise, draw one realization per detector.
+* For quantities with structured dtype, getitem should never make a copy.
+* Implement projection's @restrict@ method in Fortran, to avoid large temporaries and significantly improve memory handling

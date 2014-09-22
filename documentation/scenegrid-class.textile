@@ -22,7 +22,7 @@ Currently, the world-to-pixel transform is specified through a FITS header.
 
 h2. 3.2.2. Use in conjonction with the Layout class
 
-Let's consider an array of detectors placed on the detector focal plane. The @Layout@ will collect information on the individual detectors, but it bears no information on how the focal plane is discretised. It's precisely the purpose of the DiscretePlane class. The detector @Layout@ instance can be created so that the detector positions are expressed in the world coordinates of the @DiscretePlane@ instance associated with the focal plane. By doing so, it will be easy to compute the coordinates of the detector centers or corners in the detector plane pixel coordinates.
+Let's consider an array of detectors placed on the detector focal plane. The @Layout@ will collect information on the individual detectors, but it bears no information on how the focal plane is discretised. It's precisely the purpose of the @SceneGrid@ class. The detector @Layout@ instance can be created so that the detector positions are expressed in the world coordinates of the @SceneGrid@ instance associated with the focal plane. By doing so, it will be easy to compute the coordinates of the detector centers or corners in the detector plane pixel coordinates.
 
 {% highlight python %}
 >>> layout = LayoutGridSquares((8, 8), Quantity(200, 'um'))
