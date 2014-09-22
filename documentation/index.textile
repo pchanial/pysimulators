@@ -15,7 +15,7 @@ h1. {{ page.title }}
 ## The noise model
 ## Using solvers
 # Some useful classes
-## "The Layout class":layout-class.html
+## "The PackedTable class":packedtable-class.html
 ## "The SceneGrid class":scenegrid-class.html
 # Manupulating data
 ## Quantity
