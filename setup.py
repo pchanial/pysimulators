@@ -80,7 +80,7 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
-    install_requires=['pyoperators>=0.12.4', 'astropy>=0.3.2'],
+    install_requires=['pyoperators>=0.12.12', 'astropy>=0.3.2'],
     packages=[
         'pysimulators',
         'pysimulators/interfaces',
