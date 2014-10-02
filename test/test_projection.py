@@ -4,7 +4,8 @@ import numpy as np
 import operator
 from numpy.testing import assert_equal
 from pyoperators import MaskOperator, PackOperator, Rotation2dOperator
-from pyoperators.utils.testing import assert_same
+from pyoperators.core import DeletedOperator
+from pyoperators.utils.testing import assert_same, assert_is_type
 from pysimulators.operators import ProjectionOperator
 from pysimulators.sparse import FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix
 
@@ -167,10 +168,12 @@ def test_restrict():
     restriction = np.array([True, False, False, True, True])
     kernel = [False, False, True, False, True]
 
-    def func(cls, itype, ftype):
+    def func(cls, itype, ftype, inplace):
         proj_ref = _get_projection[cls](itype, ftype)
-        proj = _get_projection[cls](itype, ftype)
-        proj.restrict(restriction)
+        proj_ = _get_projection[cls](itype, ftype)
+        proj = proj_.restrict(restriction, inplace=inplace)
+        if inplace:
+            assert_is_type(proj_, DeletedOperator)
         if cls is not FSRMatrix:
 
             def pack(v):
@@ -189,4 +192,5 @@ def test_restrict():
     for cls in clss:
         for itype in itypes:
             for ftype in ftypes:
-                yield func, cls, itype, ftype
+                for inplace in False, True:
+                    yield func, cls, itype, ftype, inplace

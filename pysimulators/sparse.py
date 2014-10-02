@@ -19,6 +19,7 @@ from pyoperators.linear import SparseBase
 from pyoperators.memory import empty
 from pyoperators.utils import isscalarlike, product, tointtuple
 from pysimulators._flib import sparse as fsp
+from pysimulators._flib import operators as fop
 
 __all__ = []
 
@@ -730,6 +731,109 @@ class SparseOperator(SparseBase):
                 "s '{1}'".format(shape, self.block_shapeout)
             )
         self.matrix._validateout(shape)
+
+    def corestrict(self, mask, inplace=False):
+        """
+        Corestrict the operator to a subspace defined by a mask
+        (True means that the element is kept).
+
+        """
+        if not isinstance(
+            self.matrix, (FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix)
+        ):
+            raise NotImplementedError(
+                'Corestriction is not implemented for {0} sparse storage.'.format(
+                    type(self.matrix).__name__
+                )
+            )
+        nrow = np.sum(mask)
+        mask_ = np.repeat(mask, self.matrix.block_size)
+        out = self.copy()
+        out.matrix = type(self.matrix)(
+            (nrow * self.matrix.block_size, self.matrix.shape[1]),
+            self.matrix.data[mask_],
+        )
+        if self.shapeout is not None:
+            if isinstance(self.matrix, FSRMatrix):
+                out.shapeout = (nrow,)
+            elif isinstance(self.matrix, FSRRotation2dMatrix):
+                out.shapeout = (nrow, 2)
+            else:
+                out.shapeout = (nrow, 3)
+        out.block_shapeout = (nrow,)
+        if inplace:
+            self.delete()
+        return out
+
+    def restrict(self, mask, inplace=False):
+        """
+        Restrict the operator to a subspace defined by a mask
+        (True means that the element is kept). Indices are renumbered in-place
+        if the inplace keyword is set to True.
+
+        """
+        if not isinstance(
+            self.matrix, (FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix)
+        ):
+            raise NotImplementedError(
+                'Restriction is not implemented for {0} sparse storage.'.format(
+                    type(self.matrix).__name__
+                )
+            )
+        flib_id = {
+            FSRMatrix: '',
+            FSRRotation2dMatrix: '_rot2d',
+            FSRRotation3dMatrix: '_rot3d',
+        }[type(self.matrix)]
+        mask = np.asarray(mask)
+        if mask.dtype != bool:
+            raise TypeError('The mask is not boolean.')
+        if mask.shape != self.block_shapein:
+            raise ValueError(
+                "Invalid shape '{}'. Expected value is '{}'.".format(
+                    mask.shape, self.block_shapein
+                )
+            )
+
+        if inplace:
+            matrix = self.matrix
+        else:
+            matrix = self.matrix.copy()
+        itype = matrix.data.index.dtype
+        mtype = matrix.dtype
+        if str(itype) in ('int32', 'int64') and str(mtype) in ('float32', 'float64'):
+            f = 'fsr{0}_restrict_i{1}_m{2}'.format(
+                flib_id, itype.itemsize, mtype.itemsize
+            )
+            func = getattr(fop, f)
+            ncol = func(
+                matrix.data.view(np.int8).ravel(),
+                mask.ravel(),
+                matrix.ncolmax,
+                matrix.shape[0] // matrix.block_size,
+            )
+        else:
+            ncol = np.sum(mask)
+            new_index = empty(mask.shape, itype)
+            new_index[...] = -1
+            new_index[mask] = np.arange(ncol, dtype=itype)
+            undef = matrix.data.index < 0
+            matrix.data.index = new_index[matrix.data.index]
+            matrix.data.index[undef] = -1
+        out = self.copy()
+        matrix.shape = matrix.shape[0], ncol * matrix.block_size
+        out.matrix = matrix
+        if self.shapein is not None:
+            if isinstance(matrix, FSRMatrix):
+                out.shapein = (ncol,)
+            elif isinstance(matrix, FSRRotation2dMatrix):
+                out.shapein = (ncol, 2)
+            else:
+                out.shapein = (ncol, 3)
+        out.block_shapein = (ncol,)
+        if inplace:
+            self.delete()
+        return out
 
 
 pyoperators.SparseOperator = SparseOperator
