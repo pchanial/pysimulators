@@ -829,7 +829,9 @@ class ProjectionOperator(SparseOperator):
         """
         data = self.matrix.data
         shape = self.shapein
-        if not isinstance(self.matrix, FSRMatrix):
+        if shape is None:
+            shape = (self.matrix.shape[1],)
+        elif self.matrix.block_size > 1:
             shape = shape[:-1]
         if out is None:
             if operation is not operation_assignment:
@@ -880,7 +882,9 @@ class ProjectionOperator(SparseOperator):
 
         """
         shapeout = self.shapein
-        if not isinstance(self.matrix, FSRMatrix):
+        if shapeout is None:
+            shapeout = (self.matrix.shape[1],)
+        elif self.matrix.block_size > 1:
             shapeout = shapeout[:-1]
         if out is None:
             out = empty(shapeout, self.dtype)
@@ -902,8 +906,12 @@ class ProjectionOperator(SparseOperator):
             func(self.matrix.data.view(np.int8).ravel(), out.ravel(),
                  self.matrix.ncolmax, self.matrix.data.shape[0])
         else:
+            if self.shapeout is None:
+                shapein = (self.matrix.shape[0],)
+            else:
+                shapein = self.shapeout
             if isinstance(self.matrix, FSRMatrix):
-                x = ones(self.shapeout, self.dtype)
+                x = ones(shapein, self.dtype)
                 self.T(x, out=out, operation=operation)
             elif isinstance(self.matrix, FSRRotation2dMatrix):
                 if operation is operation_assignment:
@@ -915,7 +923,7 @@ class ProjectionOperator(SparseOperator):
                     if i >= 0:
                         out[i] += d
             else:
-                x = ones(self.shapeout, self.dtype)
+                x = ones(shapein, self.dtype)
                 operation(out, self.T(x)[..., 0])
         return out
 
@@ -931,12 +939,19 @@ class ProjectionOperator(SparseOperator):
                 'This method does not make sense for FSRRotation2dMatrix spars'
                 'e storage.')
         x = np.asarray(x, order='C')
+        shapein = self.shapeout
+        if shapein is None:
+            block_size = self.matrix.block_size
+            shapein = (self.matrix.shape[0],) + \
+                      (() if block_size == 1 else (block_size,))
         shapeout = self.shapein
-        if not isinstance(self.matrix, FSRMatrix):
+        if shapeout is None:
+            shapeout = (self.matrix.shape[1],)
+        elif self.matrix.block_size > 1:
             shapeout = shapeout[:-1]
-        if x.shape != self.shapeout:
+        if x.shape != shapein:
             raise ValueError("Invalid input shape '{0}'. Expected shape is '{1"
-                             "}'.".format(x.shape, self.shapein))
+                             "}'.".format(x.shape, shapein))
         dtypeout = max(self.dtype, x.dtype)
         if out is None:
             pTx = empty(shapeout, dtypeout)
@@ -982,11 +997,14 @@ class ProjectionOperator(SparseOperator):
         mask = np.asarray(mask)
         if mask.dtype != bool:
             raise TypeError('The mask is not boolean.')
-        if isinstance(self.matrix, FSRMatrix):
-            expected = self.shapein
-        else:
-            expected = self.shapein[:-1]
-        if mask.shape != expected:
+        actual = mask.shape
+        expected = self.shapein
+        if expected is None:
+            actual = (mask.size,)
+            expected = (self.matrix.shape[1],)
+        elif self.matrix.block_size > 1:
+            expected = expected[:-1]
+        if actual != expected:
             raise ValueError("Invalid shape '{}'. Expected value is '{}'.".
                              format(mask.shape, expected))
 

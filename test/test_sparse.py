@@ -29,28 +29,33 @@ def test_fsc1():
     expected = [0, 1, 4.5, 1]
     expected_u = [0, 1, 4.5, 11]
 
-    def func(itype, ftype, vtype):
+    def func(itype, ftype, vtype, block_size):
         if np.dtype(itype).kind != 'u':
             ind = index
             exp = expected
         else:
             ind = index_u
             exp = expected_u
+        input_ = np.array(input, vtype)
+        if block_size == 2:
+            input_ = np.array([input_, input_]).T.ravel()
+            exp = np.array([exp, exp]).T.ravel()
         dtype = [('index', itype), ('value', ftype)]
         matrix = np.recarray((6, 1), dtype=dtype)
         matrix[..., 0].index = ind
         matrix[..., 0].value = value
         op = FSCMatrix((4, 6), matrix)
-        out = op * np.array(input, vtype)
+        out = op * np.array(input_, vtype)
         assert_same(out, exp)
         out[...] = 0
-        op._matvec(np.array(input, vtype), out=out)
+        op._matvec(np.array(input_, vtype), out=out)
         assert_same(out, exp)
 
     for itype in iutypes + itypes:
         for ftype in ftypes:
             for vtype in ftypes:
-                yield func, itype, ftype, vtype
+                for block_size in (1, 2):
+                    yield func, itype, ftype, vtype, block_size
 
 
 def test_fsc2():
@@ -76,13 +81,17 @@ def test_fsc2():
         matrix[..., 0].value, matrix[..., 1].value = value1, value2
         return FSCMatrix((4, 6), matrix)
 
-    def func1(itype, ftype, vtype):
+    def func1(itype, ftype, vtype, block_size):
         input_fsc_ = np.asarray(input_fsc, vtype)
         input_fsr_ = np.asarray(input_fsr, vtype)
         if np.dtype(itype).kind != 'u':
             exp = np.asarray(expected)
         else:
             exp = np.asarray(expected_u)
+        if block_size == 2:
+            input_fsc_ = np.array([input_fsc_, input_fsc_]).T.ravel()
+            input_fsr_ = np.array([input_fsr_, input_fsr_]).T.ravel()
+            exp = np.array([exp, exp]).T.ravel()
         mat = get_mat(itype, ftype)
         out = mat * input_fsc_
         assert_same(out, exp)
@@ -99,19 +108,21 @@ def test_fsc2():
     for itype in iutypes + itypes:
         for ftype in ftypes:
             for vtype in ftypes:
-                yield func1, itype, ftype, vtype
+                for block_size in (1, 2):
+                    yield func1, itype, ftype, vtype, block_size
 
-    def func2(itype, ftype):
+    def func2(itype, ftype, shapein):
         mat = get_mat(itype, ftype)
         op = SparseOperator(mat)
-        todense = op.todense()
-        assert_same(todense.T, op.T.todense())
-        op2 = SparseOperator(mat, shapeout=(2, 2), shapein=(3, 2))
+        todense = op.todense(shapein=(6,) + shapein)
+        assert_same(todense.T, op.T.todense(shapeout=(6,) + shapein))
+        op2 = SparseOperator(mat, shapeout=(2, 2) + shapein, shapein=(3, 2) + shapein)
         assert_same(op2.todense(), todense)
 
     for itype in iutypes + itypes:
         for ftype in ftypes:
-            yield func2, itype, ftype
+            for shapein in (), (3,):
+                yield func2, itype, ftype, shapein
 
 
 def test_fsc3():
@@ -152,28 +163,34 @@ def test_fsr1():
     expected = [4, 3, 1.5, 2, 6, 0]
     expected_u = [4, 3, 1.5, 2, 6, 40]
 
-    def func(itype, ftype, vtype):
+    def func(itype, ftype, vtype, block_size):
         if np.dtype(itype).kind != 'u':
             ind = index
             exp = expected
         else:
             ind = index_u
             exp = expected_u
+        input_ = np.array(input, vtype)
+        if block_size == 2:
+            input_ = np.array([input_, input_]).T.ravel()
+            exp = np.array([exp, exp]).T.ravel()
+
         dtype = [('index', itype), ('value', ftype)]
         matrix = np.recarray((6, 1), dtype=dtype)
         matrix[..., 0].index = ind
         matrix[..., 0].value = value
         op = FSRMatrix((6, 4), matrix)
-        out = op * np.array(input, vtype)
+        out = op * input_
         assert_same(out, exp)
         out[...] = 0
-        op._matvec(np.array(input, vtype), out=out)
+        op._matvec(input_, out=out)
         assert_same(out, exp)
 
     for itype in iutypes + itypes:
         for ftype in ftypes:
             for vtype in ftypes:
-                yield func, itype, ftype, vtype
+                for block_size in (1, 2):
+                    yield func, itype, ftype, vtype, block_size
 
 
 def test_fsr2():
@@ -199,13 +216,17 @@ def test_fsr2():
         matrix[..., 0].value, matrix[..., 1].value = value1, value2
         return FSRMatrix((6, 4), matrix)
 
-    def func1(itype, ftype, vtype):
+    def func1(itype, ftype, vtype, block_size):
         input_fsc_ = np.asarray(input_fsc, vtype)
         input_fsr_ = np.asarray(input_fsr, vtype)
         if np.dtype(itype).kind != 'u':
             exp = np.asarray(expected)
         else:
             exp = np.asarray(expected_u)
+        if block_size == 2:
+            input_fsc_ = np.array([input_fsc_, input_fsc_]).T.ravel()
+            input_fsr_ = np.array([input_fsr_, input_fsr_]).T.ravel()
+            exp = np.array([exp, exp]).T.ravel()
         mat = get_mat(itype, ftype)
         out = mat * input_fsr_
         assert_same(out, exp)
@@ -222,19 +243,23 @@ def test_fsr2():
     for itype in iutypes + itypes:
         for ftype in ftypes:
             for vtype in ftypes:
-                yield func1, itype, ftype, vtype
+                for block_size in (1, 2):
+                    yield func1, itype, ftype, vtype, block_size
 
-    def func2(itype, ftype):
+    def func2(itype, ftype, shapein):
         mat = get_mat(itype, ftype)
         op = SparseOperator(mat)
-        todense = op.todense()
-        assert_same(todense.T, op.T.todense())
-        op2 = SparseOperator(mat, shapein=(2, 2), shapeout=(3, 2))
+        todense = op.todense(shapein=(4,) + shapein)
+        assert_same(todense.T, op.T.todense(shapeout=(4,) + shapein))
+        if shapein is None:
+            return
+        op2 = SparseOperator(mat, shapein=(2, 2) + shapein, shapeout=(3, 2) + shapein)
         assert_same(op2.todense(), todense)
 
     for itype in iutypes + itypes:
         for ftype in ftypes:
-            yield func2, itype, ftype
+            for shapein in (), (3,):
+                yield func2, itype, ftype, shapein
 
 
 def test_fsr3():

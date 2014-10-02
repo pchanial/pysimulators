@@ -51,6 +51,52 @@ contains
     end subroutine
 
 
+    subroutine fsc_nd_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input, output, &
+                                      nrowmax, ninput, noutput, block_size)
+        integer, parameter          :: s = <itype> + <mtype>
+        integer*8, intent(in)       :: nrowmax
+        integer*8, intent(in)       :: ninput
+        integer*8, intent(in)       :: noutput
+        integer*8, intent(in)       :: block_size
+        !f2py integer*1, intent(in) :: matrix(nrowmax*ninput*s)
+        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
+            matrix(nrowmax, ninput)
+        !f2py real*<vtype>          :: input(block_size*ninput)
+        real*<vtype>, intent(in)    :: input(block_size, ninput)
+        !f2py real*<vtype>          :: output(block_size*noutput)
+        real*<vtype>, intent(inout) :: output(block_size, 0:noutput-1)
+
+        integer*8 :: i, j
+        integer*<itype> :: col
+
+        if (nrowmax == 1) then
+            !$omp parallel do private(col)
+            do i = 1, ninput
+                col = matrix(1,i)%index
+                if (col < 0) cycle
+                !$omp critical
+                output(:,col) = output(:,col) + matrix(1,i)%value * input(:,i)
+                !$omp end critical
+            end do
+            !$omp end parallel do
+            return
+        end if
+
+        !$omp parallel do private(col)
+        do i = 1, ninput
+            do j = 1, nrowmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                !$omp critical
+                output(:,col) = output(:,col) + matrix(j,i)%value * input(:,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
     subroutine fsc_rot2d_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input,      &
                                          output, nrowmax, ninput, noutput)
         integer, parameter          :: s = <itype> + 2 * <mtype>
@@ -159,6 +205,48 @@ contains
 !!$         output(i) = output(i) +                                            &
 !!$                     sum(input(matrix(:,i)%index) * matrix(:,i)%value,      &
 !!$                         mask=matrix(:,i)%index >= 0)
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_nd_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input, output, &
+                                      ncolmax, ninput, noutput, block_size)
+        integer, parameter          :: s = <itype> + <mtype>
+        integer*8, intent(in)       :: ncolmax
+        integer*8, intent(in)       :: ninput
+        integer*8, intent(in)       :: noutput
+        integer*8, intent(in)       :: block_size
+        !f2py integer*1, intent(in) :: matrix(ncolmax*noutput*s)
+        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
+            matrix(ncolmax, noutput)
+        !f2py real*<vtype>          :: input(block_size*ninput)
+        real*<vtype>, intent(in)    :: input(block_size, 0:ninput-1)
+        !f2py real*<vtype>          :: output(block_size*noutput)
+        real*<vtype>, intent(inout) :: output(block_size, noutput)
+
+        integer*8 :: i, j
+        integer*<itype> :: col
+
+        if (ncolmax == 1) then
+            !$omp parallel do private(col)
+            do i = 1, noutput
+                col = matrix(1,i)%index
+                if (col < 0) cycle
+                output(:,i) = output(:,i) + matrix(1,i)%value * input(:,col)
+            end do
+            !$omp end parallel do
+            return
+        end if
+
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(:,i) = output(:,i) + matrix(j,i)%value * input(:,col)
+            end do
         end do
         !$omp end parallel do
 

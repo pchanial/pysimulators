@@ -106,7 +106,7 @@ def test_pT1():
         assert_same(pT1, 2 + expected_)
 
     proj_ref = _get_projection[FSRMatrix](np.int32, np.float128)
-    expected = proj_ref.T(np.ones(proj_ref.shapeout, np.float128))
+    expected = proj_ref.T(np.ones(proj_ref.matrix.shape[0], np.float128))
     for cls in clss:
         for itype in itypes:
             for ftype in ftypes:
@@ -155,7 +155,7 @@ def test_pTx_pT1():
 
     proj_ref = _get_projection[FSRMatrix](np.int32, np.float128)
     expectedx = proj_ref.T(input_fsr)
-    expected1 = proj_ref.T(np.ones(proj_ref.shapeout, np.float128))
+    expected1 = proj_ref.T(np.ones(proj_ref.matrix.shape[0], np.float128))
     for cls in clss[0], clss[2]:
         for itype in itypes:
             for ftype in ftypes:
@@ -179,7 +179,9 @@ def test_restrict():
         else:
             pack = PackOperator(restriction)
         masking = MaskOperator(~restriction, broadcast='rightward')
-        x = np.arange(proj_ref.shape[1]).reshape(proj_ref.shapein) + 1
+        block_size = proj_ref.matrix.block_size
+        shape = (5,) + ((block_size,) if block_size > 1 else ())
+        x = np.arange(5 * block_size).reshape(shape) + 1
         assert_equal(proj_ref(masking(x)), proj(pack(x)))
         pack = PackOperator(restriction)
         assert_equal(pack(kernel), proj.canonical_basis_in_kernel())
