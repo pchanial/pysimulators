@@ -671,6 +671,30 @@ class SparseOperator(SparseBase):
             raise ValueError('Invalid reduction operation: {0}.'.format(operation))
         self.matrix._matvec(input, output)
 
+    def todense(self, shapein=None, shapeout=None, inplace=False):
+        shapein, shapeout = self._validate_shapes(shapein, shapeout)
+        if shapein is None:
+            raise ValueError(
+                "The operator's input shape is not explicit. Spec"
+                "ify it with the 'shapein' keyword."
+            )
+        block_size = max(
+            self.matrix.block_size, product(shapein) // self.matrix.shape[1]
+        )
+        if (
+            self.flags.shape_input == 'implicit'
+            and isinstance(self.matrix, (FSCMatrix, FSRMatrix))
+            and block_size > 1
+        ):
+            shapein = shapein[:-1]
+            broadcasting = True
+        else:
+            broadcasting = False
+        out = SparseBase.todense(self, shapein=shapein, inplace=inplace)
+        if broadcasting:
+            out = np.kron(out, np.eye(block_size))
+        return out
+
     def reshapein(self, shape):
         return self.block_shapeout + shape[len(self.block_shapein) :]
 
