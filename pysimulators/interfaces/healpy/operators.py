@@ -4,8 +4,9 @@ import healpy as hp
 import healpy._healpy_pixel_lib as pixlib
 import numpy as np
 from pyoperators import CompositionOperator, IdentityOperator, Operator
-from pyoperators.flags import inplace, real, symmetric
+from pyoperators.flags import inplace, real, square, symmetric
 from pyoperators.utils import pi, strenum
+from ...sparse import FSRMatrix, SparseOperator
 
 __all__ = [
     'Healpix2CartesianOperator',
@@ -13,6 +14,7 @@ __all__ = [
     'Healpix2SphericalOperator',
     'Spherical2HealpixOperator',
     'HealpixConvolutionGaussianOperator',
+    'HealpixLaplacianOperator',
 ]
 
 
@@ -276,6 +278,7 @@ class Spherical2HealpixOperator(_HealPixSpherical):
 
 @inplace
 @real
+@square
 @symmetric
 class HealpixConvolutionGaussianOperator(Operator):
     """
@@ -334,3 +337,33 @@ class HealpixConvolutionGaussianOperator(Operator):
                 'The nside value cannot be inferred from the input number of p'
                 "ixels '{0}'.".format(shape[0])
             )
+
+
+@real
+@square
+@symmetric
+class HealpixLaplacianOperator(SparseOperator):
+    """
+    9-Point stencil laplacian for Healpix maps.
+
+    """
+
+    def __init__(self, nside):
+        """
+        Parameters
+        ----------
+        nside : integer
+            The Healpix map nside.
+
+        """
+        npix = 12 * nside**2
+        ipix = np.arange(npix, dtype=np.int32)
+        neighbours = hp.get_all_neighbours(nside, ipix)
+        s = FSRMatrix((npix, npix), ncolmax=9, dtype_index=np.int32)
+        s.data.index[:, 0] = ipix
+        s.data.index[:, 1:] = neighbours.T
+        h2 = 4 * np.pi / npix
+        s.data.value[:, 0] = -20 / (6 * h2)
+        s.data.value[:, 1:] = np.array([1, 4, 1, 4, 1, 4, 1, 4]) / (6 * h2)
+        self.nside = nside
+        SparseOperator.__init__(self, s)

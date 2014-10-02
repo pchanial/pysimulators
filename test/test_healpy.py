@@ -3,7 +3,6 @@ from __future__ import division
 import healpy as hp
 import itertools
 import numpy as np
-from nose import SkipTest
 from numpy.testing import assert_allclose, assert_equal
 from pyoperators import IdentityOperator, CompositionOperator
 from pyoperators.utils.testing import assert_is_type, assert_raises, assert_same
@@ -13,6 +12,7 @@ from pysimulators.interfaces.healpy import (
     Spherical2HealpixOperator,
     Healpix2SphericalOperator,
     HealpixConvolutionGaussianOperator,
+    HealpixLaplacianOperator,
 )
 
 NSIDE = 512
@@ -273,3 +273,20 @@ def test_healpix_convolution():
 
     input = np.array([input, input]).T
     assert_same(op(input), np.array([expected, expected]).T)
+
+
+def test_healpix_laplacian():
+    nside = 1
+    ipix = 4
+    npix = 12
+    map = np.zeros(npix)
+    map[ipix] = 1
+    L = HealpixLaplacianOperator(nside)
+    assert L.flags.square
+    assert L.flags.symmetric
+    h2 = np.array(4 * np.pi / npix)
+    expected = [1, 0, 0, 1, -20, 4, 0, 4, 1, 0, 0, 1] / (6 * h2)
+    assert_same(L(map), expected)
+    assert_same(
+        L(np.repeat(map, 5).reshape(12, 5)), expected[:, None], broadcasting=True
+    )
