@@ -1,12 +1,31 @@
 #!/usr/bin/env python
 import numpy as np
-import os
+import hooks
 import sys
 
 from distutils.util import get_platform
 from numpy.distutils.core import setup
+from numpy.distutils.extension import Extension
 from numpy.distutils.misc_util import Configuration
 from hooks import get_cmdclass, get_version
+
+hooks.F2PY_TABLE = {
+    'integer': {'int8': 'char', 'int16': 'short', 'int32': 'int', 'int64': 'long_long'},
+    'real': {
+        'sp': 'float',
+        'dp': 'double',
+        'p': 'double',
+        'real32': 'float',
+        'real64': 'double',
+    },
+    'complex': {
+        'sp': 'complex_float',
+        'dp': 'complex_double',
+        'p': 'complex_double',
+        'real32': 'complex_float',
+        'real64': 'complex_double',
+    },
+}
 
 VERSION = '1.1'
 
@@ -22,23 +41,12 @@ extra_f90_compile_args = [
 # debugging options: -fcheck=all -fopt-info-vec-missed
 # -fprofile-use -fprofile-correction
 # ifort: -xHost -vec-report=1
+mod_dir = 'build/temp.' + get_platform() + '-%s.%s' % sys.version_info[:2]
 
-if any(c in sys.argv for c in ('build', 'build_ext', 'install')):
-    # write f2py's type mapping file
-    root = os.path.dirname(__file__)
-    with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
-        f.write(
-            "{'integer': {'int8': 'char', 'int16': 'short', 'int32': 'int', 'int64': 'long_long'},"
-            " 'real': {'sp': 'float', 'dp': 'double', 'p': 'double', 'real32': 'float', 'real64': 'double'},"
-            " 'complex': {'sp': 'complex', 'dp': 'complex_double', 'p': 'complex_double'}}\n"
-        )
-
-
-def configuration(parent_package='', top_path=None):
-    config = Configuration('', parent_package, top_path)
-    config.add_library(
-        'fmod',
-        sources=[
+flib = (
+    'fmod',
+    {
+        'sources': [
             'src/module_precision.f90',
             'src/module_tamasis.f90',
             'src/module_string.f90',
@@ -50,13 +58,15 @@ def configuration(parent_package='', top_path=None):
             'src/module_wcs.f90',
             'src/module_pointingmatrix.f90',
         ],
-        macros=define_macros,
-        extra_f90_compile_args=extra_f90_compile_args,
-    )
+        'depends': [],
+        'macros': define_macros,
+        'extra_f90_compile_args': extra_f90_compile_args,
+        'include_dirs': [np.get_include()],
+    },
+)
 
-    # how to get the build base ?
-    temp_dir = 'build/temp.' + get_platform() + '-%s.%s' % sys.version_info[:2]
-    config.add_extension(
+ext_modules = [
+    Extension(
         'pysimulators._flib',
         sources=[
             'src/datautils.f90',
@@ -68,15 +78,15 @@ def configuration(parent_package='', top_path=None):
             'src/wcsutils.f90',
         ],
         define_macros=define_macros,
+        extra_compile_args=['-Wno-format'],
         extra_f90_compile_args=extra_f90_compile_args,
-        include_dirs=['.', np.get_include(), temp_dir],
-        libraries=['fmod', 'gomp'],
+        include_dirs=[np.get_include(), mod_dir],
+        libraries=['gomp', flib],
     )
-    return config
+]
 
 
 setup(
-    configuration=configuration,
     name=name,
     version=get_version(name, VERSION),
     description='Tools to build an instrument model.',
@@ -97,6 +107,7 @@ setup(
     platforms=platforms.split(','),
     keywords=keywords.split(','),
     cmdclass=get_cmdclass(),
+    ext_modules=ext_modules,
     license='CeCILL-B',
     classifiers=[
         'Programming Language :: Python',
