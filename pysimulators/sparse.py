@@ -165,6 +165,9 @@ class _FSMatrix(object):
             return self._transpose() * other
         return NotImplemented
 
+    def copy(self):
+        return type(self)(self.shape, self.data.copy())
+
     __array_priority__ = 10.1
 
 
