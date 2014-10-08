@@ -1,14 +1,7 @@
 from __future__ import division
 
 import numpy as np
-from pyoperators import (
-    BlockDiagonalOperator,
-    IdentityOperator,
-    MinMaxOperator,
-    RoundOperator,
-    To1dOperator,
-    asoperator,
-)
+from pyoperators import IdentityOperator, To1dOperator, asoperator
 from pyoperators.utils import strenum, product
 
 from .core import PackedTable
@@ -37,8 +30,7 @@ class Scene(PackedTable):
             number of dimensions of the layout. It can be lower than that
             specified by the layout shape, in which case the extra dimensions
             are instructed not to be split.
-            ndim : int
-        topixel : Operator, None
+        topixel : Operator, optional
             World-to-pixel coordinate transform.
 
         """
@@ -91,15 +83,17 @@ class SceneGrid(Scene):
                     origin, strenum(origins)
                 )
             )
-        Scene.__init__(self, shape, topixel=topixel, to1d=to1d, **keywords)
+        Scene.__init__(self, shape, topixel=topixel, **keywords)
         if self.ndim != 2:
             raise ValueError('The scene is not 2-dimensional.')
         self.origin = origin
         self.startswith1 = bool(startswith1)
         if to1d is not None:
             to1d = asoperator(to1d)
-            self.to1d = to1d
             self.toNd = to1d.I
+        else:
+            self.toNd = None
+        self.to1d = to1d
 
     @classmethod
     def fromfits(cls, header, **keywords):
