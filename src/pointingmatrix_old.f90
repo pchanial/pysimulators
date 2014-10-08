@@ -1,6 +1,5 @@
 module pointingmatrix
 
-    use module_precision, only : sp
     use module_tamasis, only : p
     use module_pointingmatrix, backprojection_weight_ => backprojection_weight,&
                                roi2pmatrix_cartesian_ => roi2pmatrix_cartesian

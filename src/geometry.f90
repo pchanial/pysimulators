@@ -1,7 +1,7 @@
 module geometry
 
     use module_tamasis, only : p
-    use module_math,    only : DEG2RAD, RAD2DEG
+    use module_math_old, only : DEG2RAD, RAD2DEG
     implicit none
 
 
@@ -121,7 +121,7 @@ contains
         integer, intent(in)   :: n
 
         integer :: i
-        real*8  :: tmp, sinangle, cosangle
+        real*8  :: sinangle, cosangle
 
         sinangle = sin(angle * DEG2RAD)
         cosangle = cos(angle * DEG2RAD)
@@ -168,7 +168,7 @@ contains
         integer*8, intent(in) :: nvertices, npolygons
         real*8, intent(in)    :: xy(2, nvertices, npolygons)
         real*8, intent(inout) :: output(npolygons)
-        integer               :: i, j, k
+        integer*8             :: i, j, k
 
         !$omp parallel do private(j)
         do k=1, npolygons

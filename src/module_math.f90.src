@@ -1,4 +1,4 @@
-module module_math2
+module module_math
 
     use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
     implicit none
@@ -26,4 +26,4 @@ contains
         y = floor(x + 0.5_<rkind>, <ikind>)
     end function
 
-end module module_math2
+end module module_math

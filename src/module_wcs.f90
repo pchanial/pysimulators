@@ -6,7 +6,7 @@ module module_wcs
     use iso_c_binding
     use iso_fortran_env,  only : ERROR_UNIT
     use module_fitstools, only : FLEN_VALUE, ft_read_keyword
-    use module_math,      only : DEG2RAD, RAD2DEG, distance_2d, neq_real
+    use module_math_old,  only : DEG2RAD, RAD2DEG, distance_2d, neq_real
     use module_string,    only : strinteger, strlowcase, strupcase
     use module_tamasis,   only : p
     implicit none

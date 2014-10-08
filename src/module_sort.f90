@@ -3,7 +3,7 @@
 !
 module module_sort
 
-    use module_math,    only : NaN, neq_real
+    use module_math_old,    only : NaN, neq_real
     use module_tamasis, only : p
     implicit none
     private

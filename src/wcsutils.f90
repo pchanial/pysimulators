@@ -1,7 +1,7 @@
 module wcsutils
 
     use module_tamasis, only : p
-    use module_math,    only : PI, DEG2RAD, RAD2DEG, NaN, mInf, pInf
+    use module_math_old, only : PI, DEG2RAD, RAD2DEG, NaN, mInf, pInf
     use module_fitstools,      only : ft_read_keyword
     use module_pointingmatrix, only : PointingElement, xy2pmatrix, xy2roi, roi2pmatrix_cartesian
     use module_wcs,            only : ad2xy_gnomonic, ad2xys_gnomonic, init_astrometry
@@ -13,7 +13,7 @@ module wcsutils
 contains
 
     subroutine angle_lonlat(lon1, lat1, m, lon2, lat2, n, angle)
-        use module_math, only : angle_lonlat_ => angle_lonlat
+        use module_math_old, only : angle_lonlat_ => angle_lonlat
 
         real(p), intent(in)  :: lon1(m), lat1(m)
         integer, intent(in)  :: m
@@ -82,7 +82,7 @@ contains
         real(p), intent(out)  :: mean
 
         real(p) :: val
-        integer :: isample, n180, nvalids
+        integer*8 :: isample, n180, nvalids
         logical :: zero_minus, zero_plus
 
         mean = 0
@@ -204,7 +204,7 @@ contains
         real(p), intent(in)    :: ra, dec, pa       ! pointing direction is (0,0) in the local frame
 
         real(p) :: cospa, sinpa, c1, c2
-        integer :: i
+        integer*8 :: i
 
         cospa = cos(pa * DEG2RAD)
         sinpa = sin(pa * DEG2RAD)

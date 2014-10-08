@@ -1,7 +1,7 @@
 module datautils
     
   use module_tamasis, only : p
-  use module_math,    only : NaN, distance_1d_ => distance_1d, distance_2d_ => distance_2d, distance_3d_ => distance_3d
+  use module_math_old,    only : NaN, distance_1d_ => distance_1d, distance_2d_ => distance_2d, distance_3d_ => distance_3d
   implicit none
 
 contains

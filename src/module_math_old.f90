@@ -1,7 +1,7 @@
 ! Copyright 2010-2011 Pierre Chanial
 ! All rights reserved
 !
-module module_math
+module module_math_old
 
     use iso_fortran_env, only : ERROR_UNIT
     use module_tamasis,  only : p
@@ -879,4 +879,4 @@ contains
     end subroutine shift_medium
 
 
-end module module_math
+end module module_math_old

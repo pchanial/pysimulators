@@ -4,7 +4,7 @@ module projection
     use module_geometry, only :                                                &
         intersection_polygon_unity_square_r4,                                  &
         intersection_polygon_unity_square_r8
-    use module_math2, only :                                                   &
+    use module_math, only :                                                    &
         round_htmi_i4_r4, round_htmi_i4_r8, round_htmi_i8_r4, round_htmi_i8_r8,&
         round_htpi_i4_r4, round_htpi_i4_r8, round_htpi_i8_r4, round_htpi_i8_r8
     use module_pointingmatrix
