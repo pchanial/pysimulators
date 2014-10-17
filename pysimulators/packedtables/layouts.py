@@ -9,13 +9,7 @@ from .core import PackedTable
 from ..geometry import create_circle, create_grid, create_grid_squares
 from ..quantities import Quantity
 
-__all__ = [
-    'Layout',
-    'LayoutGrid',
-    'LayoutGridCircles',
-    'LayoutGridSquares',
-    'LayoutVertex',
-]
+__all__ = ['Layout', 'LayoutGrid', 'LayoutGridSquares']
 
 
 class Layout(PackedTable):
@@ -25,12 +19,18 @@ class Layout(PackedTable):
     Attributes
     ----------
     shape : tuple of integers
-        Tuple containing the layout dimensions
+        Tuple containing the layout dimensions.
     ndim : int
         The actual number of layout dimensions.
     center : array of shape (ncomponents, 2)
         Position of the component centers. The last dimension stands for
         the (X, Y) coordinates.
+    vertex : array of shape (ncomponents, nvertices, 2), optional
+        Position of the component vertices. This attribute is not present if
+        it has not been specified. The last dimension stands for
+        the (X, Y) coordinates.
+    nvertices : int, optional
+        Number of vertices if the vertex attribute is present.
     all : object
         Access to the unpacked attributes.
 
@@ -56,16 +56,26 @@ class Layout(PackedTable):
             used to define the 1-dimensional indexing of the packed components.
             A negative value means that the component is removed.
         center : array-like, Quantity, optional
-            The position of the components. For 2-dimensional layouts, its shape
-            must be (nrows, ncolumns, 2). If not provided, these positions are
-            derived from the vertex keyword.
+            The position of the components. For 2-dimensional layouts, the expected
+            shape is be (nrows, ncolumns, 2). If not provided, these positions are
+            derived from the vertex keyword, if present.
+        vertex : array-like, Quantity, optional
+            The position of the component vertices. For 2-dimensional layouts,
+            the expected shape is (nrows, ncolumns, nvertices, 2). The last
+            dimension stands for the (X, Y) coordinates.
 
         """
-        if hasattr(self, 'center'):
+        if hasattr(self, 'vertex') and 'vertex' not in keywords:
+            keywords['vertex'] = None
+        if hasattr(self, 'center') and 'center' not in keywords:
             keywords['center'] = None
+        elif 'center' not in keywords and 'vertex' in keywords:
+            keywords['center'] = lambda s: np.mean(s.vertex, axis=-2)
         elif keywords.get('center', None) is None:
             raise ValueError('The spatial layout is not defined.')
         PackedTable.__init__(self, shape, **keywords)
+        if hasattr(self, 'vertex'):
+            self.nvertices = self.vertex.shape[-2]
 
     def plot(self, transform=None, **keywords):
         """
@@ -78,9 +88,13 @@ class Layout(PackedTable):
             the data coordinate system.
 
         """
-        self._plot(self.center, transform, **keywords)
+        if hasattr(self, 'vertex'):
+            coords = self.vertex
+        elif hasattr(self, 'radius'):
+            coords = create_circle(self.radius, center=self.center)
+        else:
+            coords = self.center
 
-    def _plot(self, coords, transform, **keywords):
         if transform is not None:
             coords = transform(coords)
 
@@ -176,23 +190,34 @@ class LayoutGrid(Layout):
             raise TypeError('Invalid grid shape.')
         if len(shape) != 2:
             raise ValueError('The layout grid is not 2-dimensional.')
-
-        unit = getattr(spacing, 'unit', '') or getattr(origin, 'unit', '')
         if len(origin) != len(shape):
             raise ValueError('Invalid dimensions of the layout center.')
+
+        unit = (
+            getattr(spacing, 'unit', '')
+            or getattr(origin, 'unit', '')
+            or 'radius' in keywords
+            and getattr(keywords['radius'], 'unit', '')
+        )
         if unit:
             spacing = Quantity(spacing).tounit(unit)
             origin = Quantity(origin).tounit(unit)
-        center = create_grid(
-            shape,
-            spacing,
-            xreflection=xreflection,
-            yreflection=yreflection,
-            center=origin,
-            angle=angle,
-        )
+            if 'radius' in keywords:
+                keywords['radius'] = Quantity(keywords['radius']).tounit(unit)
+        if 'vertex' not in keywords:
+            keywords['center'] = create_grid(
+                shape,
+                spacing,
+                xreflection=xreflection,
+                yreflection=yreflection,
+                center=origin,
+                angle=angle,
+            )
         if unit:
-            center = Quantity(center, unit, copy=False)
+            if 'center' in keywords:
+                keywords['center'] = Quantity(keywords['center'], unit, copy=False)
+            if 'vertex' in keywords:
+                keywords['vertex'] = Quantity(keywords['vertex'], unit, copy=False)
         self.spacing = spacing
         self.origin = origin
         self.xreflection = xreflection
@@ -200,7 +225,7 @@ class LayoutGrid(Layout):
         self.angle = angle
         self.startswith1 = startswith1
         self.unit = unit
-        Layout.__init__(self, shape, center=center, **keywords)
+        Layout.__init__(self, shape, **keywords)
         self._special_attributes += ('column', 'row')
 
     def column(self):
@@ -210,111 +235,7 @@ class LayoutGrid(Layout):
         return self.index // self.shape[1] + self.startswith1
 
 
-class LayoutGridCircles(LayoutGrid):
-    """
-    The circle components are laid out in a rectangular grid (nrows, ncolumns).
-    Their positions are expressed in the (X, Y) referential.
-
-       Y ^
-         |
-         +--> X
-
-    Before rotation, rows increase along the -Y axis (unless yreflection is
-    set to True) and columns increase along the X axis (unless xreflection
-    is set to True).
-
-    Example
-    -------
-    >>> spacing = 0.001
-    >>> layout = LayoutGridCircles((16, 16), spacing)
-    >>> layout.plot()
-
-    Attributes
-    ----------
-    shape : tuple of integers (nrows, ncolumns)
-        Tuple containing the number of rows and columns of the grid.
-    ndim : int
-        The number of layout dimensions.
-    center : array of shape (len(self), 2)
-        Position of the component centers. The last dimension stands for
-        the (X, Y) coordinates.
-    all : object
-        Access to the unpacked attributes of shape (nrows, ncolumns, ...)
-
-    """
-
-    def __init__(self, shape, spacing, radius=None, **keywords):
-        """
-        shape : tuple of two integers (nrows, ncolumns)
-            Number of rows and columns of the grid.
-        spacing : float, Quantity
-            Physical spacing between components.
-        radius : array-like, float
-            The component radii.
-        xreflection : boolean
-            Reflection along the X-axis (before rotation).
-        yreflection : boolean
-            Reflection along the Y-axis (before rotation).
-        angle : float
-            Counter-clockwise rotation angle in degrees (before translation).
-        origin : array-like of shape (2,)
-            The (X, Y) coordinates of the grid center
-        startswith1 : boolean, optional
-            If True, start column and row indewing with one.
-        selection : array-like of bool or int, slices, optional
-            The slices or the integer or boolean selection that specifies
-            the selected components (and reject those that are not physically
-            present or those not handled by the current MPI process when the
-            layout is distributed in a parallel processing).
-        ordering : array-like of int, optional
-            The values in this array specify an ordering of the components. It is
-            used to define the 1-dimensional indexing of the packed components.
-            A negative value means that the component is removed.
-
-        """
-        if radius is None:
-            radius = spacing / 2
-        unit = getattr(spacing, 'unit', '') or getattr(radius, 'unit', '')
-        if unit:
-            spacing = Quantity(spacing).tounit(unit)
-            radius = Quantity(radius, copy=False).tounit(unit)
-        LayoutGrid.__init__(self, shape, spacing, radius=radius, **keywords)
-
-    def plot(self, transform=None, **keywords):
-        coords = create_circle(self.radius, center=self.center)
-        self._plot(coords, transform, **keywords)
-
-    plot.__doc__ = LayoutGrid.plot.__doc__
-
-
-class LayoutVertex(Layout):
-    def __init__(self, shape, nvertices, **keywords):
-        """
-        vertex : array-like of shape self.shape + (nvertices, 2), optional
-            The vertices of the components. For 2-dimensional layouts of squares,
-            its shape must be (nrows, ncolumns, 4, 2)
-        """
-        if hasattr(self, 'vertex'):
-            keywords['vertex'] = None
-        elif keywords.get('vertex', None) is None:
-            raise ValueError('The layout vertices are not defined.')
-        Layout.__init__(self, shape, **keywords)
-        self.nvertices = nvertices
-
-    @property
-    def center(self):
-        try:
-            return np.mean(self.vertex, axis=-2)
-        except:
-            return None
-
-    def plot(self, transform=None, **keywords):
-        self._plot(self.vertex, transform, **keywords)
-
-    plot.__doc__ = Layout.plot.__doc__
-
-
-class LayoutGridSquares(LayoutVertex):
+class LayoutGridSquares(LayoutGrid):
     """
     The square components are laid out in a rectangular grid (nrows, ncolumns).
     The positions of their corners are expressed in the (X, Y) referential.
@@ -406,12 +327,16 @@ class LayoutGridSquares(LayoutVertex):
         )
         if unit:
             vertex = Quantity(vertex, unit, copy=False)
-        LayoutVertex.__init__(self, shape, 4, vertex=vertex, **keywords)
-        self.angle = angle
+        LayoutGrid.__init__(
+            self,
+            shape,
+            spacing,
+            vertex=vertex,
+            xreflection=xreflection,
+            yreflection=yreflection,
+            angle=angle,
+            origin=origin,
+            startswith1=startswith1,
+            **keywords,
+        )
         self.filling_factor = filling_factor
-        self.origin = origin
-        self.spacing = spacing
-        self.startswith1 = startswith1
-        self.unit = unit
-        self.xreflection = xreflection
-        self.yreflection = yreflection

@@ -4,9 +4,7 @@ Define PackedTable classes:
 PackedTable:
   - Layout
       - LayoutGrid
-          - LayoutGridCircles
-      - LayoutVertex
-          - LayoutGridSquares
+          - LayoutGridSquare
   - Sampling
       - Pointing
           - PointingEquatorial
