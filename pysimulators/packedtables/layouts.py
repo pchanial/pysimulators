@@ -77,7 +77,9 @@ class Layout(PackedTable):
         if hasattr(self, 'vertex'):
             self.nvertices = self.vertex.shape[-2]
 
-    def plot(self, transform=None, **keywords):
+    def plot(
+        self, transform=None, edgecolor=None, facecolor=None, fill=None, **keywords
+    ):
         """
         Plot the layout.
 
@@ -99,9 +101,50 @@ class Layout(PackedTable):
             coords = transform(coords)
 
         if coords.ndim == 3:
+            if fill is None and facecolor is not None:
+                fill = True
             a = mp.gca()
-            for p in coords:
-                a.add_patch(mp.Polygon(p, closed=True, fill=False, **keywords))
+            try:
+                from pyoperators.utils import zip_broadcast
+
+                def isnumber(x):
+                    try:
+                        float(x)
+                        return True
+                    except (TypeError, ValueError):
+                        return False
+
+                # special treatment for RGB tuples
+                if isinstance(edgecolor, tuple) and all(isnumber(_) for _ in edgecolor):
+                    edgecolor = [edgecolor]
+                if isinstance(facecolor, tuple) and all(isnumber(_) for _ in facecolor):
+                    facecolor = [facecolor]
+                for c, ec, fc in zip_broadcast(
+                    coords, edgecolor, facecolor, iter_str=False
+                ):
+                    a.add_patch(
+                        mp.Polygon(
+                            c,
+                            closed=True,
+                            edgecolor=ec,
+                            facecolor=fc,
+                            fill=fill,
+                            **keywords,
+                        )
+                    )
+            except ImportError:
+                # for PyOperators < 0.13.1
+                for c in coords:
+                    a.add_patch(
+                        mp.Polygon(
+                            c,
+                            closed=True,
+                            edgecolor=edgecolor,
+                            facecolor=facecolor,
+                            fill=fill,
+                            **keywords,
+                        )
+                    )
             a.autoscale_view()
         elif coords.ndim == 2:
             if 'color' not in keywords:
