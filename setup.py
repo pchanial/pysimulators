@@ -6,7 +6,6 @@ import sys
 from distutils.util import get_platform
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
-from numpy.distutils.misc_util import Configuration
 from hooks import get_cmdclass, get_version
 
 hooks.F2PY_TABLE = {
@@ -34,10 +33,17 @@ long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 define_macros = [('GFORTRAN', None), ('PRECISION_REAL', 8)]
-extra_f90_compile_args = [
-    '-Ofast -funroll-loops -march=native -cpp',
-    '-fopenmp -fpack-derived -Wall -g',
-]
+if sys.platform == 'darwin':
+    extra_f90_compile_args = [
+        '-O2 -funroll-loops -cpp',
+        '-fopenmp -fpack-derived -Wall -g',
+    ]
+else:
+    extra_f90_compile_args = [
+        '-Ofast -funroll-loops -march=native -cpp',
+        '-fopenmp -fpack-derived -Wall -g',
+    ]
+
 # debugging options: -fcheck=all -fopt-info-vec-missed
 # -fprofile-use -fprofile-correction
 # ifort: -xHost -vec-report=1
