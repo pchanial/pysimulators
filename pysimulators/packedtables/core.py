@@ -264,6 +264,14 @@ class PackedTable(object):
                     "The shape '{0}' is invalid. The expected first dimension "
                     "is '{1}'.".format(value.shape, len(self))
                 )
+            elif value.ndim == 0:
+                try:
+                    old_value = object.__getattribute__(self, key)
+                    if old_value is not None and not callable(old_value):
+                        old_value[...] = value
+                        return
+                except AttributeError:
+                    pass
         object.__setattr__(self, key, value)
 
     def __getattribute__(self, key):
