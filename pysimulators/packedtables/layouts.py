@@ -91,11 +91,11 @@ class Layout(PackedTable):
 
         """
         if hasattr(self, 'vertex'):
-            coords = self.vertex
+            coords = self.vertex[..., :2]
         elif hasattr(self, 'radius'):
-            coords = create_circle(self.radius, center=self.center)
+            coords = create_circle(self.radius, center=self.center[..., :2])
         else:
-            coords = self.center
+            coords = self.center[..., :2]
 
         if transform is not None:
             coords = transform(coords)
@@ -201,6 +201,7 @@ class LayoutGrid(Layout):
         angle=0,
         origin=(0, 0),
         startswith1=False,
+        _z=None,
         **keywords,
     ):
         """
@@ -218,6 +219,8 @@ class LayoutGrid(Layout):
             The (X, Y) coordinates of the grid center
         startswith1 : boolean, optional
             If True, start column and row indewing with one.
+        _z : float, optional, don't use it yet
+            The third dimension of the component' centers or vertices.
         selection : array-like of bool or int, slices, optional
             The slices or the integer or boolean selection that specifies
             the selected components (and reject those that are not physically
@@ -248,7 +251,7 @@ class LayoutGrid(Layout):
             if 'radius' in keywords:
                 keywords['radius'] = Quantity(keywords['radius']).tounit(unit)
         if 'vertex' not in keywords:
-            keywords['center'] = create_grid(
+            center = create_grid(
                 shape,
                 spacing,
                 xreflection=xreflection,
@@ -256,6 +259,9 @@ class LayoutGrid(Layout):
                 center=origin,
                 angle=angle,
             )
+            if _z is not None:
+                center = np.concatenate([center, np.full_like(center[..., :1], _z)], -1)
+            keywords['center'] = center
         if unit:
             if 'center' in keywords:
                 keywords['center'] = Quantity(keywords['center'], unit, copy=False)
