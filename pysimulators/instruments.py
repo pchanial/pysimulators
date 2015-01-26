@@ -1,12 +1,7 @@
 from __future__ import division
 import copy
 import numpy as np
-
-try:
-    from matplotlib import pyplot as mp
-except ImportError:
-    pass
-from pyoperators import DiagonalOperator, SymmetricBandToeplitzOperator, I, asoperator
+from pyoperators import DiagonalOperator, SymmetricBandToeplitzOperator, asoperator
 from pyoperators.memory import empty
 from pyoperators.utils import split
 from pyoperators.utils.mpi import MPI
@@ -101,60 +96,29 @@ class Instrument(object):
         """
         return tuple(self[_] for _ in split(len(self), n))
 
-    def plot(self, transform=None, autoscale=True, **keywords):
+    def plot(self, **keywords):
         """
-        Plot instrument footprint.
+        Plot the instrument detector footprint.
 
         Parameters
         ----------
-        transform : Operator
-            Operator to be used to transform the input coordinates into
-            the data coordinate system.
-        autoscale : boolean
+        autoscale : boolean, optional
             If true, the axes of the plot will be updated to match the
             boundaries of the detectors.
+        transform : callable, optional
+            Operator to be used to transform the detector coordinates into
+            the data coordinate system.
 
         Example
         -------
         # overlay the detector grid on the observation pointings
-        obs = MyObservation(...)
-        annim = obs.pointing.plot()
-        transform = lambda x: obs.instrument._instrument2xy(x, obs.pointing[0],
-                              annim.hdr)
-        obs.instrument.plot(transform, autoscale=False)
+        acq = MyAcquisition(...)
+        acq.sampling.plot()
+        transform = convert_coords_instrument2xy(...)
+        acq.instrument.plot(autoscale=False, transform=transform)
 
         """
-        a = mp.gca()
-
-        if transform is None:
-            transform = I
-        else:
-            transform = asoperator(transform)
-
-        if self.detector.nvertices > 0:
-            coords = self.detector.vertex
-        else:
-            coords = self.detector.center
-
-        transform(coords, out=coords)
-
-        if self.detector.nvertices > 0:
-            patches = coords.reshape((-1,) + coords.shape[-2:])
-            for p in patches:
-                a.add_patch(mp.Polygon(p, closed=True, fill=False, **keywords))
-        else:
-            if 'color' not in keywords:
-                keywords['color'] = 'black'
-            if 'marker' not in keywords:
-                keywords['marker'] = 'o'
-            if 'linestyle' not in keywords:
-                keywords['linestyle'] = ''
-            mp.plot(coords[..., 0], coords[..., 1], **keywords)
-
-        if autoscale:
-            mp.autoscale()
-
-        mp.show()
+        self.detector.plot(**keywords)
 
     def get_invntt_operator(
         self,
