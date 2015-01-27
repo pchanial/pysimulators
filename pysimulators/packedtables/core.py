@@ -470,6 +470,74 @@ class PackedTable(object):
         object.__setattr__(out, 'comm', comm)
         return out
 
+    def gather(self, *args):
+        """
+        MPI-gather the (already scattered) table or a given array.
+
+        table_global = table_local.gather()
+        array_global = table_local.gather(array_local)
+
+        Parameter
+        ---------
+        array_local : array-like, optional
+            If provided, gather the scattered input array, instead of the whole
+            table.
+
+        Returns
+        -------
+        table_global : PackedTable
+            The global packed table, whose all special attribute have been
+            MPI-gathered.
+        array_global : array
+            The MPI-gathered input array.
+
+        """
+
+        def func(x):
+            x = np.asarray(x)
+            out = np.empty((ntot,) + x.shape[1:], x.dtype)
+            nbytes = product(x.shape[1:]) * x.itemsize
+            self.comm.Allgatherv(
+                x.view(np.byte),
+                [
+                    out.view(np.byte),
+                    ([_ * nbytes for _ in counts], [_ * nbytes for _ in offsets]),
+                ],
+            )
+            return out
+
+        ntot = np.array(len(self))
+        self.comm.Allreduce(MPI.IN_PLACE, ntot, op=MPI.SUM)
+        counts = []
+        offsets = [0]
+        for s in split(ntot, self.comm.size):
+            n = s.stop - s.start
+            counts.append(n)
+            offsets.append(offsets[-1] + n)
+        offsets.pop()
+
+        if len(args) == 1:
+            return func(args[0])
+        elif len(args) > 1:
+            raise TypeError(
+                'gather takes at most 1 argument ({} given)'.format(len(args))
+            )
+
+        out = copy.copy(self)
+        out._index = self._normalize_int_selection(
+            func(self.index), product(self.shape[: self.ndim])
+        )
+        for k in out._special_attributes:
+            if k in out._reserved_attributes:
+                continue
+            try:
+                v = self.__dict__[k]
+            except KeyError:
+                continue
+            if isinstance(v, np.ndarray) and v.ndim > 0:
+                setattr(out, k, func(v))
+        return out
+
     def split(self, n):
         """
         Split the table in partitioning groups.
