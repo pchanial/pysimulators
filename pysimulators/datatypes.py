@@ -1086,7 +1086,7 @@ class Tod(FitsArray):
                 mask = np.asarray(mask, np.bool8)
 
         # handle the scalar case
-        if np.rank(mask) == 0:
+        if mask.ndim == 0:
             if self._mask is None:
                 func = np.zeros if mask == 0 else np.ones
                 self._mask = func(self.shape, dtype=np.bool8)
@@ -1227,7 +1227,7 @@ class Tod(FitsArray):
         if self.ndim == 0:
             return output
         output += ' ('
-        if np.rank(self) > 1:
+        if self.ndim > 1:
             output += str(self.shape[-2]) + ' detector'
             if self.shape[-2] > 1:
                 output += 's'

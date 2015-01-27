@@ -396,7 +396,7 @@ class Quantity(np.ndarray):
             np.logical_or,
             np.logical_xor,
         ):
-            if np.rank(array) == 0:
+            if array.ndim == 0:
                 return bool(array)
             if hasattr(array, 'coverage'):
                 array.coverage = None
@@ -526,7 +526,7 @@ class Quantity(np.ndarray):
         """
         Set the magnitude of the quantity
         """
-        if np.rank(self) == 0:
+        if self.ndim == 0:
             self.shape = (1,)
             try:
                 self.view(np.ndarray)[:] = value
@@ -659,7 +659,7 @@ class Quantity(np.ndarray):
                 + "' are incompatible."
             )
         factor = q1.magnitude / q2.magnitude
-        if np.rank(self) == 0:
+        if self.ndim == 0:
             self.magnitude *= factor
         else:
             self.magnitude.T[:] *= factor.T
