@@ -1,9 +1,4 @@
 from __future__ import division
-
-try:
-    import kapteyn.maputils as km
-except ImportError:
-    km = None
 import numpy as np
 from astropy.time import Time, TimeDelta
 from pyoperators import (
@@ -248,10 +243,9 @@ class PointingEquatorial(PointingSpherical):
             percentile of the minimum and maximum values to be displayed.
 
         """
+        import kapteyn.maputils as km
         import matplotlib.pyplot as mp
 
-        if km is None:
-            raise RuntimeError('The kapteyn library is required.')
         if isscalarlike(self.masked) and self.masked or np.all(self.masked):
             if new_figure:
                 raise ValueError('There is no valid coordinates.')

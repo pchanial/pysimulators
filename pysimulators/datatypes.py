@@ -12,11 +12,6 @@ These classes are useful to load, manipulate and save FITs files.
 They also contain specialised display methods.
 """
 from __future__ import division
-
-try:
-    import kapteyn.maputils as km
-except ImportError:
-    km = None
 import numpy as np
 import os
 import pickle
@@ -857,6 +852,10 @@ class Map(FitsArray):
         percentile=0,
         **keywords,
     ):
+        try:
+            import kapteyn.maputils as km
+        except ImportError:
+            km = None
         import matplotlib.pyplot as mp
 
         if mask is None and self.coverage is not None:

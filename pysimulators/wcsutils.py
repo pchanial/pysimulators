@@ -2,17 +2,10 @@
 # All rights reserved
 #
 from __future__ import division
-
 import numpy as np
 import scipy.interpolate as interp
-
 from astropy.io import fits as pyfits
 from astropy.wcs import WCS
-
-try:
-    from kapteyn import wcs as kwcs
-except ImportError:
-    kwcs = None
 import astropy.wcs
 from pyoperators import Operator
 from pyoperators.flags import inplace, real, square
@@ -603,6 +596,8 @@ class _WCSKapteynOperator(Operator):
             Representation of the world coordinate system
 
         """
+        import kapteyn.wcs as kwcs
+
         if isinstance(wcs, pyfits.Header):
             wcs = kwcs.Projection(wcs)
         if 'dtype' not in keywords:
