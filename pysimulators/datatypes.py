@@ -129,7 +129,7 @@ class FitsArray(Quantity):
         if isinstance(data, (str, unicode)):
 
             if comm is None:
-                comm = MPI.COMM_WORLD
+                comm = MPI.COMM_SELF
 
             try:
                 buf = pyfits.open(data)['derived_units'].data
@@ -325,7 +325,7 @@ class FitsArray(Quantity):
 
         header = self.header.copy()
         if comm is None:
-            comm = MPI.COMM_WORLD
+            comm = MPI.COMM_SELF
 
         if len(self._unit) != 0:
             header['BUNIT'] = self.unit
@@ -669,7 +669,7 @@ class Map(FitsArray):
         if isinstance(data, (str, unicode)):
 
             if comm is None:
-                comm = MPI.COMM_WORLD
+                comm = MPI.COMM_SELF
 
             if 'DISPORIG' in result.header:
                 if origin is None:
@@ -931,7 +931,7 @@ class Map(FitsArray):
 
     def save(self, filename, comm=None):
         if comm is None:
-            comm = MPI.COMM_WORLD
+            comm = MPI.COMM_SELF
 
         self.header['DISPORIG'] = self.origin, 'Map display convention'
         FitsArray.save(self, filename, comm=comm)
@@ -1048,7 +1048,7 @@ class Tod(FitsArray):
         if mask is None and isinstance(data, (str, unicode)):
 
             if comm is None:
-                comm = MPI.COMM_WORLD
+                comm = MPI.COMM_SELF
 
             try:
                 mask, junk = read_fits(data, 'mask', comm)
@@ -1238,7 +1238,7 @@ class Tod(FitsArray):
 
     def save(self, filename, comm=None):
         if comm is None:
-            comm = MPI.COMM_WORLD
+            comm = MPI.COMM_SELF
 
         FitsArray.save(self, filename, comm=comm)
         if self.mask is not None:
