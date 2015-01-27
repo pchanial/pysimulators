@@ -1,14 +1,8 @@
 from __future__ import division
-
 import numpy as np
 import scipy.fftpack
 import scipy.signal
 import scipy.special
-
-try:
-    from matplotlib import pyplot as mp
-except ImportError:
-    pass
 from pyoperators import FFTOperator
 from pyoperators.utils import isscalarlike, product
 from . import _flib as flib
@@ -302,6 +296,8 @@ def plot_tod(tod, mask=None, **kw):
     >>> plot_tod(tod[idetector])
 
     """
+    import matplotlib.pyplot as mp
+
     if mask is None:
         mask = getattr(tod, 'mask', None)
 
