@@ -127,6 +127,7 @@ class Instrument(object):
         bandwidth=None,
         twosided=False,
         sigma=None,
+        nep=None,
         fknee=0,
         fslope=1,
         ncorr=None,
@@ -182,6 +183,8 @@ class Instrument(object):
             and psd is None
         ):
             raise ValueError('The bandwidth or the PSD is not specified.')
+        if nep is not None:
+            sigma = nep / np.sqrt(2 * sampling.period)
         if bandwidth is None and psd is None and sigma is None:
             raise ValueError('The noise model is not specified.')
 
@@ -224,6 +227,7 @@ class Instrument(object):
         bandwidth=None,
         twosided=False,
         sigma=None,
+        nep=None,
         fknee=0,
         fslope=1,
         out=None,
@@ -255,9 +259,6 @@ class Instrument(object):
             The 1/f noise knee frequency [Hz].
         fslope : float, optional
             The 1/f noise slope.
-        sampling_frequency : float, optional
-            The sampling frequency of the output timeline [Hz]. By default,
-            it is taken from the acquisition's sampling attribute.
         out : ndarray, optional
             Placeholder for the output noise.
 
@@ -269,6 +270,8 @@ class Instrument(object):
             and psd is None
         ):
             raise ValueError('The bandwidth or the PSD is not specified.')
+        if nep is not None:
+            sigma = nep / np.sqrt(2 * sampling.period)
         if bandwidth is None and psd is None and sigma is None:
             raise ValueError('The noise model is not specified.')
 
