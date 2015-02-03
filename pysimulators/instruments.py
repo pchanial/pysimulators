@@ -26,15 +26,19 @@ class Instrument(object):
 
     Attributes
     ----------
-    name : str
-        The instrument configuration name.
     layout : Layout
         The detector layout.
+    name : str, optional
+        The instrument configuration name.
 
     """
 
-    def __init__(self, name, layout):
-        self.name = str(name)
+    def __init__(self, layout, name=None):
+        # allow obsolete calling sequence Instrument(name, layout)
+        if isinstance(layout, str):
+            layout, name = name, layout
+        if name is not None:
+            self.name = name
         self.detector = layout
 
     def __getitem__(self, selection):
