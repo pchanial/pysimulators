@@ -1,12 +1,12 @@
-from __future__ import division
-import numpy as np
-import scipy.fftpack
-import scipy.signal
-import scipy.special
+from __future__ import absolute_import, division, print_function
 from pyoperators import FFTOperator
 from pyoperators.utils import isscalarlike, product
 from . import _flib as flib
 from .datatypes import Map
+import numpy as np
+import scipy.fftpack
+import scipy.signal
+import scipy.special
 
 __all__ = [
     'airy_disk',

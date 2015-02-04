@@ -20,6 +20,10 @@ rotation1 = Rotation2dOperator(np.arange(6) * 30, degrees=True, dtype=np.float12
 rotation2 = Rotation2dOperator(np.arange(6, 12) * 30, degrees=True, dtype=np.float128)
 
 
+def min_dtype(t1, t2):
+    return min(t1, t2, key=lambda x: x().itemsize)
+
+
 def _get_projection_fsr(itype, ftype, stype=None):
     if stype is None:
         stype = ftype
@@ -91,12 +95,7 @@ def test_kernel():
 
 def test_pT1():
     def func(cls, itype, ftype, vtype):
-        if np.__version__ >= '1.8':
-            expected_ = np.asarray(expected, min(ftype, vtype))
-        else:
-            expected_ = np.asarray(
-                expected, min(ftype, vtype, key=lambda x: x().itemsize)
-            )
+        expected_ = np.asarray(expected, min_dtype(ftype, vtype))
         proj = _get_projection[cls](itype, ftype, vtype)
         pT1 = proj.pT1()
         assert_same(pT1, expected_)
@@ -132,16 +131,8 @@ def test_pTx_pT1():
     def func(cls, itype, ftype, vtype):
         proj = _get_projection[cls](itype, ftype, vtype)
         input = np.asarray(inputs[cls], vtype)
-        if np.__version__ >= '1.8':
-            expectedx_ = np.asarray(expectedx, min(ftype, vtype))
-            expected1_ = np.asarray(expected1, min(ftype, vtype))
-        else:
-            expectedx_ = np.asarray(
-                expectedx, min(ftype, vtype, key=lambda x: x().itemsize)
-            )
-            expected1_ = np.asarray(
-                expected1, min(ftype, vtype, key=lambda x: x().itemsize)
-            )
+        expectedx_ = np.asarray(expectedx, min_dtype(ftype, vtype))
+        expected1_ = np.asarray(expected1, min_dtype(ftype, vtype))
         pTx, pT1 = proj.pTx_pT1(input)
         assert_same(pTx, expectedx_)
         assert_same(pT1, expected1_)

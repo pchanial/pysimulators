@@ -1,14 +1,12 @@
-from __future__ import division
-
-import numpy as np
+from __future__ import absolute_import, division, print_function
 from pyoperators import IdentityOperator, To1dOperator, asoperator
 from pyoperators.utils import strenum, product
-
 from .core import PackedTable
 from .. import _flib as flib
 from ..operators import ProjectionOperator
 from ..sparse import FSRMatrix
 from ..wcsutils import fitsheader2shape, WCSToPixelOperator
+import numpy as np
 
 __all__ = ['Scene', 'SceneGrid']
 

@@ -10,12 +10,14 @@ of coordinates a, a[..., 0] refers to the X-axis and a[..., 1] to the Y-axis.
 Angles are counted counter-clockwise.
 
 """
-
-from __future__ import division
-
+from __future__ import absolute_import, division, print_function
+from . import _flib
 import numpy as _np
 import scipy.spatial as _spatial
-from . import _flib
+import sys
+
+if sys.version_info.major == 2:
+    from itertools import izip as zip
 
 
 def convex_hull(points):
@@ -272,8 +274,6 @@ def segment_polygon(vertices, max_distance, dtype=float):
         If provided, forces the calculation to use the data type specified.
 
     """
-    from itertools import izip
-
     vertices = _np.array(vertices, dtype)
     if vertices.ndim != 2:
         raise ValueError('Invalid dimension of the input vertices.')
@@ -282,7 +282,7 @@ def segment_polygon(vertices, max_distance, dtype=float):
     ns = [int(_np.ceil(d / max_distance)) for d in ds]
     coords = _np.empty((_np.sum(ns), 2), vertices.dtype)
     i = 0
-    for v0, v1, n in izip(vertices_[:-1], vertices_[1:], ns):
+    for v0, v1, n in zip(vertices_[:-1], vertices_[1:], ns):
         alpha = _np.arange(n) / n
         coords[i : i + n, :] = _np.outer(1 - alpha, v0) + _np.outer(alpha, v1)
         i += n

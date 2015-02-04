@@ -10,22 +10,9 @@ The Map and Tod classes subclass FitsArray.
 
 These classes are useful to load, manipulate and save FITs files.
 They also contain specialised display methods.
+
 """
-from __future__ import division
-import numpy as np
-import os
-import pickle
-import StringIO
-import scipy.stats
-import sys
-import time
-import uuid
-
-try:
-    import ds9
-except ImportError:
-    ds9 = None
-
+from __future__ import absolute_import, division, print_function
 from astropy.io import fits as pyfits
 from functools import reduce
 
@@ -35,10 +22,20 @@ except ImportError:
     from pyoperators.memory import allocate as empty
 from pyoperators.utils import isscalarlike
 from pyoperators.utils.mpi import MPI
-
 from .mpiutils import read_fits, write_fits
 from .quantities import Quantity
 from .wcsutils import create_fitsheader_for, has_wcs
+import io
+import numpy as np
+import os
+import pickle
+import scipy.stats
+import sys
+import time
+import uuid
+
+if sys.version_info.major > 2:
+    basestring = str
 
 __all__ = ['FitsArray', 'Map', 'Tod']
 
@@ -98,6 +95,7 @@ class FitsArray(Quantity):
     comm : mpi4py.Comm, optional
         MPI communicator specifying to which processors the FITS file
         should be distributed.
+
     """
 
     _header = None
@@ -116,14 +114,14 @@ class FitsArray(Quantity):
         comm=None,
     ):
 
-        if isinstance(data, (str, unicode)):
+        if isinstance(data, basestring):
 
             if comm is None:
                 comm = MPI.COMM_SELF
 
             try:
                 buf = pyfits.open(data)['derived_units'].data
-                derived_units = pickle.loads(str(buf.data))
+                derived_units = pickle.loads(buf.data)
             except (ImportError, KeyError):
                 pass
 
@@ -324,7 +322,7 @@ class FitsArray(Quantity):
         if not self.derived_units:
             return
         if comm is None or comm.rank == 0:
-            buf = StringIO.StringIO()
+            buf = io.BytesIO()
             pickle.dump(self.derived_units, buf, pickle.HIGHEST_PROTOCOL)
             data = np.frombuffer(buf.getvalue(), np.uint8)
             write_fits(filename, data, None, True, 'derived_units', MPI.COMM_SELF)
@@ -482,7 +480,9 @@ class FitsArray(Quantity):
         >>> d.set('exit')
 
         """
-        if ds9 is None:
+        try:
+            import ds9
+        except ImportError:
             raise ImportError('The library pyds9 has not been installed.')
         import xpa
 
@@ -661,7 +661,7 @@ class Map(FitsArray):
         if not subok and type(result) is not cls:
             result = result.view(cls)
 
-        if isinstance(data, (str, unicode)):
+        if isinstance(data, basestring):
 
             if comm is None:
                 comm = MPI.COMM_SELF
@@ -1046,7 +1046,7 @@ class Tod(FitsArray):
         if mask is np.ma.nomask:
             mask = None
 
-        if mask is None and isinstance(data, (str, unicode)):
+        if mask is None and isinstance(data, basestring):
 
             if comm is None:
                 comm = MPI.COMM_SELF

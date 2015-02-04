@@ -1,16 +1,16 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 #
-from __future__ import division
-import numpy as np
-import scipy.interpolate as interp
+from __future__ import absolute_import, division, print_function
 from astropy.io import fits as pyfits
 from astropy.wcs import WCS
-import astropy.wcs
 from pyoperators import Operator
 from pyoperators.flags import inplace, real, square
 from pyoperators.utils import isscalarlike, operation_assignment
 from . import _flib as flib
+import astropy.wcs
+import numpy as np
+import scipy.interpolate as interp
 
 __all__ = [
     'angle_lonlat',
@@ -292,14 +292,12 @@ def create_fitsheader(
     if crpix.size != 2:
         raise ValueError('CRPIX does not have two elements.')
 
-    ctype = np.asarray(ctype, dtype=np.string_)
-    if ctype.size != 2:
+    if len(ctype) != 2:
         raise ValueError('CTYPE does not have two elements.')
 
     if isscalarlike(cunit):
         cunit = (cunit, cunit)
-    cunit = np.asarray(cunit, dtype=np.string_)
-    if cunit.size != 2:
+    if len(cunit) != 2:
         raise ValueError('CUNIT does not have two elements.')
 
     header['crval1'] = crval[0]

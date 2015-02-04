@@ -1,11 +1,8 @@
-from __future__ import division
-import copy
-import numpy as np
+from __future__ import absolute_import, division, print_function
 from pyoperators import DiagonalOperator, SymmetricBandToeplitzOperator, asoperator
 from pyoperators.memory import empty
 from pyoperators.utils import split
 from pyoperators.utils.mpi import MPI
-
 from .geometry import convex_hull
 from .noises import (
     _fold_psd,
@@ -16,6 +13,12 @@ from .noises import (
     _unfold_psd,
 )
 from .packedtables import Layout
+import copy
+import numpy as np
+import sys
+
+if sys.version_info.major == 2:
+    range = xrange
 
 __all__ = ['Instrument', 'Imager']
 
@@ -52,7 +55,7 @@ class Instrument(object):
         return out
 
     def __iter__(self):
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             yield self[i]
 
     def __len__(self):

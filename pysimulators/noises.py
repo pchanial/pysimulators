@@ -1,11 +1,10 @@
 # Copyrights 2013 Pierre Chanial
 
-from __future__ import division
-
+from __future__ import absolute_import, division, print_function
+from pyoperators.memory import empty
 import numpy as np
 import multiprocessing
 import pyfftw.interfaces.numpy_fft as fft
-from pyoperators.memory import empty
 
 
 def _fold_psd(p):

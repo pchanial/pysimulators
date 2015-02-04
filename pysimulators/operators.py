@@ -1,32 +1,43 @@
-#encoding: utf-8
-from __future__ import division
-
+# encoding: utf-8
+from __future__ import absolute_import, division, print_function
+from pyoperators import (
+    Operator,
+    BlockDiagonalOperator,
+    Cartesian2SphericalOperator,
+    CompositionOperator,
+    DenseOperator,
+    DenseBlockDiagonalOperator,
+    DiagonalOperator,
+    DiagonalNumexprOperator,
+    HomothetyOperator,
+    IdentityOperator,
+    Spherical2CartesianOperator,
+)
+from pyoperators.flags import inplace, linear, orthogonal, real, separable, square
+from pyoperators.memory import empty, ones
+from pyoperators.utils import (
+    float_dtype,
+    isscalarlike,
+    operation_assignment,
+    product,
+    strenum,
+    tointtuple,
+)
+from . import _flib as flib
+from .datatypes import FitsArray, Map
+from .quantities import Quantity, _divide_unit, _multiply_unit
+from .sparse import FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix, SparseOperator
+from .wcsutils import create_fitsheader
 import functools
 import inspect
 import numpy as np
 import operator
 import pyoperators
 import scipy.constants
+import sys
 
-from itertools import izip
-from pyoperators import (
-    Operator, BlockDiagonalOperator, Cartesian2SphericalOperator,
-    CompositionOperator, DenseOperator, DenseBlockDiagonalOperator,
-    DiagonalOperator, DiagonalNumexprOperator, HomothetyOperator,
-    IdentityOperator, Spherical2CartesianOperator)
-from pyoperators.flags import (
-    inplace, linear, orthogonal, real, separable, square)
-from pyoperators.memory import empty, ones
-from pyoperators.utils import (
-    float_dtype, isscalarlike, operation_assignment, product, strenum,
-    tointtuple)
-
-from . import _flib as flib
-from .datatypes import FitsArray, Map
-from .quantities import Quantity, _divide_unit, _multiply_unit
-from .sparse import (
-    FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix, SparseOperator)
-from .wcsutils import create_fitsheader
+if sys.version_info.major == 2:
+    from itertools import izip as zip
 
 __all__ = [
     'BlackBodyOperator',
@@ -104,7 +115,6 @@ def block_diagonal(*partition_args, **keywords):
         raise TypeError('Invalid keyed argument.')
 
     def func(cls):
-
         @functools.wraps(cls.__init__)
         def partition_init(self, *args, **keywords):
 
@@ -122,15 +132,22 @@ def block_diagonal(*partition_args, **keywords):
             class_args.pop(0)
 
             # get number of blocks through the arguments
-            ns = [0 if isscalarlike(a) else len(a) for i, a in enumerate(args)
-                  if class_args[i] in partition_args] + \
-                 [0 if isscalarlike(v) else len(v) for k, v in keywords.items()
-                  if k in partition_args]
+            ns = [
+                0 if isscalarlike(a) else len(a)
+                for i, a in enumerate(args)
+                if class_args[i] in partition_args
+            ] + [
+                0 if isscalarlike(v) else len(v)
+                for k, v in keywords.items()
+                if k in partition_args
+            ]
 
             n2 = 0 if len(ns) == 0 else max(ns)
             if any(n not in (0, n2) for n in ns):
-                raise ValueError('The partition variables do not have the same'
-                                 ' number of elements.')
+                raise ValueError(
+                    'The partition variables do not have the same'
+                    ' number of elements.'
+                )
 
             # bail if no partitioning is found
             n = max(n1, n2)
@@ -140,9 +157,11 @@ def block_diagonal(*partition_args, **keywords):
 
             # check the two methods are compatible
             if n1 != 0 and n2 != 0 and n1 != n2:
-                raise ValueError('The specified partitioning is incompatible w'
-                                 'ith the number of elements in the partition '
-                                 'variables.')
+                raise ValueError(
+                    'The specified partitioning is incompatible w'
+                    'ith the number of elements in the partition '
+                    'variables.'
+                )
 
             # Implicit partition
             if partitionin is None:
@@ -153,14 +172,22 @@ def block_diagonal(*partition_args, **keywords):
 
             # dispatch arguments
             n = len(partitionin)
-            argss = tuple(tuple(a[i] if class_args[j] in partition_args and
-                                not isscalarlike(a) else a
-                                for j, a in enumerate(args))
-                          for i in range(n))
-            keyss = tuple(dict((k, v[i]) if k in partition_args and
-                               not isscalarlike(v) else (k, v)
-                               for k, v in keywords.items())
-                          for i in range(n))
+            argss = tuple(
+                tuple(
+                    a[i]
+                    if class_args[j] in partition_args and not isscalarlike(a)
+                    else a
+                    for j, a in enumerate(args)
+                )
+                for i in range(n)
+            )
+            keyss = tuple(
+                dict(
+                    (k, v[i]) if k in partition_args and not isscalarlike(v) else (k, v)
+                    for k, v in keywords.items()
+                )
+                for i in range(n)
+            )
 
             # the input shapein/out describe the BlockDiagonalOperator
             def reshape(s, p, a, na):
@@ -181,15 +208,15 @@ def block_diagonal(*partition_args, **keywords):
                     keys['shapeout'] = reshape(shapeout, p, axisin, new_axisin)
 
             # instantiate the partitioned operators
-            ops = [cls.__new__(type(self), *a, **k) for a, k in
-                   zip(argss, keyss)]
+            ops = [cls.__new__(type(self), *a, **k) for a, k in zip(argss, keyss)]
             for o, a, k in zip(ops, argss, keyss):
                 if isinstance(o, cls):
                     cls.__init_original__(o, *a, **k)
 
             self.__class__ = BlockDiagonalOperator
-            self.__init__(ops, partitionin=partitionin, axisin=axisin,
-                          new_axisin=new_axisin)
+            self.__init__(
+                ops, partitionin=partitionin, axisin=axisin, new_axisin=new_axisin
+            )
 
         cls.__init_original__ = cls.__init__
         cls.__init__ = partition_init
@@ -222,8 +249,16 @@ class BlackBodyOperator(DiagonalOperator):
 
     """
 
-    def __init__(self, temperature, frequency=None, frequency0=None,
-                 wavelength=None, wavelength0=None, beta=0, **keywords):
+    def __init__(
+        self,
+        temperature,
+        frequency=None,
+        frequency0=None,
+        wavelength=None,
+        wavelength0=None,
+        beta=0,
+        **keywords,
+    ):
         """
         Parameters
         ----------
@@ -248,11 +283,13 @@ class BlackBodyOperator(DiagonalOperator):
         """
         temperature = np.asarray(temperature, float)
         if frequency is None and wavelength is None:
-            raise ValueError('The operating frequency or wavelength is not spe'
-                             'cified.')
+            raise ValueError(
+                'The operating frequency or wavelength is not spe' 'cified.'
+            )
         if frequency0 is None and wavelength0 is None:
-            raise ValueError('The reference frequency or wavelength is not spe'
-                             'cified.')
+            raise ValueError(
+                'The reference frequency or wavelength is not spe' 'cified.'
+            )
         if frequency is not None and wavelength is not None:
             raise ValueError('Ambiguous operating frequency / wavelength.')
         if frequency0 is not None and wavelength0 is not None:
@@ -267,19 +304,19 @@ class BlackBodyOperator(DiagonalOperator):
         else:
             nu = c / np.asarray(wavelength, float)
         if nu.ndim != 0:
-            raise TypeError('The operating frequency or wavelength is not a sc'
-                            'alar.')
+            raise TypeError('The operating frequency or wavelength is not a sc' 'alar.')
         if frequency0 is not None:
             nu0 = np.asarray(frequency0, float)
         else:
             nu0 = c / np.asarray(wavelength0, float)
         if nu.ndim != 0:
-            raise TypeError('The operating frequency or wavelength is not a sc'
-                            'alar.')
+            raise TypeError('The operating frequency or wavelength is not a sc' 'alar.')
         beta = float(beta)
-        data = (nu / nu0)**(3 + beta) * \
-            np.expm1(h * nu0 / (k * temperature)) / \
-            np.expm1(h * nu / (k * temperature))
+        data = (
+            (nu / nu0) ** (3 + beta)
+            * np.expm1(h * nu0 / (k * temperature))
+            / np.expm1(h * nu / (k * temperature))
+        )
         DiagonalOperator.__init__(self, data, **keywords)
         self.temperature = temperature
         self.beta = beta
@@ -304,6 +341,7 @@ class ConvolutionTruncatedExponentialOperator(Operator):
         Time constant divided by the signal sampling period.
 
     """
+
     def __init__(self, tau, dtype=None, **keywords):
         if hasattr(tau, 'SI'):
             tau = tau.SI
@@ -329,8 +367,15 @@ class ConvolutionTruncatedExponentialOperator(Operator):
         f = 'trexp_direct_v{0}'.format(input.dtype.itemsize)
         try:
             getattr(flib.operators, f)(
-                input_, nd, nt, int_all,
-                output_, nt, ont_all, self.tau.astype(input.dtype))
+                input_,
+                nd,
+                nt,
+                int_all,
+                output_,
+                nt,
+                ont_all,
+                self.tau.astype(input.dtype),
+            )
         except AttributeError:
             raise NotImplementedError()
 
@@ -340,8 +385,15 @@ class ConvolutionTruncatedExponentialOperator(Operator):
         f = 'trexp_transpose_v{0}'.format(input.dtype.itemsize)
         try:
             getattr(flib.operators, f)(
-                input_, nd, nt, int_all,
-                output_, nt, ont_all, self.tau.astype(input.dtype))
+                input_,
+                nd,
+                nt,
+                int_all,
+                output_,
+                nt,
+                ont_all,
+                self.tau.astype(input.dtype),
+            )
         except AttributeError:
             raise NotImplementedError()
 
@@ -351,7 +403,8 @@ class ConvolutionTruncatedExponentialOperator(Operator):
         if self.tau.size != product(shape[:-1]):
             raise ValueError(
                 "The shape of the input '{0}' is incompatible with the number "
-                "of scales '{1}'.".format(shape, self.tau.size))
+                "of scales '{1}'.".format(shape, self.tau.size)
+            )
 
 
 def _ravel_strided(x):
@@ -396,6 +449,7 @@ class PowerLawOperator(DiagonalNumexprOperator):
     array(0.0010999999999999998)
 
     """
+
     def __init__(self, alpha, x, x0, scalar=1, **keywords):
         alpha = np.asarray(alpha, float)
         if alpha.ndim > 0:
@@ -412,28 +466,38 @@ class PowerLawOperator(DiagonalNumexprOperator):
         if 'dtype' not in keywords:
             keywords['dtype'] = float
         global_dict = {'x': x, 'x0': x0, 's': scalar}
-        DiagonalNumexprOperator.__init__(self, alpha, 's * (x / x0) ** alpha',
-                                         global_dict, var='alpha', **keywords)
+        DiagonalNumexprOperator.__init__(
+            self, alpha, 's * (x / x0) ** alpha', global_dict, var='alpha', **keywords
+        )
         self.alpha = alpha
         self.x = x
         self.x0 = x0
         self.scalar = scalar
-        self.set_rule((HomothetyOperator, '.'),
-                      lambda o, s: PowerLawOperator(
-                          s.alpha, s.x, s.x0, o.data * s.scalar),
-                      CompositionOperator)
+        self.set_rule(
+            (HomothetyOperator, '.'),
+            lambda o, s: PowerLawOperator(s.alpha, s.x, s.x0, o.data * s.scalar),
+            CompositionOperator,
+        )
 
     @staticmethod
-    def _rule_block(self, op, shape, partition, axis, new_axis,
-                    func_operation):
+    def _rule_block(self, op, shape, partition, axis, new_axis, func_operation):
         return DiagonalOperator._rule_block(
-            self, op, shape, partition, axis, new_axis, func_operation,
-            self.x, self.x0, scalar=self.scalar)
+            self,
+            op,
+            shape,
+            partition,
+            axis,
+            new_axis,
+            func_operation,
+            self.x,
+            self.x0,
+            scalar=self.scalar,
+        )
 
     def __str__(self):
-        return u'powerlaw(..., \u03B1={0}, x/x0={1})'\
-            .encode('utf-8') \
-            .format(self.alpha, self.x / self.x0)
+        return u'powerlaw(..., \u03B1={0}, x/x0={1})'.encode('utf-8').format(
+            self.alpha, self.x / self.x0
+        )
 
 
 class PointingMatrix(FitsArray):
@@ -441,7 +505,8 @@ class PointingMatrix(FitsArray):
 
     def __new__(cls, array, shape_input, copy=True, ndmin=0):
         result = FitsArray.__new__(cls, array, copy=copy, ndmin=ndmin).view(
-            cls.default_dtype, cls)
+            cls.default_dtype, cls
+        )
         result.header = create_fitsheader(result.shape[::-1])
         result.shape_input = shape_input
         return result
@@ -452,22 +517,34 @@ class PointingMatrix(FitsArray):
 
     @classmethod
     def empty(cls, shape, shape_input, verbose=True):
-        buffer = empty(shape, cls.default_dtype, verbose=verbose,
-                       description='for the pointing matrix')
+        buffer = empty(
+            shape,
+            cls.default_dtype,
+            verbose=verbose,
+            description='for the pointing matrix',
+        )
         return PointingMatrix(buffer, shape_input, copy=False)
 
     @classmethod
     def ones(cls, shape, shape_input, verbose=True):
-        buffer = empty(shape, cls.default_dtype, verbose=verbose,
-                       description='for the pointing matrix')
+        buffer = empty(
+            shape,
+            cls.default_dtype,
+            verbose=verbose,
+            description='for the pointing matrix',
+        )
         buffer['index'] = -1
         buffer['value'] = 1
         return PointingMatrix(buffer, shape_input, copy=False)
 
     @classmethod
     def zeros(cls, shape, shape_input, verbose=True):
-        buffer = empty(shape, cls.default_dtype, verbose=verbose,
-                       description='for the pointing matrix')
+        buffer = empty(
+            shape,
+            cls.default_dtype,
+            verbose=verbose,
+            description='for the pointing matrix',
+        )
         buffer['index'] = -1
         buffer['value'] = 0
         return PointingMatrix(buffer, shape_input, copy=False)
@@ -482,8 +559,11 @@ class PointingMatrix(FitsArray):
             return True
         npixels = product(self.shape_input)
         result = flib.pointingmatrix.isvalid(
-            self.ravel().view(np.int64), self.shape[-1],
-            product(self.shape[:-1]), npixels)
+            self.ravel().view(np.int64),
+            self.shape[-1],
+            product(self.shape[:-1]),
+            npixels,
+        )
         return bool(result)
 
     def pack(self, mask):
@@ -494,8 +574,12 @@ class PointingMatrix(FitsArray):
         """
         if self.size == 0:
             return
-        flib.pointingmatrix.pack(self.ravel().view(np.int64), mask.view(
-            np.int8).T, self.shape[-1], self.size // self.shape[-1])
+        flib.pointingmatrix.pack(
+            self.ravel().view(np.int64),
+            mask.view(np.int8).T,
+            self.shape[-1],
+            self.size // self.shape[-1],
+        )
         self.shape_input = tointtuple(mask.size - np.sum(mask))
 
     def get_mask(self, out=None):
@@ -505,12 +589,15 @@ class PointingMatrix(FitsArray):
         elif out.dtype != bool:
             raise TypeError('The output mask argument has an invalid type.')
         elif out.shape != self.shape_input:
-            raise ValueError('The output mask argument has an incompatible sha'
-                             'pe.')
+            raise ValueError('The output mask argument has an incompatible sha' 'pe.')
         if self.size == 0:
             return out
-        flib.pointingmatrix.mask(self.ravel().view(np.int64), out.view(
-            np.int8).T, self.shape[-1], self.size // self.shape[-1])
+        flib.pointingmatrix.mask(
+            self.ravel().view(np.int64),
+            out.view(np.int8).T,
+            self.shape[-1],
+            self.size // self.shape[-1],
+        )
         return out
 
 
@@ -521,19 +608,25 @@ class ProjectionBaseOperator(Operator):
     Abstract class for projection operators.
 
     """
-    def __init__(self, units=None, derived_units=None, attrin={}, attrout={},
-                 **keywords):
+
+    def __init__(
+        self, units=None, derived_units=None, attrin={}, attrout={}, **keywords
+    ):
 
         if units is None:
             units = ('', '')
         if derived_units is None:
             derived_units = ({}, {})
 
-        unit = _divide_unit(Quantity(1, units[0])._unit,
-                            Quantity(1, units[1])._unit)
+        unit = _divide_unit(Quantity(1, units[0])._unit, Quantity(1, units[1])._unit)
 
-        Operator.__init__(self, dtype=float, attrin=self.set_attrin,
-                          attrout=self.set_attrout, **keywords)
+        Operator.__init__(
+            self,
+            dtype=float,
+            attrin=self.set_attrin,
+            attrout=self.set_attrout,
+            **keywords,
+        )
         self._attrin = attrin
         self._attrout = attrout
         self.unit = unit
@@ -545,12 +638,13 @@ class ProjectionBaseOperator(Operator):
             return
         if not output.flags.contiguous:
             if pyoperators.memory.verbose:
-                print 'Optimize me: Projection output is not contiguous.'
+                print('Optimize me: Projection output is not contiguous.')
             output_ = np.empty_like(output)
         else:
             output_ = output
-        flib.pointingmatrix.direct(matrix.ravel().view(np.int64), input.T,
-                                   output_.T, matrix.shape[-1])
+        flib.pointingmatrix.direct(
+            matrix.ravel().view(np.int64), input.T, output_.T, matrix.shape[-1]
+        )
         if not output.flags.contiguous:
             output[...] = output_
 
@@ -564,12 +658,13 @@ class ProjectionBaseOperator(Operator):
             return
         if not input.flags.contiguous:
             if pyoperators.memory.verbose:
-                print 'Optimize me: Projection.T input is not contiguous.'
+                print('Optimize me: Projection.T input is not contiguous.')
             input_ = np.ascontiguousarray(input)
         else:
             input_ = input
-        flib.pointingmatrix.transpose(matrix.ravel().view(np.int64),
-                                      input_.T, output.T, matrix.shape[-1])
+        flib.pointingmatrix.transpose(
+            matrix.ravel().view(np.int64), input_.T, output.T, matrix.shape[-1]
+        )
 
     def set_attrin(self, attr):
         if '_header' in attr:
@@ -611,13 +706,16 @@ class ProjectionBaseOperator(Operator):
         elif out.dtype != np.bool8:
             raise TypeError('The output ptp argument has an invalid type.')
         elif out.shape != (npixels, npixels):
-            raise ValueError('The output ptp argument has an incompatible shap'
-                             'e.')
+            raise ValueError('The output ptp argument has an incompatible shap' 'e.')
         if matrix.size == 0:
             return out
-        flib.pointingmatrix.ptp(matrix.ravel().view(np.int64), out.T,
-                                matrix.shape[-1],
-                                matrix.size // matrix.shape[-1], npixels)
+        flib.pointingmatrix.ptp(
+            matrix.ravel().view(np.int64),
+            out.T,
+            matrix.shape[-1],
+            matrix.size // matrix.shape[-1],
+            npixels,
+        )
         return out
 
     def get_pTx_pT1(self, x, out=None, mask=None):
@@ -638,13 +736,22 @@ class ProjectionBaseOperator(Operator):
             return out
         mask = mask or getattr(x, 'mask', None)
         if mask is not None:
-            flib.pointingmatrix.backprojection_weight_mask(matrix.ravel().view(
-                np.int64), x.ravel(), x.mask.ravel().view(np.int8),
-                out[0].ravel(), out[1].ravel(), matrix.shape[-1])
+            flib.pointingmatrix.backprojection_weight_mask(
+                matrix.ravel().view(np.int64),
+                x.ravel(),
+                x.mask.ravel().view(np.int8),
+                out[0].ravel(),
+                out[1].ravel(),
+                matrix.shape[-1],
+            )
         else:
-            flib.pointingmatrix.backprojection_weight(matrix.ravel().view(
-                np.int64), x.ravel(), out[0].ravel(), out[1].ravel(),
-                matrix.shape[-1])
+            flib.pointingmatrix.backprojection_weight(
+                matrix.ravel().view(np.int64),
+                x.ravel(),
+                out[0].ravel(),
+                out[1].ravel(),
+                matrix.shape[-1],
+            )
         return out
 
     def intersects(self, fitscoords, axis=None, f=None):
@@ -663,13 +770,16 @@ class ProjectionBaseOperator(Operator):
             out = f(matrix_, index, shape[-1], shape[-2], shape[-3])
         elif axis is None:
             out = flib.pointingmatrix.intersects(
-                matrix_, index, shape[-1], shape[-2], shape[-3])
+                matrix_, index, shape[-1], shape[-2], shape[-3]
+            )
         elif axis == 0 or axis == -3:
             out = flib.pointingmatrix.intersects_axis3(
-                matrix_, index, shape[-1], shape[-2], shape[-3])
+                matrix_, index, shape[-1], shape[-2], shape[-3]
+            )
         elif axis == 1 or axis == -2:
             out = flib.pointingmatrix.intersects_axis2(
-                matrix_, index, shape[-1], shape[-2], shape[-3])
+                matrix_, index, shape[-1], shape[-2], shape[-3]
+            )
         else:
             raise ValueError('Invalid axis.')
 
@@ -690,6 +800,7 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         The pointing matrix.
 
     """
+
     def __init__(self, matrix, units=None, derived_units=None, **keywords):
         """
         Parameters
@@ -711,22 +822,26 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
             raise TypeError("The 'shapeout' keyword should not be used.")
         shapeout = matrix.shape[:-1]
 
-        ProjectionBaseOperator.__init__(self, shapein=shapein,
-                                        shapeout=shapeout, units=units,
-                                        derived_units=derived_units,
-                                        **keywords)
+        ProjectionBaseOperator.__init__(
+            self,
+            shapein=shapein,
+            shapeout=shapeout,
+            units=units,
+            derived_units=derived_units,
+            **keywords,
+        )
         self.matrix = matrix
         self.set_rule('T,.', self._rule_ptp, CompositionOperator)
-        self.set_rule((DiagonalOperator, '.'), self._rule_diagonal,
-                      CompositionOperator)
+        self.set_rule((DiagonalOperator, '.'), self._rule_diagonal, CompositionOperator)
 
     def apply_mask(self, mask):
         mask = np.asarray(mask, np.bool8)
         matrix = self.matrix
         if mask.shape != self.shapeout:
-            raise ValueError("The mask shape '{0}' is incompatible with that o"
-                             "f the pointing matrix '{1}'.".format(mask.shape,
-                             matrix.shape))
+            raise ValueError(
+                "The mask shape '{0}' is incompatible with that o"
+                "f the pointing matrix '{1}'.".format(mask.shape, matrix.shape)
+            )
         matrix.value.T[...] *= 1 - mask.T
 
     @staticmethod
@@ -734,8 +849,9 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         if p.matrix.shape[-1] != 1:
             return
         cov = np.zeros(p.shapein)
-        flib.pointingmatrix.ptp_one(p.matrix.ravel().view(np.int64),
-                                    cov.ravel(), p.matrix.size, cov.size)
+        flib.pointingmatrix.ptp_one(
+            p.matrix.ravel().view(np.int64), cov.ravel(), p.matrix.size, cov.size
+        )
         return DiagonalOperator(cov)
 
     @staticmethod
@@ -761,8 +877,10 @@ class ProjectionOnFlyOperator(ProjectionBaseOperator):
     and the pointing matrix is substituted.
 
     """
-    def __init__(self, place_holder, id, func, units=None, derived_units=None,
-                 **keywords):
+
+    def __init__(
+        self, place_holder, id, func, units=None, derived_units=None, **keywords
+    ):
         """
         Parameters
         ----------
@@ -787,9 +905,9 @@ class ProjectionOnFlyOperator(ProjectionBaseOperator):
         self.place_holder = place_holder
         self.id = id
         self.func = func
-        ProjectionBaseOperator.__init__(self, units=units,
-                                        derived_units=derived_units,
-                                        **keywords)
+        ProjectionBaseOperator.__init__(
+            self, units=units, derived_units=derived_units, **keywords
+        )
 
     @property
     def matrix(self):
@@ -811,17 +929,18 @@ class ProjectionOperator(SparseOperator):
         The projection sparse matrix.
 
     """
+
     def __init__(self, arg, **keywords):
-        if type(arg) not in (FSRMatrix, FSRRotation2dMatrix,
-                             FSRRotation3dMatrix):
+        if type(arg) not in (FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix):
             raise TypeError('The input sparse matrix type is invalid.')
-        self._flib_id = {FSRMatrix: '',
-                         FSRRotation2dMatrix: '_rot2d',
-                         FSRRotation3dMatrix: '_rot3d'}[type(arg)]
+        self._flib_id = {
+            FSRMatrix: '',
+            FSRRotation2dMatrix: '_rot2d',
+            FSRRotation3dMatrix: '_rot3d',
+        }[type(arg)]
         SparseOperator.__init__(self, arg, **keywords)
 
-    def canonical_basis_in_kernel(self, out=None,
-                                  operation=operation_assignment):
+    def canonical_basis_in_kernel(self, out=None, operation=operation_assignment):
         """
         Return a boolean array whose values are True if the component of
         the canonical basis is in the operator's kernel.
@@ -835,8 +954,7 @@ class ProjectionOperator(SparseOperator):
             shape = shape[:-1]
         if out is None:
             if operation is not operation_assignment:
-                raise ValueError(
-                    'The array for inplace operation is not specified')
+                raise ValueError('The array for inplace operation is not specified')
             out = empty(shape, bool)
         elif out.dtype != bool:
             raise TypeError("The keyword 'out' has an invalid type.")
@@ -850,8 +968,7 @@ class ProjectionOperator(SparseOperator):
         f = 'fsr{0}_kernel_i{1}_m{2}'.format(self._flib_id, i, m)
         n = product(shape)
         if hasattr(flib.operators, f):
-            if operation in (operation_assignment, operator.iand,
-                             operator.imul):
+            if operation in (operation_assignment, operator.iand, operator.imul):
                 if operation is operation_assignment:
                     out[...] = True
                 kernel = out
@@ -859,10 +976,13 @@ class ProjectionOperator(SparseOperator):
                 kernel = np.ones_like(out)
 
             func = getattr(flib.operators, f)
-            func(data.view(np.int8).ravel(), kernel.view(np.int8).ravel(),
-                 self.matrix.ncolmax, data.shape[0])
-            if operation in (operation_assignment, operator.iand,
-                             operator.imul):
+            func(
+                data.view(np.int8).ravel(),
+                kernel.view(np.int8).ravel(),
+                self.matrix.ncolmax,
+                data.shape[0],
+            )
+            if operation in (operation_assignment, operator.iand, operator.imul):
                 return out
         else:
             if isinstance(self.matrix, FSRMatrix):
@@ -891,20 +1011,29 @@ class ProjectionOperator(SparseOperator):
         elif not isinstance(out, np.ndarray):
             raise TypeError('The output keyword is not an ndarray.')
         elif out.shape != shapeout:
-            raise ValueError("The output arrays have a shape incompatible with"
-                             " the expected one '{0}'.".format(shapeout))
+            raise ValueError(
+                "The output arrays have a shape incompatible with"
+                " the expected one '{0}'.".format(shapeout)
+            )
         if operation not in (operation_assignment, operator.iadd):
             raise ValueError('Invalid reduction operation.')
 
         f = 'fsr{0}_pt1_i{1}_m{2}_v{3}'.format(
-            self._flib_id, self.matrix.data.index.dtype.itemsize,
-            self.matrix.dtype.itemsize, out.dtype.itemsize)
+            self._flib_id,
+            self.matrix.data.index.dtype.itemsize,
+            self.matrix.dtype.itemsize,
+            out.dtype.itemsize,
+        )
         if hasattr(flib.operators, f):
             if operation is operation_assignment:
                 out[...] = 0
             func = getattr(flib.operators, f)
-            func(self.matrix.data.view(np.int8).ravel(), out.ravel(),
-                 self.matrix.ncolmax, self.matrix.data.shape[0])
+            func(
+                self.matrix.data.view(np.int8).ravel(),
+                out.ravel(),
+                self.matrix.ncolmax,
+                self.matrix.data.shape[0],
+            )
         else:
             if self.shapeout is None:
                 shapein = (self.matrix.shape[0],)
@@ -917,9 +1046,10 @@ class ProjectionOperator(SparseOperator):
                 if operation is operation_assignment:
                     out[...] = 0
                 index = self.matrix.data.index.ravel()
-                data = np.sqrt(self.matrix.data.r11**2 +
-                               self.matrix.data.r21**2).ravel()
-                for i, d in izip(index, data):
+                data = np.sqrt(
+                    self.matrix.data.r11**2 + self.matrix.data.r21**2
+                ).ravel()
+                for i, d in zip(index, data):
                     if i >= 0:
                         out[i] += d
             else:
@@ -937,21 +1067,25 @@ class ProjectionOperator(SparseOperator):
         if isinstance(self.matrix, FSRRotation2dMatrix):
             raise NotImplementedError(
                 'This method does not make sense for FSRRotation2dMatrix spars'
-                'e storage.')
+                'e storage.'
+            )
         x = np.asarray(x, order='C')
         shapein = self.shapeout
         if shapein is None:
             block_size = self.matrix.block_size
-            shapein = (self.matrix.shape[0],) + \
-                      (() if block_size == 1 else (block_size,))
+            shapein = (self.matrix.shape[0],) + (
+                () if block_size == 1 else (block_size,)
+            )
         shapeout = self.shapein
         if shapeout is None:
             shapeout = (self.matrix.shape[1],)
         elif self.matrix.block_size > 1:
             shapeout = shapeout[:-1]
         if x.shape != shapein:
-            raise ValueError("Invalid input shape '{0}'. Expected shape is '{1"
-                             "}'.".format(x.shape, shapein))
+            raise ValueError(
+                "Invalid input shape '{0}'. Expected shape is '{1"
+                "}'.".format(x.shape, shapein)
+            )
         dtypeout = max(self.dtype, x.dtype)
         if out is None:
             pTx = empty(shapeout, dtypeout)
@@ -959,27 +1093,39 @@ class ProjectionOperator(SparseOperator):
         elif not isinstance(out, (list, tuple)) or len(out) != 2:
             raise TypeError('The out keyword is not a 2-tuple.')
         elif out[0].dtype != dtypeout or out[1].dtype != dtypeout:
-            raise TypeError('The output arrays have a dtype incompatible with '
-                            "the expected one '{0}'.".format(dtypeout.type))
+            raise TypeError(
+                'The output arrays have a dtype incompatible with '
+                "the expected one '{0}'.".format(dtypeout.type)
+            )
         elif out[0].shape != shapeout or out[1].shape != shapeout:
-            raise ValueError("The output arrays have a shape incompatible with"
-                             " the expected one '{0}'.".format(shapeout))
+            raise ValueError(
+                "The output arrays have a shape incompatible with"
+                " the expected one '{0}'.".format(shapeout)
+            )
         else:
             pTx, pT1 = out
         if operation not in (operation_assignment, operator.iadd):
             raise ValueError('Invalid reduction operation.')
 
         f = 'fsr{0}_ptx_pt1_i{1}_m{2}_v{3}'.format(
-            self._flib_id, self.matrix.data.index.dtype.itemsize,
-            self.matrix.dtype.itemsize, dtypeout.itemsize)
+            self._flib_id,
+            self.matrix.data.index.dtype.itemsize,
+            self.matrix.dtype.itemsize,
+            dtypeout.itemsize,
+        )
         if hasattr(flib.operators, f):
             if operation is operation_assignment:
                 pTx[...] = 0
                 pT1[...] = 0
             x = np.asarray(x, dtype=dtypeout, order='C')
             func = getattr(flib.operators, f)
-            func(self.matrix.data.view(np.int8).ravel(), x.T,
-                 pTx.ravel(), pT1.ravel(), self.matrix.ncolmax)
+            func(
+                self.matrix.data.view(np.int8).ravel(),
+                x.T,
+                pTx.ravel(),
+                pT1.ravel(),
+                self.matrix.ncolmax,
+            )
         else:
             self.pT1(out=pT1, operation=operation)
             if isinstance(self.matrix, FSRMatrix):
@@ -995,29 +1141,34 @@ class RollOperator(Operator):
     def __init__(self, n, axis=None, **keywords):
         Operator.__init__(self, **keywords)
         if axis is None:
-            axis = -1 if isscalarlike(n) else range(-len(n), 0)
+            axis = -1 if isscalarlike(n) else tuple(range(-len(n), 0))
         self.axis = (axis,) if isscalarlike(axis) else tuple(axis)
         self.n = (n,) * len(self.axis) if isscalarlike(n) else tuple(n)
         if len(self.axis) != len(self.n):
-            raise ValueError('There is a mismatch between the number of axes a'
-                             'nd offsets.')
+            raise ValueError(
+                'There is a mismatch between the number of axes a' 'nd offsets.'
+            )
 
     def direct(self, input, output):
         output[...] = np.roll(input, self.n[0], axis=self.axis[0])
-        for n, axis in zip(self.n, self.axis)[1:]:
+        for n, axis in zip(self.n[1:], self.axis[1:]):
             output[...] = np.roll(output, n, axis=axis)
 
     def transpose(self, input, output):
         output[...] = np.roll(input, -self.n[0], axis=self.axis[0])
-        for n, axis in zip(self.n, self.axis)[1:]:
+        for n, axis in zip(self.n[1:], self.axis[1:]):
             output[...] = np.roll(output, -n, axis=axis)
 
 
 @orthogonal
 class _CartesianEquatorialGalactic(DenseOperator):
-    _g2e = np.linalg.qr([[-0.0548755604,  0.4941094279, -0.8676661490],
-                         [-0.8734370902, -0.4448296300, -0.1980763734],
-                         [-0.4838350155,  0.7469822445,  0.4559837762]])[0]
+    _g2e = np.linalg.qr(
+        [
+            [-0.0548755604, 0.4941094279, -0.8676661490],
+            [-0.8734370902, -0.4448296300, -0.1980763734],
+            [-0.4838350155, 0.7469822445, 0.4559837762],
+        ]
+    )[0]
 
 
 class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
@@ -1053,11 +1204,13 @@ class CartesianEquatorial2GalacticOperator(_CartesianEquatorialGalactic):
     array([-0.48383502,  0.74698224,  0.45598378])
 
     """
+
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e.T, **keywords)
         self.set_rule('T', lambda s: CartesianGalactic2EquatorialOperator())
-        self.set_rule(('.', CartesianGalactic2EquatorialOperator), '1',
-                      CompositionOperator)
+        self.set_rule(
+            ('.', CartesianGalactic2EquatorialOperator), '1', CompositionOperator
+        )
 
 
 class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
@@ -1093,27 +1246,32 @@ class CartesianGalactic2EquatorialOperator(_CartesianEquatorialGalactic):
     array([-0.86766615, -0.19807637,  0.45598378])
 
     """
+
     def __init__(self, **keywords):
         _CartesianEquatorialGalactic.__init__(self, self._g2e, **keywords)
         self.set_rule('T', lambda s: CartesianEquatorial2GalacticOperator())
-        self.set_rule(('.', CartesianEquatorial2GalacticOperator), '1',
-                      CompositionOperator)
+        self.set_rule(
+            ('.', CartesianEquatorial2GalacticOperator), '1', CompositionOperator
+        )
 
 
 class _CartesianEquatorialHorizontal(DenseBlockDiagonalOperator):
-    def __init__(self, convention, time, latitude, longitude, transpose,
-                 dtype=None, **keywords):
+    def __init__(
+        self, convention, time, latitude, longitude, transpose, dtype=None, **keywords
+    ):
         conventions = ('NE',)  # 'SW', 'SE')
         if convention not in conventions:
             raise ValueError(
                 "Invalid azimuth angle convention '{0}'. Expected values are {"
-                "1}.".format(convention, strenum(conventions)))
+                "1}.".format(convention, strenum(conventions))
+            )
         lst = self._gst2lst(self._jd2gst(time.jd), longitude)
         lst = np.radians(lst * 15)
         latitude = np.radians(latitude)
         if dtype is None:
-            dtype = np.find_common_type([float_dtype(lst.dtype),
-                                         float_dtype(latitude.dtype)], [])
+            dtype = np.find_common_type(
+                [float_dtype(lst.dtype), float_dtype(latitude.dtype)], []
+            )
         slat = np.sin(latitude)
         clat = np.cos(latitude)
         slst = np.sin(lst)
@@ -1130,8 +1288,9 @@ class _CartesianEquatorialHorizontal(DenseBlockDiagonalOperator):
         m[..., 2, 2] = slat
         if transpose:
             m = m.swapaxes(-1, -2)
-        keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
-                                                orthogonal=True)
+        keywords['flags'] = self.validate_flags(
+            keywords.get('flags', {}), orthogonal=True
+        )
         DenseBlockDiagonalOperator.__init__(self, m, **keywords)
 
     @staticmethod
@@ -1185,6 +1344,7 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
     >>> op = CartesianEquatorial2HorizontalOperator('NE', t0 + dt, lat, lon)
 
     """
+
     def __init__(self, convention, time, latitude, longitude, **keywords):
         """
         convention : 'NE', 'SW', 'SE'
@@ -1203,7 +1363,8 @@ class CartesianEquatorial2HorizontalOperator(_CartesianEquatorialHorizontal):
 
         """
         _CartesianEquatorialHorizontal.__init__(
-            self, convention, time, latitude, longitude, False, **keywords)
+            self, convention, time, latitude, longitude, False, **keywords
+        )
 
 
 class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
@@ -1230,6 +1391,7 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
     >>> op = CartesianHorizontal2EquatorialOperator('NE', t0 + dt, lat, lon)
 
     """
+
     def __init__(self, convention, time, latitude, longitude, **keywords):
         """
         convention : 'NE', 'SW', 'SE'
@@ -1248,7 +1410,8 @@ class CartesianHorizontal2EquatorialOperator(_CartesianEquatorialHorizontal):
 
         """
         _CartesianEquatorialHorizontal.__init__(
-            self, convention, time, latitude, longitude, True, **keywords)
+            self, convention, time, latitude, longitude, True, **keywords
+        )
 
 
 class SphericalEquatorial2GalacticOperator(CompositionOperator):
@@ -1284,9 +1447,14 @@ class SphericalEquatorial2GalacticOperator(CompositionOperator):
     array([  4.70832664e-05,  -7.91258821e-05])
 
     """
-    def __init__(self, conventionin='azimuth,elevation',
-                 conventionout='azimuth,elevation', degrees=False,
-                 **keywords):
+
+    def __init__(
+        self,
+        conventionin='azimuth,elevation',
+        conventionout='azimuth,elevation',
+        degrees=False,
+        **keywords,
+    ):
         """
         Parameters
         ----------
@@ -1303,7 +1471,8 @@ class SphericalEquatorial2GalacticOperator(CompositionOperator):
         operands = [
             Cartesian2SphericalOperator(conventionout, degrees=degrees),
             CartesianEquatorial2GalacticOperator(),
-            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+            Spherical2CartesianOperator(conventionin, degrees=degrees),
+        ]
         CompositionOperator.__init__(self, operands, **keywords)
 
 
@@ -1340,9 +1509,14 @@ class SphericalGalactic2EquatorialOperator(CompositionOperator):
     array([266.4049948, -28.93617396])
 
     """
-    def __init__(self, conventionin='azimuth,elevation',
-                 conventionout='azimuth,elevation', degrees=False,
-                 **keywords):
+
+    def __init__(
+        self,
+        conventionin='azimuth,elevation',
+        conventionout='azimuth,elevation',
+        degrees=False,
+        **keywords,
+    ):
         """
         Parameters
         ----------
@@ -1360,7 +1534,8 @@ class SphericalGalactic2EquatorialOperator(CompositionOperator):
         operands = [
             Cartesian2SphericalOperator(conventionout, degrees=degrees),
             CartesianGalactic2EquatorialOperator(),
-            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+            Spherical2CartesianOperator(conventionin, degrees=degrees),
+        ]
         CompositionOperator.__init__(self, operands, **keywords)
 
 
@@ -1390,9 +1565,18 @@ class SphericalEquatorial2HorizontalOperator(CompositionOperator):
     >>> op = SphericalEquatorial2HorizontalOperator('NE', t0 + dt, lat, lon)
 
     """
-    def __init__(self, convention_horizontal, time, latitude, longitude,
-                 conventionin='azimuth,elevation',
-                 conventionout='azimuth,elevation', degrees=False, **keywords):
+
+    def __init__(
+        self,
+        convention_horizontal,
+        time,
+        latitude,
+        longitude,
+        conventionin='azimuth,elevation',
+        conventionout='azimuth,elevation',
+        degrees=False,
+        **keywords,
+    ):
         """
         convention_horizontal : 'NE', 'SW', 'SE'
             The azimuth angle convention:
@@ -1421,8 +1605,10 @@ class SphericalEquatorial2HorizontalOperator(CompositionOperator):
         operands = [
             Cartesian2SphericalOperator(conventionout, degrees=degrees),
             CartesianEquatorial2HorizontalOperator(
-                convention_horizontal, time, latitude, longitude),
-            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+                convention_horizontal, time, latitude, longitude
+            ),
+            Spherical2CartesianOperator(conventionin, degrees=degrees),
+        ]
         CompositionOperator.__init__(self, operands, **keywords)
 
 
@@ -1452,9 +1638,18 @@ class SphericalHorizontal2EquatorialOperator(CompositionOperator):
     >>> op = SphericalHorizontal2EquatorialOperator('NE', t0 + dt, lat, lon)
 
     """
-    def __init__(self, convention_horizontal, time, latitude, longitude,
-                 conventionin='azimuth,elevation',
-                 conventionout='azimuth,elevation', degrees=False, **keywords):
+
+    def __init__(
+        self,
+        convention_horizontal,
+        time,
+        latitude,
+        longitude,
+        conventionin='azimuth,elevation',
+        conventionout='azimuth,elevation',
+        degrees=False,
+        **keywords,
+    ):
         """
         convention_horizontal : 'NE', 'SW', 'SE'
             The azimuth angle convention:
@@ -1483,6 +1678,8 @@ class SphericalHorizontal2EquatorialOperator(CompositionOperator):
         operands = [
             Cartesian2SphericalOperator(conventionout, degrees=degrees),
             CartesianHorizontal2EquatorialOperator(
-                convention_horizontal, time, latitude, longitude),
-            Spherical2CartesianOperator(conventionin, degrees=degrees)]
+                convention_horizontal, time, latitude, longitude
+            ),
+            Spherical2CartesianOperator(conventionin, degrees=degrees),
+        ]
         CompositionOperator.__init__(self, operands, **keywords)

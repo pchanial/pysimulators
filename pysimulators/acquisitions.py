@@ -1,9 +1,7 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 
-from __future__ import division
-import numpy as np
-import time
+from __future__ import absolute_import, division, print_function
 from copy import copy
 from pyoperators import BlockDiagonalOperator, MPI
 from pyoperators.memory import empty
@@ -16,7 +14,6 @@ from pyoperators.utils import (
     strenum,
     strnbytes,
 )
-
 from . import _flib as flib
 from .datatypes import Map, Tod
 from .instruments import Instrument, Imager
@@ -28,6 +25,8 @@ from .wcsutils import (
     create_fitsheader,
     fitsheader2shape,
 )
+import numpy as np
+import time
 
 __all__ = ['Acquisition', 'AcquisitionImager', 'MaskPolicy']
 

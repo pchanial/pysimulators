@@ -14,13 +14,7 @@ PackedTable:
       - SceneHealpix
 
 """
-from __future__ import division
-
-import copy
-import functools
-import inspect
-import numpy as np
-import types
+from __future__ import absolute_import, division, print_function
 from pyoperators import MPI
 from pyoperators.utils import (
     ilast_is_not,
@@ -32,6 +26,12 @@ from pyoperators.utils import (
     tointtuple,
 )
 from ..warnings import PySimulatorsWarning, warn
+import collections
+import copy
+import functools
+import inspect
+import numpy as np
+import types
 
 __all__ = ['PackedTable']
 
@@ -106,7 +106,7 @@ class PackedTable(object):
 
     which are the 1d-collapsed indices of the following array coordinates:
 
-    >>> print [(i // 6, i % 6) for i in table.index]
+    >>> print([(i // 6, i % 6) for i in table.index])
     [(2, 0), (1, 0), (2, 1), (1, 1), (0, 1), (2, 2), (1, 2), (0, 2),
      (5, 2), (5, 1), (4, 2), (4, 1), (4, 0), (3, 2), (3, 1), (3, 0)]
 
@@ -148,7 +148,7 @@ class PackedTable(object):
             self._special_attributes += (k,)
             if v is None and isclassattr(k, type(self)):
                 continue
-            if not callable(v):
+            if not isinstance(v, collections.Callable):
                 v = self.pack(v, copy=True)
             setattr(self, k, v)
 
@@ -255,7 +255,7 @@ class PackedTable(object):
             raise AttributeError('The attribute {0!r} is not writeable.'.format(key))
         if (
             value is not None
-            and not callable(value)
+            and not isinstance(value, collections.Callable)
             and key in self._special_attributes
         ):
             value = np.asanyarray(value)
@@ -267,7 +267,9 @@ class PackedTable(object):
             elif value.ndim == 0:
                 try:
                     old_value = object.__getattribute__(self, key)
-                    if old_value is not None and not callable(old_value):
+                    if old_value is not None and not isinstance(
+                        old_value, collections.Callable
+                    ):
                         old_value[...] = value
                         return
                 except AttributeError:
@@ -286,7 +288,7 @@ class PackedTable(object):
         value = object.__getattribute__(self, key)
         if key not in object.__getattribute__(
             self, '_special_attributes'
-        ) or not callable(value):
+        ) or not isinstance(value, collections.Callable):
             return value
         spec = inspect.getargspec(value)
         nargs = len(spec.args)
@@ -348,7 +350,7 @@ class PackedTable(object):
             if _ not in ('index', 'removed')
             and not isinstance(
                 object.__getattribute__(self, _),
-                (types.FunctionType, types.MethodType, types.NoneType),
+                (types.FunctionType, types.MethodType, type(None)),
             )
         )
         if len(attributes) > 1:
@@ -785,7 +787,7 @@ class UnpackedTable(object):
         v = getattr(self._packed, key)
         if v is None:
             return v
-        if callable(v):
+        if isinstance(v, collections.Callable):
             return lambda *args: self._packed.unpack(v(*args))
         out = self._packed.unpack(v).view()
         out.flags.writeable = False
@@ -806,6 +808,6 @@ class UnpackedTable(object):
             raise AttributeError('{0!r} is not an unpacked attribute.'.format(key))
         if key in p._reserved_attributes:
             raise AttributeError('The attribute {0!r} is not writeable.'.format(key))
-        if callable(value):
+        if isinstance(value, collections.Callable):
             raise TypeError('A function cannot be set as an unpacked attribute.')
         object.__setattr__(p, key, p.pack(value, copy=True))

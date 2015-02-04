@@ -7,7 +7,7 @@ dist
 _site
 htmlcov
 pysimulators/__init__.py
-pysimulators/_flib.so
+pysimulators/*.so
 src/module_geometry.f90
 src/module_math.f90
 src/operators.f90

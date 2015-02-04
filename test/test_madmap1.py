@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import absolute_import, division, print_function
 
 import astropy.io.fits as pyfits
 import numpy as np
@@ -16,14 +16,20 @@ def mapper_naive(tod, H):
     m.coverage = c
     return m
 
-profile = None #'test_madcap.png'
+
+profile = None  #'test_madcap.png'
 path = 'test/data/madmap1/'
 map_ref = pyfits.open(path + 'naivemapSpirePSW.fits')['image'].data
 name = 'SPIRE/PSW'
-obs = MadMap1Observation(name, 135, path + 'todSpirePSW_be',
-                         path + 'invnttSpirePSW_be',
-                         path + 'madmapSpirePSW.fits[coverage]',
-                         bigendian=True, missing_value=np.nan)
+obs = MadMap1Observation(
+    name,
+    135,
+    path + 'todSpirePSW_be',
+    path + 'invnttSpirePSW_be',
+    path + 'madmapSpirePSW.fits[coverage]',
+    bigendian=True,
+    missing_value=np.nan,
+)
 
 tod = obs.get_tod(unit='Jy/beam')
 projection = obs.get_operator()
@@ -42,7 +48,7 @@ def test_naive2():
     assert_same(map_naive_2d, map_ref)
 
 
-M = DiagonalOperator(packing(1/map_naive_2d.coverage))
+M = DiagonalOperator(packing(1 / map_naive_2d.coverage))
 assert np.all(np.isfinite(M.data))
 
 invntt = obs.get_invntt_operator(fftw_flag='FFTW_PATIENT')
@@ -55,24 +61,25 @@ class Callback:
     def __call__(self, x):
         self.niterations += 1
 
+
 callback = Callback()
-#callback = None
+# callback = None
 
 
 def test_ls():
     H = projection
-    m = pcg(H.T * invntt * H, (H.T*invntt)(tod), M=M, tol=1e-7)
+    m = pcg(H.T * invntt * H, (H.T * invntt)(tod), M=M, tol=1e-7)
     map_ls_packed = Map(m['x'])
     map_ls_packed.header['TIME'] = m['time']
 
-    #print 'Elapsed time:', map_ls_packed.header['TIME']
-    #from tamasis import mapper_ls
-    #map_ls_packed = mapper_ls(tod, projection, invntt=invntt, tol=1e-7, M=M,
+    # print('Elapsed time:', map_ls_packed.header['TIME'])
+    # from tamasis import mapper_ls
+    # map_ls_packed = mapper_ls(tod, projection, invntt=invntt, tol=1e-7, M=M,
     #                          callback=callback, criterion=False,
     #                          profile=profile)
     if profile:
         return
-    print 'Elapsed time:', map_ls_packed.header['TIME']
+    print('Elapsed time:', map_ls_packed.header['TIME'])
     assert m['nit'] < 50
     ref = packing(Map(path + 'madmapSpirePSW.fits'))
     assert_allclose(map_ls_packed, ref, atol=1e-5)

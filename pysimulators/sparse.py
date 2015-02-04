@@ -8,18 +8,21 @@ Patch PyOperator's SparseOperator to include the following formats:
     - Fixed Sparse Row Rotation 3d (FSRRotation3dMatrix)
 
 """
-from __future__ import division
-
-import numpy as np
-import operator
-import pyoperators
-import scipy.sparse as sp
+from __future__ import absolute_import, division, print_function
 from pyoperators import operation_assignment
 from pyoperators.linear import SparseBase
 from pyoperators.memory import empty
 from pyoperators.utils import isscalarlike, product, tointtuple
 from pysimulators._flib import sparse as fsp
 from pysimulators._flib import operators as fop
+import numpy as np
+import operator
+import pyoperators
+import scipy.sparse as sp
+import sys
+
+if sys.version_info.major == 2:
+    range = xrange
 
 __all__ = []
 
@@ -261,11 +264,11 @@ class FSCMatrix(_FSMatrix):
         v = v.reshape(-1, block_size)
         out_ = out.reshape(-1, block_size)
         if data.index.dtype.kind == 'u':
-            for i in xrange(self.shape[1]):
+            for i in range(self.shape[1]):
                 for b in data[i]:
                     out_[b.index] += b.value * v[i]
         else:
-            for i in xrange(self.shape[1]):
+            for i in range(self.shape[1]):
                 for b in data[i]:
                     if b.index >= 0:
                         out_[b.index] += b.value * v[i]
@@ -315,11 +318,11 @@ class FSRMatrix(_FSMatrix):
         v = v.reshape(-1, block_size)
         out_ = out.reshape(-1, block_size)
         if data.index.dtype.kind == 'u':
-            for i in xrange(self.shape[0]):
+            for i in range(self.shape[0]):
                 b = data[i]
                 out_[i] += np.sum(b.value[:, None] * v[b.index], axis=0)
         else:
-            for i in xrange(self.shape[0]):
+            for i in range(self.shape[0]):
                 b = data[i]
                 b = b[b.index >= 0]
                 out_[i] += np.sum(b.value[:, None] * v[b.index], axis=0)
@@ -404,7 +407,7 @@ class FSCRotation2dMatrix(_FSRotation2dMatrix):
         data = self.data.reshape((-1, self.data.shape[-1]))
         out_ = out.reshape(-1, 2)
         v = v.reshape(-1, 2)
-        for i in xrange(self.shape[1] // 2):
+        for i in range(self.shape[1] // 2):
             for b in data[i]:
                 if b.index >= 0:
                     out_[b.index, 0] += b.r11 * v[i, 0] + b.r21 * v[i, 1]
@@ -451,7 +454,7 @@ class FSRRotation2dMatrix(_FSRotation2dMatrix):
         data = self.data.reshape((-1, self.data.shape[-1]))
         out_ = out.reshape(-1, 2)
         v = v.reshape(-1, 2)
-        for i in xrange(self.shape[0] // 2):
+        for i in range(self.shape[0] // 2):
             b = data[i]
             b = b[b.index >= 0]
             out_[i, 0] += np.sum(b.r11 * v[b.index, 0] - b.r21 * v[b.index, 1])
@@ -538,7 +541,7 @@ class FSCRotation3dMatrix(_FSRotation3dMatrix):
         data = self.data.reshape(-1, self.nrowmax)
         out_ = out.reshape(-1, 3)
         v = v.reshape(-1, 3)
-        for i in xrange(self.shape[1] // 3):
+        for i in range(self.shape[1] // 3):
             for b in data[i]:
                 if b.index >= 0:
                     out_[b.index, 0] += b.r11 * v[i, 0]
@@ -587,7 +590,7 @@ class FSRRotation3dMatrix(_FSRotation3dMatrix):
         data = self.data.reshape((-1, self.data.shape[-1]))
         out_ = out.reshape(-1, 3)
         v = v.reshape(-1, 3)
-        for i in xrange(self.shape[0] // 3):
+        for i in range(self.shape[0] // 3):
             b = data[i]
             b = b[b.index >= 0]
             out_[i, 0] += np.sum(b.r11 * v[b.index, 0])

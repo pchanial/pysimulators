@@ -1,5 +1,4 @@
-from __future__ import division
-import numpy as np
+from __future__ import absolute_import, division, print_function
 from astropy.time import Time, TimeDelta
 from pyoperators import (
     DifferenceOperator,
@@ -16,6 +15,7 @@ from ..operators import (
     SphericalHorizontal2EquatorialOperator,
 )
 from ..quantities import Quantity
+import numpy as np
 
 __all__ = ['Sampling', 'PointingSpherical', 'PointingEquatorial', 'PointingHorizontal']
 
@@ -384,7 +384,7 @@ def _plot_scan(image, ra, dec, linewidth=None, **kw):
 
     x, y = image.topixel(ra, dec)
     p = mp.plot(x, y, linewidth=linewidth, **kw)
-    for i in xrange(ra.size):
-        if np.isfinite(x[i]) and np.isfinite(y[i]):
-            mp.plot(x[i], y[i], 'o', color=p[0]._color)
+    for x_, y_ in np.broadcast(x, y):
+        if np.isfinite(x_) and np.isfinite(y_):
+            mp.plot(x_, y_, 'o', color=p[0]._color)
             break
