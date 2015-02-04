@@ -2,15 +2,13 @@
 # All rights reserved
 #
 from __future__ import division
-
-import numpy as np
-import os
-import sys
-
 from astropy.io import fits as pyfits
 from pyoperators.utils import omp_num_threads, product, split, strshape
 from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine
 from .wcsutils import create_fitsheader_for, has_wcs
+import numpy as np
+import os
+import sys
 
 __all__ = []
 
@@ -252,7 +250,7 @@ def write_fits(filename, data, header, extension, extname, comm):
     else:
         header = header.copy()
     if extname is not None:
-        header.update('extname', extname)
+        header['extname'] = extname
 
     # we remove the file first to avoid an annoying pyfits informative message
     if not extension:
@@ -303,7 +301,7 @@ def write_fits(filename, data, header, extension, extname, comm):
     chunk = product(data.shape[1:])
     rank_nowork = min(comm.size, nglobal)
     group = comm.Get_group()
-    group.Incl(range(rank_nowork))
+    group.Incl(list(range(rank_nowork)))
     newcomm = comm.Create(group)
 
     # collectively write data

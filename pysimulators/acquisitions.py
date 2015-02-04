@@ -347,7 +347,7 @@ class Acquisition(object):
             scan, scan.header = (np.hstack([scan, cross]).view(), scan.header)
 
         scan.pa = angle + instrument_angle
-        scan.header.update('HIERARCH instrument_angle', instrument_angle)
+        scan.header['HIERARCH instrument_angle'] = instrument_angle
         return scan
 
     def plot(self, map=None, header=None, new_figure=True, percentile=0.01, **keywords):
@@ -774,14 +774,14 @@ def _create_scan(
 
     scan = Pointing((ra, dec, 0.0), time, infos, dtype=dtype)
     header = create_fitsheader(nsamples)
-    header.update('ra', ra0)
-    header.update('dec', dec0)
-    header.update('HIERARCH scan_angle', angle)
-    header.update('HIERARCH scan_length', length)
-    header.update('HIERARCH scan_nlegs', nlegs)
-    header.update('HIERARCH scan_step', step)
-    header.update('HIERARCH scan_speed', speed)
-    header.update('HIERARCH scan_acceleration', acceleration)
+    header['ra'] = ra0
+    header['dec'] = dec0
+    header['HIERARCH scan_angle'] = angle
+    header['HIERARCH scan_length'] = length
+    header['HIERARCH scan_nlegs'] = nlegs
+    header['HIERARCH scan_step'] = step
+    header['HIERARCH scan_speed'] = speed
+    header['HIERARCH scan_acceleration'] = acceleration
     scan.header = header
     return scan
 
