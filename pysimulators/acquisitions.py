@@ -842,12 +842,14 @@ class MaskPolicy(object):
             if isinstance(flags, str):
                 flags = flags.split(',')
             else:
-                flags = (flags,)
+                flags = [flags]
+        flags = [_.strip() for _ in flags]
         if isscalarlike(values):
             if isinstance(values, str):
                 values = values.split(',')
             else:
-                values = (values,)
+                values = [values]
+        values = [_.strip().lower() for _ in values]
         if len(flags) != len(values):
             raise ValueError(
                 'The number of policy flags is different from the'
@@ -860,27 +862,22 @@ class MaskPolicy(object):
                 raise ValueError(
                     'A policy flag should not start with an under' 'score.'
                 )
-            value = value.strip().lower()
-            choices = ('keep', 'mask', 'remove')
+            choices = 'keep', 'mask', 'remove'
             if value not in choices:
                 raise KeyError(
-                    'Invalid policy ' + flag + "='" + value + "'. E"
-                    "xpected ones are " + strenum(choices) + '.'
+                    'Invalid policy {}={!r}. Expected values are {}'
+                    '.'.format(flag, value, strenum(choices))
                 )
-            self._policy.append({flag: value})
             setattr(self, flag, value)
-        self._policy = tuple(self._policy)
+        self._flags = flags
 
     def __array__(self, dtype=int):
         conversion = {'keep': self.KEEP, 'mask': self.MASK, 'remove': self.REMOVE}
         return np.array(
-            [conversion[policy.values()[0]] for policy in self._policy], dtype=dtype
+            [conversion[getattr(self, _)] for _ in self._flags], dtype=dtype
         )
 
     def __str__(self):
-        str = self._description + ': ' if self._description is not None else ''
-        str_ = []
-        for policy in self._policy:
-            str_.append(policy.values()[0] + " '" + policy.keys()[0] + "'")
-        str += ', '.join(str_)
-        return str
+        s = self._description + ': ' if self._description is not None else ''
+        s += ', '.join('{}={!r}'.format(_, getattr(self, _)) for _ in self._flags)
+        return s
