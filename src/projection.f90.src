@@ -26,7 +26,7 @@ contains
         real(<rkind>), intent(in)    :: vertex(2, nvertices, ninputs)
         integer(<ikind>), intent(in) :: nx, ny
         !f2py integer*1, intent(in) :: matrix(max(ncolmax * ninputs * s, 1))
-        type(PointingElement_i<isize>_m<rsize>), intent(inout) ::              &
+        type(PointingElement_i<isize>_r<rsize>), intent(inout) ::              &
             matrix(ncolmax, ninputs)
         integer(int64), intent(out)  :: min_ncolmax
         logical, intent(out)         :: out

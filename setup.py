@@ -60,6 +60,7 @@ flib = (
             'src/module_geometry.f90.src',
             'src/module_math.f90.src',
             'src/module_math_old.f90',
+            'src/module_operators.f90.src',
             'src/module_sort.f90',
             'src/module_wcs.f90',
             'src/module_pointingmatrix.f90',

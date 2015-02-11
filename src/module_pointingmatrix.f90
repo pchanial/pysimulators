@@ -11,18 +11,18 @@ module module_pointingmatrix
     private
 
     public :: PointingElement
-    public :: PointingElement_i4_m4
-    public :: PointingElement_i4_m8
-    public :: PointingElement_i8_m4
-    public :: PointingElement_i8_m8
-    public :: PointingElementRot2d_i4_m4
-    public :: PointingElementRot2d_i4_m8
-    public :: PointingElementRot2d_i8_m4
-    public :: PointingElementRot2d_i8_m8
-    public :: PointingElementRot3d_i4_m4
-    public :: PointingElementRot3d_i4_m8
-    public :: PointingElementRot3d_i8_m4
-    public :: PointingElementRot3d_i8_m8
+    public :: PointingElement_i4_r4
+    public :: PointingElement_i4_r8
+    public :: PointingElement_i8_r4
+    public :: PointingElement_i8_r8
+    public :: PointingElementRot2d_i4_r4
+    public :: PointingElementRot2d_i4_r8
+    public :: PointingElementRot2d_i8_r4
+    public :: PointingElementRot2d_i8_r8
+    public :: PointingElementRot3d_i4_r4
+    public :: PointingElementRot3d_i4_r8
+    public :: PointingElementRot3d_i8_r4
+    public :: PointingElementRot3d_i8_r8
     public :: pmatrix_direct
     public :: pmatrix_direct_one_pixel_per_sample
     public :: pmatrix_transpose
@@ -41,62 +41,62 @@ module module_pointingmatrix
         real(sp)  :: value
     end type PointingElement
 
-    type PointingElement_i4_m4
+    type PointingElement_i4_r4
         integer*4 :: index
         real*4    :: value
     end type
 
-    type PointingElement_i8_m4
+    type PointingElement_i8_r4
         integer*8 :: index
         real*4    :: value
     end type
 
-    type PointingElement_i4_m8
+    type PointingElement_i4_r8
         integer*4 :: index
         real*8    :: value
     end type
 
-    type PointingElement_i8_m8
+    type PointingElement_i8_r8
         integer*8 :: index
         real*8    :: value
     end type
 
-    type PointingElementRot2d_i4_m4
+    type PointingElementRot2d_i4_r4
         integer*4 :: index
         real*4    :: r11, r21
     end type
 
-    type PointingElementRot2d_i8_m4
+    type PointingElementRot2d_i8_r4
         integer*8 :: index
         real*4    :: r11, r21
     end type
 
-    type PointingElementRot2d_i4_m8
+    type PointingElementRot2d_i4_r8
         integer*4 :: index
         real*8    :: r11, r21
     end type
 
-    type PointingElementRot2d_i8_m8
+    type PointingElementRot2d_i8_r8
         integer*8 :: index
         real*8    :: r11, r21
     end type
 
-    type PointingElementRot3d_i4_m4
+    type PointingElementRot3d_i4_r4
         integer*4 :: index
         real*4    :: r11, r22, r32
     end type
 
-    type PointingElementRot3d_i8_m4
+    type PointingElementRot3d_i8_r4
         integer*8 :: index
         real*4    :: r11, r22, r32
     end type
 
-    type PointingElementRot3d_i4_m8
+    type PointingElementRot3d_i4_r8
         integer*4 :: index
         real*8    :: r11, r22, r32
     end type
 
-    type PointingElementRot3d_i8_m8
+    type PointingElementRot3d_i8_r8
         integer*8 :: index
         real*8    :: r11, r22, r32
     end type

@@ -1,6 +1,4 @@
 include .coveragerc
 include hooks.py
 include README.rst
-exclude pysimulators/module_operators.f90
-exclude pysimulators/module_sparse.f90
 graft test/data

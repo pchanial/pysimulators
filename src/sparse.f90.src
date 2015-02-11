@@ -1,29 +1,33 @@
 module sparse
 
+    use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
     use module_pointingmatrix
     implicit none
-
-    ! <itype=4,4,4,8,8,8>
-    ! <mtype=4,4,8,4,4,8>
-    ! <vtype=4,8,8,4,8,8>
 
 contains
 
 
-    subroutine fsc_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input, output,    &
-                                   nrowmax, ninput, noutput)
-        integer, parameter          :: s = <itype> + <mtype>
-        integer*8, intent(in)       :: nrowmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        !f2py integer*1, intent(in) :: matrix(nrowmax*ninput*s)
-        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
-            matrix(nrowmax, ninput)
-        real*<vtype>, intent(in)    :: input(ninput)
-        real*<vtype>, intent(inout) :: output(0:noutput-1)
+    ! <ikind=int32,int32,int32,int64,int64,int64>
+    ! <isize=4,4,4,8,8,8>
+    ! <rkind=real32,real32,real64,real32,real32,real64>
+    ! <rsize=4,4,8,4,4,8>
+    ! <vkind=real32,real64,real64,real32,real64,real64>
+    ! <vsize=4,8,8,4,8,8>
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+    subroutine fsc_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output,    &
+                                   nrowmax, ninput, noutput)
+        integer, parameter           :: s = <isize> + <rsize>
+        integer(int64), intent(in)   :: nrowmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
+        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
+            matrix(nrowmax, ninput)
+        real(<vkind>), intent(in)    :: input(ninput)
+        real(<vkind>), intent(inout) :: output(0:noutput-1)
+
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         if (nrowmax == 1) then
             !$omp parallel do private(col)
@@ -51,23 +55,23 @@ contains
     end subroutine
 
 
-    subroutine fsc_nd_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input, output, &
+    subroutine fsc_nd_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output, &
                                       nrowmax, ninput, noutput, block_size)
-        integer, parameter          :: s = <itype> + <mtype>
-        integer*8, intent(in)       :: nrowmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        integer*8, intent(in)       :: block_size
-        !f2py integer*1, intent(in) :: matrix(nrowmax*ninput*s)
-        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
+        integer, parameter           :: s = <isize> + <rsize>
+        integer(int64), intent(in)   :: nrowmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        integer(int64), intent(in)   :: block_size
+        !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
+        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
             matrix(nrowmax, ninput)
-        !f2py real*<vtype>          :: input(block_size*ninput)
-        real*<vtype>, intent(in)    :: input(block_size, ninput)
-        !f2py real*<vtype>          :: output(block_size*noutput)
-        real*<vtype>, intent(inout) :: output(block_size, 0:noutput-1)
+        !f2py real(<vkind>)          :: input(block_size*ninput)
+        real(<vkind>), intent(in)    :: input(block_size, ninput)
+        !f2py real(<vkind>)          :: output(block_size*noutput)
+        real(<vkind>), intent(inout) :: output(block_size, 0:noutput-1)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         if (nrowmax == 1) then
             !$omp parallel do private(col)
@@ -97,22 +101,22 @@ contains
     end subroutine
 
 
-    subroutine fsc_rot2d_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input,      &
+    subroutine fsc_rot2d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
                                          output, nrowmax, ninput, noutput)
-        integer, parameter          :: s = <itype> + 2 * <mtype>
-        integer*8, intent(in)       :: nrowmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        !f2py integer*1, intent(in) :: matrix(nrowmax*ninput*s)
-        type(PointingElementRot2d_i<itype>_m<mtype>), intent(in) ::            &
+        integer, parameter           :: s = <isize> + 2 * <rsize>
+        integer(int64), intent(in)   :: nrowmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
+        type(PointingElementRot2d_i<isize>_r<rsize>), intent(in) ::            &
             matrix(nrowmax, ninput)
-        !f2py real*<vtype>          :: input(2*ninput)
-        real*<vtype>, intent(in)    :: input(2,ninput)
-        !f2py real*<vtype>          :: output(2*noutput)
-        real*<vtype>, intent(inout) :: output(2,0:noutput-1)
+        !f2py real(<vkind>)          :: input(2*ninput)
+        real(<vkind>), intent(in)    :: input(2,ninput)
+        !f2py real(<vkind>)          :: output(2*noutput)
+        real(<vkind>), intent(inout) :: output(2,0:noutput-1)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         !$omp parallel do private(col)
         do i = 1, ninput
@@ -132,22 +136,22 @@ contains
     end subroutine
 
 
-    subroutine fsc_rot3d_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input,      &
+    subroutine fsc_rot3d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
                                          output, nrowmax, ninput, noutput)
-        integer, parameter          :: s = <itype> + 3 * <mtype>
-        integer*8, intent(in)       :: nrowmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        !f2py integer*1, intent(in) :: matrix(nrowmax*ninput*s)
-        type(PointingElementRot3d_i<itype>_m<mtype>), intent(in) ::            &
+        integer, parameter           :: s = <isize> + 3 * <rsize>
+        integer(int64), intent(in)   :: nrowmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
+        type(PointingElementRot3d_i<isize>_r<rsize>), intent(in) ::            &
             matrix(nrowmax, ninput)
-        !f2py real*<vtype>          :: input(3*ninput)
-        real*<vtype>, intent(in)    :: input(3,ninput)
-        !f2py real*<vtype>          :: output(3*noutput)
-        real*<vtype>, intent(inout) :: output(3,0:noutput-1)
+        !f2py real(<vkind>)          :: input(3*ninput)
+        real(<vkind>), intent(in)    :: input(3,ninput)
+        !f2py real(<vkind>)          :: output(3*noutput)
+        real(<vkind>), intent(inout) :: output(3,0:noutput-1)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         !$omp parallel do private(col)
         do i = 1, ninput
@@ -169,20 +173,20 @@ contains
     end subroutine
 
 
-    subroutine fsr_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input, output,    &
+    subroutine fsr_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output,    &
                                    ncolmax, ninput, noutput)
-        integer, parameter          :: s = <itype> + <mtype>
-        integer*8, intent(in)       :: ncolmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        !f2py integer*1, intent(in) :: matrix(ncolmax*noutput*s)
-        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
+        integer, parameter           :: s = <isize> + <rsize>
+        integer(int64), intent(in)   :: ncolmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
+        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
             matrix(ncolmax, noutput)
-        real*<vtype>, intent(in)    :: input(0:ninput-1)
-        real*<vtype>, intent(inout) :: output(noutput)
+        real(<vkind>), intent(in)    :: input(0:ninput-1)
+        real(<vkind>), intent(inout) :: output(noutput)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         if (ncolmax == 1) then
             !$omp parallel do private(col)
@@ -211,23 +215,23 @@ contains
     end subroutine
 
 
-    subroutine fsr_nd_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input, output, &
+    subroutine fsr_nd_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output, &
                                       ncolmax, ninput, noutput, block_size)
-        integer, parameter          :: s = <itype> + <mtype>
-        integer*8, intent(in)       :: ncolmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        integer*8, intent(in)       :: block_size
-        !f2py integer*1, intent(in) :: matrix(ncolmax*noutput*s)
-        type(PointingElement_i<itype>_m<mtype>), intent(in) ::                 &
+        integer, parameter           :: s = <isize> + <rsize>
+        integer(int64), intent(in)   :: ncolmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        integer(int64), intent(in)   :: block_size
+        !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
+        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
             matrix(ncolmax, noutput)
-        !f2py real*<vtype>          :: input(block_size*ninput)
-        real*<vtype>, intent(in)    :: input(block_size, 0:ninput-1)
-        !f2py real*<vtype>          :: output(block_size*noutput)
-        real*<vtype>, intent(inout) :: output(block_size, noutput)
+        !f2py real(<vkind>)          :: input(block_size*ninput)
+        real(<vkind>), intent(in)    :: input(block_size, 0:ninput-1)
+        !f2py real(<vkind>)          :: output(block_size*noutput)
+        real(<vkind>), intent(inout) :: output(block_size, noutput)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         if (ncolmax == 1) then
             !$omp parallel do private(col)
@@ -253,22 +257,22 @@ contains
     end subroutine
 
 
-    subroutine fsr_rot2d_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input,      &
+    subroutine fsr_rot2d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
                                          output, ncolmax, ninput, noutput)
-        integer, parameter          :: s = <itype> + 2 * <mtype>
-        integer*8, intent(in)       :: ncolmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        !f2py integer*1, intent(in) :: matrix(ncolmax*noutput*s)
-        type(PointingElementRot2d_i<itype>_m<mtype>), intent(in) ::            &
+        integer, parameter           :: s = <isize> + 2 * <rsize>
+        integer(int64), intent(in)   :: ncolmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
+        type(PointingElementRot2d_i<isize>_r<rsize>), intent(in) ::            &
             matrix(ncolmax, noutput)
-        !f2py real*<vtype>          :: input(2*ninput)
-        real*<vtype>, intent(in)    :: input(2,0:ninput-1)
-        !f2py real*<vtype>          :: output(2*noutput)
-        real*<vtype>, intent(inout) :: output(2,noutput)
+        !f2py real(<vkind>)          :: input(2*ninput)
+        real(<vkind>), intent(in)    :: input(2,0:ninput-1)
+        !f2py real(<vkind>)          :: output(2*noutput)
+        real(<vkind>), intent(inout) :: output(2,noutput)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         !$omp parallel do private(col)
         do i = 1, noutput
@@ -286,22 +290,22 @@ contains
     end subroutine
 
 
-    subroutine fsr_rot3d_matvec_i<itype>_m<mtype>_v<vtype>(matrix, input,      &
+    subroutine fsr_rot3d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
                                          output, ncolmax, ninput, noutput)
-        integer, parameter          :: s = <itype> + 3 * <mtype>
-        integer*8, intent(in)       :: ncolmax
-        integer*8, intent(in)       :: ninput
-        integer*8, intent(in)       :: noutput
-        !f2py integer*1, intent(in) :: matrix(ncolmax*noutput*s)
-        type(PointingElementRot3d_i<itype>_m<mtype>), intent(in) ::            &
+        integer, parameter           :: s = <isize> + 3 * <rsize>
+        integer(int64), intent(in)   :: ncolmax
+        integer(int64), intent(in)   :: ninput
+        integer(int64), intent(in)   :: noutput
+        !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
+        type(PointingElementRot3d_i<isize>_r<rsize>), intent(in) ::            &
             matrix(ncolmax, noutput)
-        !f2py real*<vtype>          :: input(3*ninput)
-        real*<vtype>, intent(in)    :: input(3,0:ninput-1)
-        !f2py real*<vtype>          :: output(3*noutput)
-        real*<vtype>, intent(inout) :: output(3,noutput)
+        !f2py real(<vkind>)          :: input(3*ninput)
+        real(<vkind>), intent(in)    :: input(3,0:ninput-1)
+        !f2py real(<vkind>)          :: output(3*noutput)
+        real(<vkind>), intent(inout) :: output(3,noutput)
 
-        integer*8 :: i, j
-        integer*<itype> :: col
+        integer(int64) :: i, j
+        integer(<ikind>) :: col
 
         !$omp parallel do private(col)
         do i = 1, noutput

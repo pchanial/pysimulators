@@ -1,0 +1,103 @@
+module module_operators
+
+    use, intrinsic :: iso_fortran_env, only : int64, real32, real64
+    implicit none
+
+contains
+
+    ! <rkind=real32,real64>
+    ! <rsize=4,8>
+
+    subroutine trexp_direct_inplace_r<rsize>(input, tau)
+        real(<rkind>), intent(inout) :: input(:)
+        real(<rkind>), intent(in)    :: tau
+        integer(int64) :: i
+        real(<rkind>) :: v, w
+
+        if (tau == 0) then
+            return
+        else if (tau < 0) then
+            input = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        do i = 2, size(input)
+            input(i) = w * input(i-1) + v * input(i)
+        end do
+
+    end subroutine
+
+
+    subroutine trexp_direct_outplace_r<rsize>(input, output, tau)
+        real(<rkind>), intent(in)    :: input(:)
+        real(<rkind>), intent(inout) :: output(size(input))
+        real(<rkind>), intent(in)    :: tau
+        integer(int64) :: i
+        real(<rkind>) :: v, w
+
+        if (tau == 0) then
+            output = input
+            return
+        else if (tau < 0) then
+            output = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        output(1) = input(1)
+        do i = 2, size(input)
+            output(i) = w * output(i-1) + v * input(i)
+        end do
+
+    end subroutine
+
+
+    subroutine trexp_transpose_inplace_r<rsize>(input, tau)
+        real(<rkind>), intent(inout) :: input(:)
+        real(<rkind>), intent(in)    :: tau
+        integer(int64) :: n, i
+        real(<rkind>) :: v, w
+
+        n = size(input)
+        if (tau == 0) then
+            return
+        else if (tau < 0) then
+            input = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        do i = n - 1, 1, -1
+            input(i) = w * input(i+1) + v * input(i)
+        end do
+        input(1) = input(1) / v
+
+    end subroutine
+
+
+    subroutine trexp_transpose_outplace_r<rsize>(input, output, tau)
+        real(<rkind>), intent(in)    :: input(:)
+        real(<rkind>), intent(inout) :: output(size(input))
+        real(<rkind>), intent(in)    :: tau
+        integer(int64) :: n, i
+        real(<rkind>) :: v, w
+
+        n = size(input)
+        if (tau == 0) then
+            output = input
+        else if (tau < 0) then
+            output = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        output(n) = v * input(n)
+        do i = n - 1, 1, -1
+            output(i) = w * output(i+1) + v * input(i)
+        end do
+        output(1) = output(1) / v
+
+    end subroutine
+
+end module module_operators

@@ -145,7 +145,7 @@ class _FSMatrix(object):
             block_size = v.size // self.shape[1]
             if block_size > 1:
                 flib_id += '_nd'
-        f = '{0}_matvec_i{1}_m{2}_v{3}'.format(
+        f = '{0}_matvec_i{1}_r{2}_v{3}'.format(
             flib_id, di.itemsize, ds.itemsize, dv.itemsize
         )
         func = getattr(fsp, f)
@@ -805,7 +805,7 @@ class SparseOperator(SparseBase):
         itype = matrix.data.index.dtype
         mtype = matrix.dtype
         if str(itype) in ('int32', 'int64') and str(mtype) in ('float32', 'float64'):
-            f = 'fsr{0}_restrict_i{1}_m{2}'.format(
+            f = 'fsr{0}_restrict_i{1}_r{2}'.format(
                 flib_id, itype.itemsize, mtype.itemsize
             )
             func = getattr(fop, f)
