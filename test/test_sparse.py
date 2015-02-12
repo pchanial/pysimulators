@@ -4,7 +4,12 @@ import numpy as np
 import pyoperators
 import scipy.sparse
 from numpy.testing import assert_equal, assert_raises
-from pyoperators import Rotation2dOperator, Rotation3dOperator
+from pyoperators import (
+    CompositionOperator,
+    DiagonalOperator,
+    Rotation2dOperator,
+    Rotation3dOperator,
+)
 from pyoperators.utils.testing import assert_is_type, assert_same
 from pysimulators.sparse import (
     FSCMatrix,
@@ -167,23 +172,27 @@ def test_fsr1():
     expected = [4, 3, 1.5, 2, 6, 0]
     expected_u = [4, 3, 1.5, 2, 6, 40]
 
-    def func(itype, ftype, vtype, block_size):
+    def get_mat(itype, ftype):
         if np.dtype(itype).kind != 'u':
             ind = index
-            exp = expected
         else:
             ind = index_u
+        dtype = [('index', itype), ('value', ftype)]
+        matrix = np.recarray((6, 1), dtype=dtype)
+        matrix[..., 0].index = ind
+        matrix[..., 0].value = value
+        return FSRMatrix((6, 4), matrix)
+
+    def func1(itype, ftype, vtype, block_size):
+        if np.dtype(itype).kind != 'u':
+            exp = expected
+        else:
             exp = expected_u
         input_ = np.array(input, vtype)
         if block_size == 2:
             input_ = np.array([input_, input_]).T.ravel()
             exp = np.array([exp, exp]).T.ravel()
-
-        dtype = [('index', itype), ('value', ftype)]
-        matrix = np.recarray((6, 1), dtype=dtype)
-        matrix[..., 0].index = ind
-        matrix[..., 0].value = value
-        op = FSRMatrix((6, 4), matrix)
+        op = get_mat(itype, ftype)
         out = op * input_
         assert_same(out, exp)
         out[...] = 0
@@ -194,7 +203,27 @@ def test_fsr1():
         for ftype in ftypes:
             for vtype in ftypes:
                 for block_size in (1, 2):
-                    yield func, itype, ftype, vtype, block_size
+                    yield func1, itype, ftype, vtype, block_size
+
+    def func2(itype, ftype):
+        mat = get_mat(itype, ftype)
+        op = SparseOperator(mat, shapein=4)
+        todense = op.todense()
+        pTp = op.T * op
+        if (itype, ftype) not in (
+            (np.int32, np.float32),
+            (np.int32, np.float64),
+            (np.int64, np.float32),
+            (np.int64, np.float64),
+        ):
+            assert_is_type(pTp, CompositionOperator)
+            return
+        assert_is_type(pTp, DiagonalOperator)
+        assert_same(pTp.todense(), np.dot(todense.T, todense))
+
+    for itype in iutypes + itypes:
+        for ftype in ftypes:
+            yield func2, itype, ftype
 
 
 def test_fsr2():
@@ -318,7 +347,7 @@ def test_rot2d():
             array[i, n].r21 = r[1, 0]
             dense[2 * i : 2 * i + 2, 2 * j : 2 * j + 2] += r
 
-    def func(itype, ftype):
+    def func1(itype, ftype):
         array = np.recarray(
             (6, 2), dtype=[('index', itype), ('r11', ftype), ('r21', ftype)]
         )
@@ -361,7 +390,30 @@ def test_rot2d():
 
     for itype in itypes:
         for ftype in ftypes:
-            yield func, itype, ftype
+            yield func1, itype, ftype
+
+    def func2(itype, ftype):
+        array = np.recarray(
+            (6, 1), dtype=[('index', itype), ('r11', ftype), ('r21', ftype)]
+        )
+        dense = np.zeros((6 * 2, 4 * 2), dtype=ftype)
+        fill(array, dense, index1, value1, angle1, 0)
+        op = SparseOperator(FSRRotation2dMatrix(dense.shape, array))
+        pTp = op.T * op
+        if (itype, ftype) not in (
+            (np.int32, np.float32),
+            (np.int32, np.float64),
+            (np.int64, np.float32),
+            (np.int64, np.float64),
+        ):
+            assert_is_type(pTp, CompositionOperator)
+            return
+        assert_is_type(pTp, DiagonalOperator)
+        assert_same(pTp.todense(), np.dot(dense.T, dense))
+
+    for itype in itypes:
+        for ftype in ftypes:
+            yield func2, itype, ftype
 
 
 def test_fsc_rot2d_error():
@@ -440,7 +492,7 @@ def test_rot3d():
             array[i, n].r32 = r[2, 1]
             dense[3 * i : 3 * i + 3, 3 * j : 3 * j + 3] += r
 
-    def func(itype, ftype):
+    def func1(itype, ftype):
         array = np.recarray(
             (6, 2),
             dtype=[('index', itype), ('r11', ftype), ('r22', ftype), ('r32', ftype)],
@@ -484,7 +536,31 @@ def test_rot3d():
 
     for itype in itypes:
         for ftype in ftypes:
-            yield func, itype, ftype
+            yield func1, itype, ftype
+
+    def func2(itype, ftype):
+        array = np.recarray(
+            (6, 1),
+            dtype=[('index', itype), ('r11', ftype), ('r22', ftype), ('r32', ftype)],
+        )
+        dense = np.zeros((6 * 3, 4 * 3), dtype=ftype)
+        fill(array, dense, index1, value1, angle1, 0)
+        op = SparseOperator(FSRRotation3dMatrix(dense.shape, array))
+        pTp = op.T * op
+        if (itype, ftype) not in (
+            (np.int32, np.float32),
+            (np.int32, np.float64),
+            (np.int64, np.float32),
+            (np.int64, np.float64),
+        ):
+            assert_is_type(pTp, CompositionOperator)
+            return
+        assert_is_type(pTp, DiagonalOperator)
+        assert_same(pTp.todense(), np.dot(dense.T, dense), atol=1)
+
+    for itype in itypes:
+        for ftype in ftypes:
+            yield func2, itype, ftype
 
 
 def test_fsc_rot3d_error():

@@ -324,4 +324,91 @@ contains
     end subroutine
 
 
+    ! <ikind=int32,int32,int32,int64,int64,int64>
+    ! <isize=4,4,4,8,8,8>
+    ! <rkind=real32,real32,real64,real32,real32,real64>
+    ! <rsize=4,4,8,4,4,8>
+    ! <vkind=real32,real64,real64,real32,real64,real64>
+    ! <vsize=4,8,8,4,8,8>
+
+    subroutine fsc_fsr_ncolmax1_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+            ninput, noutput)
+        integer, parameter          :: s = <isize> + <rsize>
+        integer(int64), intent(in)  :: ninput
+        integer(int64), intent(in)  :: noutput
+        !f2py integer*1, intent(in) :: matrix(s*noutput)
+        type(PointingElement_i<isize>_r<rsize>), intent(in) :: matrix(noutput)
+        real(<vkind>), intent(inout) :: input(0:ninput-1)
+
+        integer(int64)   :: i
+        integer(<ikind>) :: col
+
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            col = matrix(i)%index
+            if (col < 0) cycle
+            !$omp atomic
+            input(col) = input(col) + matrix(i)%value**2
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsc_fsr_rot2d_ncolmax1_i<isize>_r<rsize>_v<vsize>(matrix, input,&
+            ninput, noutput)
+        integer, parameter          :: s = <isize> + 2 * <rsize>
+        integer(int64), intent(in)  :: ninput
+        integer(int64), intent(in)  :: noutput
+        !f2py integer*1, intent(in) :: matrix(s*noutput)
+        type(PointingElementRot2d_i<isize>_r<rsize>), intent(in) :: matrix(noutput)
+        !f2py real(<vkind>)          :: input(2*ninput)
+        real(<vkind>), intent(inout) :: input(2,0:ninput-1)
+
+        integer(int64)   :: i
+        integer(<ikind>) :: col
+
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            col = matrix(i)%index
+            if (col < 0) cycle
+            !$omp critical
+            input(:,col) = input(:,col) + matrix(i)%r11**2 + matrix(i)%r21**2
+            !$omp end critical
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsc_fsr_rot3d_ncolmax1_i<isize>_r<rsize>_v<vsize>(matrix, input,&
+            ninput, noutput)
+        integer, parameter          :: s = <isize> + 3 * <rsize>
+        integer(int64), intent(in)  :: ninput
+        integer(int64), intent(in)  :: noutput
+        !f2py integer*1, intent(in) :: matrix(s*noutput)
+        type(PointingElementRot3d_i<isize>_r<rsize>), intent(in) :: matrix(noutput)
+        !f2py real(<vkind>)          :: input(3*ninput)
+        real(<vkind>), intent(inout) :: input(3,0:ninput-1)
+
+        integer(int64)   :: i
+        integer(<ikind>) :: col
+        real(<vkind>)    :: val
+
+        !$omp parallel do private(col, val)
+        do i = 1, noutput
+            col = matrix(i)%index
+            if (col < 0) cycle
+            val = matrix(i)%r22**2 + matrix(i)%r32**2
+            !$omp critical
+            input(1,col) = input(1,col) + matrix(i)%r11**2
+            input(2,col) = input(2,col) + val
+            input(3,col) = input(3,col) + val
+            !$omp end critical
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
 end module sparse
