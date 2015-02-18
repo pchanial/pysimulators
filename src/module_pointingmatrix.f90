@@ -15,6 +15,38 @@ module module_pointingmatrix
     public :: PointingElement_i4_r8
     public :: PointingElement_i8_r4
     public :: PointingElement_i8_r8
+    public :: PointingElementBlock_1_2_i4_r4
+    public :: PointingElementBlock_1_2_i4_r8
+    public :: PointingElementBlock_1_2_i8_r4
+    public :: PointingElementBlock_1_2_i8_r8
+    public :: PointingElementBlock_1_3_i4_r4
+    public :: PointingElementBlock_1_3_i4_r8
+    public :: PointingElementBlock_1_3_i8_r4
+    public :: PointingElementBlock_1_3_i8_r8
+    public :: PointingElementBlock_2_1_i4_r4
+    public :: PointingElementBlock_2_1_i4_r8
+    public :: PointingElementBlock_2_1_i8_r4
+    public :: PointingElementBlock_2_1_i8_r8
+    public :: PointingElementBlock_2_2_i4_r4
+    public :: PointingElementBlock_2_2_i4_r8
+    public :: PointingElementBlock_2_2_i8_r4
+    public :: PointingElementBlock_2_2_i8_r8
+    public :: PointingElementBlock_2_3_i4_r4
+    public :: PointingElementBlock_2_3_i4_r8
+    public :: PointingElementBlock_2_3_i8_r4
+    public :: PointingElementBlock_2_3_i8_r8
+    public :: PointingElementBlock_3_1_i4_r4
+    public :: PointingElementBlock_3_1_i4_r8
+    public :: PointingElementBlock_3_1_i8_r4
+    public :: PointingElementBlock_3_1_i8_r8
+    public :: PointingElementBlock_3_2_i4_r4
+    public :: PointingElementBlock_3_2_i4_r8
+    public :: PointingElementBlock_3_2_i8_r4
+    public :: PointingElementBlock_3_2_i8_r8
+    public :: PointingElementBlock_3_3_i4_r4
+    public :: PointingElementBlock_3_3_i4_r8
+    public :: PointingElementBlock_3_3_i8_r4
+    public :: PointingElementBlock_3_3_i8_r8
     public :: PointingElementRot2d_i4_r4
     public :: PointingElementRot2d_i4_r8
     public :: PointingElementRot2d_i8_r4
@@ -59,6 +91,166 @@ module module_pointingmatrix
     type PointingElement_i8_r8
         integer*8 :: index
         real*8    :: value
+    end type
+
+    type PointingElementBlock_1_2_i4_r4
+        integer*4 :: index
+        real*4    :: value(2,1)
+    end type
+
+    type PointingElementBlock_1_2_i8_r4
+        integer*8 :: index
+        real*4    :: value(2,1)
+    end type
+
+    type PointingElementBlock_1_2_i4_r8
+        integer*4 :: index
+        real*8    :: value(2,1)
+    end type
+
+    type PointingElementBlock_1_2_i8_r8
+        integer*8 :: index
+        real*8    :: value(2,1)
+    end type
+
+    type PointingElementBlock_1_3_i4_r4
+        integer*4 :: index
+        real*4    :: value(3,1)
+    end type
+
+    type PointingElementBlock_1_3_i8_r4
+        integer*8 :: index
+        real*4    :: value(3,1)
+    end type
+
+    type PointingElementBlock_1_3_i4_r8
+        integer*4 :: index
+        real*8    :: value(3,1)
+    end type
+
+    type PointingElementBlock_1_3_i8_r8
+        integer*8 :: index
+        real*8    :: value(3,1)
+    end type
+
+    type PointingElementBlock_2_1_i4_r4
+        integer*4 :: index
+        real*4    :: value(1,2)
+    end type
+
+    type PointingElementBlock_2_1_i8_r4
+        integer*8 :: index
+        real*4    :: value(1,2)
+    end type
+
+    type PointingElementBlock_2_1_i4_r8
+        integer*4 :: index
+        real*8    :: value(1,2)
+    end type
+
+    type PointingElementBlock_2_1_i8_r8
+        integer*8 :: index
+        real*8    :: value(1,2)
+    end type
+
+    type PointingElementBlock_2_2_i4_r4
+        integer*4 :: index
+        real*4    :: value(2,2)
+    end type
+
+    type PointingElementBlock_2_2_i8_r4
+        integer*8 :: index
+        real*4    :: value(2,2)
+    end type
+
+    type PointingElementBlock_2_2_i4_r8
+        integer*4 :: index
+        real*8    :: value(2,2)
+    end type
+
+    type PointingElementBlock_2_2_i8_r8
+        integer*8 :: index
+        real*8    :: value(2,2)
+    end type
+
+    type PointingElementBlock_2_3_i4_r4
+        integer*4 :: index
+        real*4    :: value(3,2)
+    end type
+
+    type PointingElementBlock_2_3_i8_r4
+        integer*8 :: index
+        real*4    :: value(3,2)
+    end type
+
+    type PointingElementBlock_2_3_i4_r8
+        integer*4 :: index
+        real*8    :: value(3,2)
+    end type
+
+    type PointingElementBlock_2_3_i8_r8
+        integer*8 :: index
+        real*8    :: value(3,2)
+    end type
+
+    type PointingElementBlock_3_1_i4_r4
+        integer*4 :: index
+        real*4    :: value(1,3)
+    end type
+
+    type PointingElementBlock_3_1_i8_r4
+        integer*8 :: index
+        real*4    :: value(1,3)
+    end type
+
+    type PointingElementBlock_3_1_i4_r8
+        integer*4 :: index
+        real*8    :: value(1,3)
+    end type
+
+    type PointingElementBlock_3_1_i8_r8
+        integer*8 :: index
+        real*8    :: value(1,3)
+    end type
+
+    type PointingElementBlock_3_2_i4_r4
+        integer*4 :: index
+        real*4    :: value(2,3)
+    end type
+
+    type PointingElementBlock_3_2_i8_r4
+        integer*8 :: index
+        real*4    :: value(2,3)
+    end type
+
+    type PointingElementBlock_3_2_i4_r8
+        integer*4 :: index
+        real*8    :: value(2,3)
+    end type
+
+    type PointingElementBlock_3_2_i8_r8
+        integer*8 :: index
+        real*8    :: value(2,3)
+    end type
+
+    type PointingElementBlock_3_3_i4_r4
+        integer*4 :: index
+        real*4    :: value(3,3)
+    end type
+
+    type PointingElementBlock_3_3_i8_r4
+        integer*8 :: index
+        real*4    :: value(3,3)
+    end type
+
+    type PointingElementBlock_3_3_i4_r8
+        integer*4 :: index
+        real*8    :: value(3,3)
+    end type
+
+    type PointingElementBlock_3_3_i8_r8
+        integer*8 :: index
+        real*8    :: value(3,3)
     end type
 
     type PointingElementRot2d_i4_r4

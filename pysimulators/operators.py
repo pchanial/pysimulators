@@ -26,7 +26,13 @@ from pyoperators.utils import (
 from . import _flib as flib
 from .datatypes import FitsArray, Map
 from .quantities import Quantity, _divide_unit, _multiply_unit
-from .sparse import FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix, SparseOperator
+from .sparse import (
+    FSRMatrix,
+    FSRBlockMatrix,
+    FSRRotation2dMatrix,
+    FSRRotation3dMatrix,
+    SparseOperator,
+)
 from .wcsutils import create_fitsheader
 import functools
 import inspect
@@ -931,10 +937,16 @@ class ProjectionOperator(SparseOperator):
     """
 
     def __init__(self, arg, **keywords):
-        if type(arg) not in (FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix):
+        if type(arg) not in (
+            FSRMatrix,
+            FSRBlockMatrix,
+            FSRRotation2dMatrix,
+            FSRRotation3dMatrix,
+        ):
             raise TypeError('The input sparse matrix type is invalid.')
         self._flib_id = {
             FSRMatrix: '',
+            FSRBlockMatrix: '_block',
             FSRRotation2dMatrix: '_rot2d',
             FSRRotation3dMatrix: '_rot3d',
         }[type(arg)]
@@ -950,7 +962,7 @@ class ProjectionOperator(SparseOperator):
         shape = self.shapein
         if shape is None:
             shape = (self.matrix.shape[1],)
-        elif self.matrix.block_size > 1:
+        elif self.matrix.block_shape[1] > 1:
             shape = shape[:-1]
         if out is None:
             if operation is not operation_assignment:
@@ -1004,7 +1016,7 @@ class ProjectionOperator(SparseOperator):
         shapeout = self.shapein
         if shapeout is None:
             shapeout = (self.matrix.shape[1],)
-        elif self.matrix.block_size > 1:
+        elif self.matrix.block_shape[1] > 1:
             shapeout = shapeout[:-1]
         if out is None:
             out = empty(shapeout, self.dtype)
@@ -1079,7 +1091,7 @@ class ProjectionOperator(SparseOperator):
         shapeout = self.shapein
         if shapeout is None:
             shapeout = (self.matrix.shape[1],)
-        elif self.matrix.block_size > 1:
+        elif self.matrix.block_shape[1] > 1:
             shapeout = shapeout[:-1]
         if x.shape != shapein:
             raise ValueError(

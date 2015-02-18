@@ -1,6 +1,8 @@
 module sparse
 
+    use, intrinsic :: iso_c_binding, only: c_loc
     use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
+    use module_operators
     use module_pointingmatrix
     implicit none
 
@@ -55,20 +57,20 @@ contains
     end subroutine
 
 
-    subroutine fsc_nd_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output, &
-                                      nrowmax, ninput, noutput, block_size)
+    subroutine fsc_homothety_matvec_i<isize>_r<rsize>_v<vsize>(                &
+            matrix, input, output, nrowmax, ninput, noutput, extra_size)
         integer, parameter           :: s = <isize> + <rsize>
         integer(int64), intent(in)   :: nrowmax
         integer(int64), intent(in)   :: ninput
         integer(int64), intent(in)   :: noutput
-        integer(int64), intent(in)   :: block_size
+        integer(int64), intent(in)   :: extra_size
         !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
         type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
             matrix(nrowmax, ninput)
-        !f2py real(<vkind>)          :: input(block_size*ninput)
-        real(<vkind>), intent(in)    :: input(block_size, ninput)
-        !f2py real(<vkind>)          :: output(block_size*noutput)
-        real(<vkind>), intent(inout) :: output(block_size, 0:noutput-1)
+        !f2py real(<vkind>)          :: input(extra_size*ninput)
+        real(<vkind>), intent(in)    :: input(extra_size, ninput)
+        !f2py real(<vkind>)          :: output(extra_size*noutput)
+        real(<vkind>), intent(inout) :: output(extra_size, 0:noutput-1)
 
         integer(int64) :: i, j
         integer(<ikind>) :: col
@@ -215,20 +217,20 @@ contains
     end subroutine
 
 
-    subroutine fsr_nd_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output, &
-                                      ncolmax, ninput, noutput, block_size)
+    subroutine fsr_homothety_matvec_i<isize>_r<rsize>_v<vsize>(                &
+            matrix, input, output, ncolmax, ninput, noutput, extra_size)
         integer, parameter           :: s = <isize> + <rsize>
         integer(int64), intent(in)   :: ncolmax
         integer(int64), intent(in)   :: ninput
         integer(int64), intent(in)   :: noutput
-        integer(int64), intent(in)   :: block_size
+        integer(int64), intent(in)   :: extra_size
         !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
         type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
             matrix(ncolmax, noutput)
-        !f2py real(<vkind>)          :: input(block_size*ninput)
-        real(<vkind>), intent(in)    :: input(block_size, 0:ninput-1)
-        !f2py real(<vkind>)          :: output(block_size*noutput)
-        real(<vkind>), intent(inout) :: output(block_size, noutput)
+        !f2py real(<vkind>)          :: input(extra_size*ninput)
+        real(<vkind>), intent(in)    :: input(extra_size, 0:ninput-1)
+        !f2py real(<vkind>)          :: output(extra_size*noutput)
+        real(<vkind>), intent(inout) :: output(extra_size, noutput)
 
         integer(int64) :: i, j
         integer(<ikind>) :: col
@@ -253,6 +255,92 @@ contains
             end do
         end do
         !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsc_block_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+         output, ncolmax, ninput, noutput, n, m, s)
+        integer(int64), intent(in)    :: ncolmax
+        integer(int64), intent(in)    :: ninput
+        integer(int64), intent(in)    :: noutput
+        integer(int64), intent(in)    :: m
+        integer(int64), intent(in)    :: n
+        !f2py integer(int64), intent(hide), depend(m, n) :: s = <isize> + m*n*<rsize>
+        integer(int64), intent(in)    :: s
+        !f2py integer*1, intent(in)   :: matrix(ncolmax*s*ninput)
+        integer*1, intent(in), target :: matrix(ncolmax*s*ninput)
+        !f2py real(<vkind>)           :: input(m*ninput)
+        real(<vkind>), intent(in)     :: input(m,ninput)
+        !f2py real(<vkind>)           :: output(n*noutput)
+        real(<vkind>), intent(inout)  :: output(n,0:noutput-1)
+
+        if (m == 1) then
+            if (n == 2) then
+                call fsc_block_1_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 3) then
+                call fsc_block_1_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            end if
+        else if (m == 2) then
+            if (n == 1) then
+                call fsc_block_2_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 2) then
+                call fsc_block_2_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 3) then
+                call fsc_block_2_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            end if
+        else if (m == 3) then
+            if (n == 1) then
+                call fsc_block_3_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 2) then
+                call fsc_block_3_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 3) then
+                call fsc_block_3_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            end if
+        end if
+
+    end subroutine
+
+
+    subroutine fsr_block_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+         output, ncolmax, ninput, noutput, m, n, s)
+        integer(int64), intent(in)    :: ncolmax
+        integer(int64), intent(in)    :: ninput
+        integer(int64), intent(in)    :: noutput
+        integer(int64), intent(in)    :: m
+        integer(int64), intent(in)    :: n
+        !f2py integer(int64), intent(hide), depend(m, n) :: s = <isize> + m*n*<rsize>
+        integer(int64), intent(in)    :: s
+        !f2py integer*1, intent(in)   :: matrix(ncolmax*s*noutput)
+        integer*1, intent(in), target :: matrix(ncolmax*s*noutput)
+        !f2py real(<vkind>)           :: input(n*ninput)
+        real(<vkind>), intent(in)     :: input(n,0:ninput-1)
+        !f2py real(<vkind>)           :: output(m*noutput)
+        real(<vkind>), intent(inout)  :: output(m,noutput)
+
+        if (m == 1) then
+            if (n == 2) then
+                call fsr_block_1_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 3) then
+                call fsr_block_1_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            end if
+        else if (m == 2) then
+            if (n == 1) then
+                call fsr_block_2_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 2) then
+                call fsr_block_2_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 3) then
+                call fsr_block_2_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            end if
+        else if (m == 3) then
+            if (n == 1) then
+                call fsr_block_3_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 2) then
+                call fsr_block_3_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            else if (n == 3) then
+                call fsr_block_3_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+            end if
+        end if
 
     end subroutine
 

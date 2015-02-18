@@ -31,7 +31,7 @@ def _get_projection_fsr(itype, ftype, stype=None):
     data = np.recarray((6, 2), dtype=dtype)
     data[..., 0].index, data[..., 1].index = index1, index2
     data[..., 0].value, data[..., 1].value = value1, value2
-    return ProjectionOperator(FSRMatrix((6, 5), data), dtype=stype)
+    return ProjectionOperator(FSRMatrix((6, 5), data=data), dtype=stype)
 
 
 def _get_projection_fsrrot2d(itype, ftype, stype=None):
@@ -44,7 +44,9 @@ def _get_projection_fsrrot2d(itype, ftype, stype=None):
     data[..., 1].r11 = value2 * rotation2.data[:, 0, 0]
     data[..., 0].r21 = value1 * rotation1.data[:, 1, 0]
     data[..., 1].r21 = value2 * rotation2.data[:, 1, 0]
-    return ProjectionOperator(FSRRotation2dMatrix((6 * 2, 5 * 2), data), dtype=stype)
+    return ProjectionOperator(
+        FSRRotation2dMatrix((6 * 2, 5 * 2), data=data), dtype=stype
+    )
 
 
 def _get_projection_fsrrot3d(itype, ftype, stype=None):
@@ -58,7 +60,9 @@ def _get_projection_fsrrot3d(itype, ftype, stype=None):
     data[..., 1].r22 = value2 * rotation2.data[:, 0, 0]
     data[..., 0].r32 = value1 * rotation1.data[:, 1, 0]
     data[..., 1].r32 = value2 * rotation2.data[:, 1, 0]
-    return ProjectionOperator(FSRRotation3dMatrix((6 * 3, 5 * 3), data), dtype=stype)
+    return ProjectionOperator(
+        FSRRotation3dMatrix((6 * 3, 5 * 3), data=data), dtype=stype
+    )
 
 
 _get_projection = {
@@ -173,7 +177,7 @@ def test_restrict():
         else:
             pack = PackOperator(restriction)
         masking = MaskOperator(~restriction, broadcast='rightward')
-        block_size = proj_ref.matrix.block_size
+        block_size = proj_ref.matrix.block_shape[1]
         shape = (5,) + ((block_size,) if block_size > 1 else ())
         x = np.arange(5 * block_size).reshape(shape) + 1
         assert_equal(proj_ref(masking(x)), proj(pack(x)))
