@@ -529,5 +529,42 @@ contains
 
     end subroutine
 
+    subroutine fsr_restrict_i<isize>(matrix, mask, ncolmax, m, n, stride, ncol)
+        integer(int64), intent(in)           :: ncolmax
+        integer(int64), intent(in)           :: m
+        integer(int64), intent(in)           :: n
+        integer(int64), intent(in)           :: stride
+        integer(int8), intent(inout), target :: matrix(0:ncolmax*m*stride-1)
+        logical(1), intent(in)               :: mask(0:n-1)
+        integer(<ikind>), intent(out)        :: ncol
+
+        integer(<ikind>), pointer :: col
+        integer(int64) :: i, j, pos
+        integer(<ikind>) :: new_index(0:n-1)
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1_<ikind>
+            else
+                new_index(i) = -1_<ikind>
+            end if
+        end do
+
+        !$omp parallel do private(col, pos)
+        do i = 1, m
+            do j = 1, ncolmax
+                pos = ((i - 1) * ncolmax + j - 1) * stride
+                call c_f_pointer(c_loc(matrix(pos)), col)
+                if (col < 0) cycle
+                col = new_index(col)
+            end do
+        end do
+        !$omp end parallel do
+
+
+    end subroutine
+
 
 end module sparse

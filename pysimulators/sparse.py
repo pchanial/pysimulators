@@ -927,6 +927,80 @@ class SparseOperator(SparseBase):
 
         """
         if not isinstance(
+            self.matrix,
+            (FSRMatrix, FSRBlockMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix),
+        ):
+            raise NotImplementedError(
+                'Restriction is not implemented for {0} sparse storage.'.format(
+                    type(self.matrix).__name__
+                )
+            )
+        flib_id = {
+            FSRMatrix: '',
+            FSRBlockMatrix: '_block',
+            FSRRotation2dMatrix: '_rot2d',
+            FSRRotation3dMatrix: '_rot3d',
+        }[type(self.matrix)]
+        mask = np.asarray(mask)
+        if mask.dtype != bool:
+            raise TypeError('The mask is not boolean.')
+        if isinstance(self.matrix, FSRMatrix):
+            block_shapein = self.broadcastable_shapein
+        else:
+            block_shapein = self.shapein[:-1]
+        if mask.shape != block_shapein:
+            raise ValueError(
+                "Invalid shape '{}'. Expected value is '{}'.".format(
+                    mask.shape, block_shapein
+                )
+            )
+
+        if inplace:
+            matrix = self.matrix
+        else:
+            matrix = self.matrix.copy()
+        itype = matrix.data.dtype['index']
+        if itype.type in (np.int8, np.int16, np.int32, np.int64):
+            f = 'fsr_restrict_i{0}'.format(itype.itemsize)
+            func = getattr(fsp, f)
+            block_shape = matrix.block_shape[0]
+            ncol = func(
+                matrix.data.view(np.int8).ravel(),
+                mask.ravel(),
+                matrix.ncolmax,
+                matrix.shape[0] // block_shape,
+                matrix.data.strides[-1],
+            )
+        else:
+            ncol = np.sum(mask)
+            new_index = empty(mask.shape, itype)
+            new_index[...] = -1
+            new_index[mask] = np.arange(ncol, dtype=itype)
+            undef = matrix.data.index < 0
+            matrix.data.index = new_index[matrix.data.index]
+            matrix.data.index[undef] = -1
+        out = self.copy()
+        matrix.shape = matrix.shape[0], ncol * matrix.block_shape[1]
+        out.matrix = matrix
+        if isinstance(self.matrix, FSRMatrix):
+            out.broadcastable_shapein = (ncol,)
+            if self.shapein is not None:
+                ndims_in = len(self.broadcastable_shapein)
+                out.shapein = (ncol,) + self.shapein[ndims_in:]
+        else:
+            out.shapein = (ncol, out.matrix.block_shape[1])
+        if inplace:
+            self.delete()
+        return out
+
+    def restrict_old(self, mask, inplace=False):
+        """
+        Restrict the operator to a subspace defined by a mask
+        (True means that the element is kept). Indices are renumbered in-place
+        if the inplace keyword is set to True.
+
+        """
+        if not isinstance(
             self.matrix, (FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix)
         ):
             raise NotImplementedError(
