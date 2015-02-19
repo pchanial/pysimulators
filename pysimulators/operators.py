@@ -952,7 +952,7 @@ class ProjectionOperator(SparseOperator):
         }[type(arg)]
         SparseOperator.__init__(self, arg, **keywords)
 
-    def canonical_basis_in_kernel(self, out=None, operation=operation_assignment):
+    def canonical_basis_in_kernel_old(self, out=None, operation=operation_assignment):
         """
         Return a boolean array whose values are True if the component of
         the canonical basis is in the operator's kernel.
@@ -1003,6 +1003,66 @@ class ProjectionOperator(SparseOperator):
                 indices = data.index[(data.r11 != 0) | (data.r21 != 0)]
             else:
                 indices = data.index[data.r11 != 0]
+            kernel = np.histogram(indices, n, range=(0, n))[0] == 0
+        operation(out, kernel)
+        return out
+
+    def canonical_basis_in_kernel(self, out=None, operation=operation_assignment):
+        """
+        Return a boolean array whose values are True if the component of
+        the canonical basis is in the operator's kernel.
+
+        """
+        data = self.matrix.data
+        shape = self.shapein
+        if shape is None:
+            shape = (self.matrix.shape[1],)
+        elif self.matrix.block_shape[1] > 1:
+            shape = shape[:-1]
+        if out is None:
+            if operation is not operation_assignment:
+                raise ValueError('The array for inplace operation is not specified')
+            out = empty(shape, bool)
+        elif out.dtype != bool:
+            raise TypeError("The keyword 'out' has an invalid type.")
+        elif out.shape != shape:
+            raise ValueError("The keyword 'out' has an incompatible shape.")
+        if data.size == 0:
+            operation(out, True)
+            return out
+
+        itype = data.dtype['index']
+        ftype = data.dtype[1]
+        if itype.type in (np.int8, np.int16, np.int32, np.int64) and ftype.type in (
+            np.float32,
+            np.float64,
+        ):
+            if operation in (operation_assignment, operator.iand, operator.imul):
+                if operation is operation_assignment:
+                    out[...] = True
+                kernel = out
+            else:
+                kernel = np.ones_like(out)
+
+            f = 'fsr_kernel_i{0}'.format(itype.itemsize)
+            func = getattr(flib.sparse, f)
+            func(
+                data.view(np.int8).ravel(),
+                kernel.view(np.int8).ravel(),
+                self.matrix.ncolmax,
+                product(data.shape[:-1]),
+                data.strides[-1],
+            )
+            if operation in (operation_assignment, operator.iand, operator.imul):
+                return out
+        else:
+            if isinstance(self.matrix, FSRMatrix):
+                indices = data.index[data.value != 0]
+            elif isinstance(self.matrix, FSRRotation2dMatrix):
+                indices = data.index[(data.r11 != 0) | (data.r21 != 0)]
+            else:
+                indices = data.index[data.r11 != 0]
+            n = product(shape)
             kernel = np.histogram(indices, n, range=(0, n))[0] == 0
         operation(out, kernel)
         return out

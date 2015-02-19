@@ -1,7 +1,8 @@
 module sparse
 
     use, intrinsic :: iso_c_binding, only: c_loc
-    use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
+    use, intrinsic :: iso_fortran_env, only :                                  &
+        int8, int16, int32, int64, real32, real64
     use module_operators
     use module_pointingmatrix
     implicit none
@@ -493,6 +494,36 @@ contains
             input(2,col) = input(2,col) + val
             input(3,col) = input(3,col) + val
             !$omp end critical
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    ! <ikind=int8,int16,int32,int64>
+    ! <isize=1,2,4,8>
+
+    subroutine fsr_kernel_i<isize>(matrix, kernel, ncolmax, m, n, stride)
+        integer(int64), intent(in)        :: ncolmax
+        integer(int64), intent(in)        :: m
+        integer(int64), intent(in)        :: n
+        integer(int64), intent(in)        :: stride
+        integer(int8), intent(in), target :: matrix(0:ncolmax*m*stride-1)
+        logical(1), intent(inout)         :: kernel(0:n-1)
+        integer(<ikind>), pointer :: k
+        integer(int32), pointer :: val(:)
+        integer(int64) :: i, j, pos
+
+        !$omp parallel do private(k, pos)
+        do i = 1, m
+            do j = 1, ncolmax
+                pos = ((i - 1) * ncolmax + j - 1) * stride
+                call c_f_pointer(c_loc(matrix(pos)), k)
+                if (k < 0) cycle
+                call c_f_pointer(c_loc(matrix(pos + <isize>)), val,            &
+                                 [(stride - <isize>) / 4])
+                if (any(val /= 0)) kernel(k) = .false.
+            end do
         end do
         !$omp end parallel do
 
