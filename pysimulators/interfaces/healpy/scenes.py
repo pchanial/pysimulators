@@ -50,4 +50,5 @@ class SceneHealpix(Scene):
         Scene.__init__(self, shape, topixel, ndim=1, **keywords)
         self.kind = kind
         self.nside = nside
+        self.npixel = 12 * nside**2
         self.nest = bool(nest)
