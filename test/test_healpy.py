@@ -274,6 +274,18 @@ def test_healpix_convolution():
     input = np.array([input, input]).T
     assert_same(op(input), np.array([expected, expected]).T)
 
+    op = HealpixConvolutionGaussianOperator(fwhm=0)
+    assert_is_type(op, IdentityOperator)
+    op = HealpixConvolutionGaussianOperator(sigma=0)
+    assert_is_type(op, IdentityOperator)
+
+
+def test_healpix_convolution_errors():
+    assert_raises(ValueError, HealpixConvolutionGaussianOperator, iter=2)
+    assert_raises(ValueError, HealpixConvolutionGaussianOperator, fwhm=-1)
+    assert_raises(ValueError, HealpixConvolutionGaussianOperator, sigma=-1)
+    assert_raises(ValueError, HealpixConvolutionGaussianOperator, fwhm=1, sigma=1)
+
 
 def test_healpix_laplacian():
     nside = 1

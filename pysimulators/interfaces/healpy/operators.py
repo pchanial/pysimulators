@@ -302,6 +302,20 @@ class HealpixConvolutionGaussianOperator(Operator):
         Keywords are passed to the Healpy function smoothing.
 
         """
+        if fwhm is None and sigma is None:
+            raise ValueError('The convolution width is not specified.')
+        if fwhm is not None and sigma is not None:
+            raise ValueError('Ambiguous convolution width specification.')
+        if fwhm is not None and fwhm < 0 or sigma is not None and sigma < 0:
+            raise ValueError('The convolution width is not positive.')
+        if fwhm in (0, None) and sigma in (0, None):
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+        if fwhm is None:
+            fwhm = sigma * np.sqrt(8 * np.log(2))
+        if sigma is None:
+            sigma = fwhm / np.sqrt(8 * np.log(2))
         self.fwhm = fwhm
         self.sigma = sigma
         self.iter = iter
@@ -319,7 +333,6 @@ class HealpixConvolutionGaussianOperator(Operator):
             o[...] = hp.smoothing(
                 i,
                 fwhm=self.fwhm,
-                sigma=self.sigma,
                 iter=self.iter,
                 lmax=self.lmax,
                 mmax=self.mmax,
