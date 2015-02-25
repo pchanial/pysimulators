@@ -8,6 +8,7 @@ del locale
 
 from . import _flib
 from . import geometry
+from .beams import *
 from .operators import *
 from .datatypes import *
 from .packedtables import *
