@@ -1,7 +1,6 @@
-from __future__ import division
-
+from __future__ import division, print_function
+from pybenchmarks import benchmark
 import numpy as np
-from pyoperators.utils import benchmark
 import pysimulators
 
 
@@ -9,42 +8,38 @@ def benchmark_rotate_2d():
     rotate_2d_fortran = pysimulators._flib.geometry.rotate_2d
     rotate_2d_fortran_inplace = pysimulators._flib.geometry.rotate_2d_inplace
 
-    def rotate1(coords, angle, out=None):
+    def rotate1(n):
+        coords = x[:n]
         coords = np.asarray(coords)
-        angle = np.radians(angle)
-        if out is None:
-            out = np.empty_like(coords)
+        out = np.empty_like(coords)
         cosangle = np.cos(angle)
         sinangle = np.sin(angle)
-        m = np.asarray([[cosangle, -sinangle],
-                        [sinangle,  cosangle]])
+        m = np.asarray([[cosangle, -sinangle], [sinangle, cosangle]])
         return np.dot(coords, m.T, out)
 
-    def rotate2(x, angle, out=None):
-        if out is None:
-            out = np.empty_like(x)
-        rotate_2d_fortran(x.T, out.T, angle)
+    def rotate2(n):
+        coords = x[:n]
+        out = np.empty_like(coords)
+        rotate_2d_fortran(coords.T, out.T, angle_deg)
         return out
 
-    def rotate2_inplace(x, angle):
-        rotate_2d_fortran_inplace(x.T, angle)
+    def rotate2_inplace(n):
+        coords = x[:n]
+        rotate_2d_fortran_inplace(coords.T, angle_deg)
         return x
 
     ns = (10, 100, 1000, 10000, 100000, 1000000, 10000000)
     x = np.random.random_sample((ns[-1], 2))
-    b1 = benchmark(rotate1, [(x[:n], 30) for n in ns],
-                   ids=('dot, n={}'.format(n) for n in ns), verbose=False)
-    b2 = benchmark(rotate2, [(x[:n], 30) for n in ns],
-                   ids=('fortran, n={}'.format(n) for n in ns), verbose=False)
-    b3 = benchmark(rotate2_inplace, [(x[:n], 30) for n in ns],
-                   ids=('fortran, inplace, n={}'.format(n) for n in ns),
-                   verbose=False)
+    angle = np.radians(30)
+    angle_deg = 30
+    b1 = benchmark(rotate1, ns, verbose=False)
+    b2 = benchmark(rotate2, ns, verbose=False)
+    b3 = benchmark(rotate2_inplace, ns, verbose=False)
 
-    print '{:^9}{:^12}{:^12}{:15}'.format('N', 'DOT', 'Fortran',
-                                          'Fortran Inplace')
-    print 48*'-'
+    print('{:^9}{:^12}{:^12}{:15}'.format('N', 'Dot', 'Fortran', 'Fortran Inplace'))
+    print(48 * '-')
     for n, t1, t2, t3 in zip(ns, b1['time'], b2['time'], b3['time']):
-        print'{:<9}{:12.9f}{:12.9f}{:12.9f}'.format(n, t1, t2, t3)
+        print('{:<9}{:12.9f}{:12.9f}{:12.9f}'.format(n, t1, t2, t3))
 
 
 def benchmark_create_grid():
@@ -61,23 +56,24 @@ def benchmark_create_grid():
         centers += center
         return centers
 
+    ns = list(range(11))
+    ids = ['{0}x{0}'.format(2**n) for n in ns]
+    shapes = [2 * (2**n,) for n in ns]
     spacing = 0.4
-    shapes = [(2 * (2**i,), spacing) for i in range(11)]
-    ids = [str(2**i) + 'x' + str(2**i) for i in range(11)]
-    b1 = benchmark(create_grid_slow, shapes, ids=ids, verbose=False)
-    b2 = benchmark(create_grid, shapes, ids=ids, verbose=False)
+    b = benchmark([create_grid_slow, create_grid], shapes, spacing, verbose=False)
     header = '{:^9}{:^12}{:^12}'.format('shape', 'Python', 'Fortran')
-    print header
-    print len(header) * '-'
-    for n, t1, t2 in zip(ids, b1['time'], b2['time']):
-        print '{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2)
+    print(header)
+    print(len(header) * '-')
+    for n, t1, t2 in zip(ids, b['time'][0], b['time'][1]):
+        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
 
 
 def benchmark_create_grid_squares():
     from pysimulators.geometry import create_grid_squares
 
-    def create_grid_squares_slow(shape, spacing, filling_factor=1,
-                                 center=(0, 0), angle=0):
+    def create_grid_squares_slow(
+        shape, spacing, filling_factor=1, center=(0, 0), angle=0
+    ):
         x = np.arange(shape[1], dtype=float) * spacing
         x -= x.mean()
         y = (np.arange(shape[0], dtype=float) * spacing)[::-1]
@@ -91,36 +87,38 @@ def benchmark_create_grid_squares():
         corners += center
         return corners
 
+    ns = list(range(11))
+    ids = ['{0}x{0}'.format(2**n) for n in ns]
+    shapes = [2 * (2**n,) for n in ns]
     spacing = 0.4
-    shapes = [(2 * (2**i,), spacing) for i in range(11)]
-    ids = [str(2**i) + 'x' + str(2**i) for i in range(11)]
-    b1 = benchmark(create_grid_squares_slow, shapes, ids=ids, verbose=False)
-    b2 = benchmark(create_grid_squares, shapes, ids=ids, verbose=False)
+    b = benchmark(
+        [create_grid_squares_slow, create_grid_squares], shapes, spacing, verbose=False
+    )
     header = '{:^9}{:^12}{:^12}'.format('shape', 'Python', 'Fortran')
-    print header
-    print len(header) * '-'
-    for n, t1, t2 in zip(ids, b1['time'], b2['time']):
-        print '{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2)
+    print(header)
+    print(len(header) * '-')
+    for n, t1, t2 in zip(ids, b['time'][0], b['time'][1]):
+        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
 
 
 if __name__ == '__main__':
-    print
-    print 'BENCHMARK ROTATE_2D'
-    print '==================='
+    print()
+    print('BENCHMARK ROTATE_2D')
+    print('===================')
     benchmark_rotate_2d()
 
-    print
-    print 'BENCHMARK CREATE_GRID'
-    print '====================='
+    print()
+    print('BENCHMARK CREATE_GRID')
+    print('=====================')
     benchmark_create_grid()
 
-    print
-    print 'BENCHMARK CREATE_GRID_SQUARES'
-    print '============================='
+    print()
+    print('BENCHMARK CREATE_GRID_SQUARES')
+    print('=============================')
     benchmark_create_grid_squares()
 
 """
-Dell XPS 14, i7 4 cores.
+Dell XPS 14, i7, 2 cores, 4 threads.
 
 BENCHMARK ROTATE_2D
 ===================
