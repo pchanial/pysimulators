@@ -1,7 +1,23 @@
 module module_math
 
-    use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
+    use, intrinsic :: iso_fortran_env, only :                                  &
+        int32, int64, real32, real64, real128
     implicit none
+
+    real(real32), parameter :: NAN_4  = transfer('FFFFFFFF'z, 0._real32)
+    real(real32), parameter :: MINF_4 = transfer('FF700000'z, 0._real32)
+    real(real32), parameter :: PINF_4 = transfer('7F700000'z, 0._real32)
+    real(real64), parameter :: NAN_8  = transfer('FFFFFFFFFFFFFFFF'z, 0._real64)
+    real(real64), parameter :: MINF_8 = transfer('FFF0000000000000'z, 0._real64)
+    real(real64), parameter :: PINF_8 = transfer('7FF0000000000000'z, 0._real64)
+#if PRECISION_REAL == 16
+    real(real128), parameter :: NAN_16  =                                      &
+        transfer('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'z, 0._real128)
+    real(real128), parameter :: MINF_16 =                                      &
+        transfer('FFFF0000000000000000000000000000'z, 0._real128)
+    real(real128), parameter :: PINF_16 =                                      &
+        transfer('7FFF0000000000000000000000000000'z, 0._real128)
+#endif
 
 contains
 
