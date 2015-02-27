@@ -1,6 +1,13 @@
 from __future__ import absolute_import, division, print_function
 from pyoperators import FFTOperator
-from pyoperators.utils import isscalarlike, product
+from pyoperators.utils import (
+    float_intrinsic_dtype,
+    isalias,
+    isscalarlike,
+    product,
+    tointtuple,
+)
+from pyoperators.utils.ufuncs import abs2
 from . import _flib as flib
 from .datatypes import Map
 import numpy as np
@@ -22,7 +29,7 @@ __all__ = [
 ]
 
 
-def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1):
+def airy_disk(shape, fwhm=None, r0=None, origin=None, scale=1, dtype=float):
     """
     Return a two-dimensional map with an Airy pattern.
 
@@ -32,17 +39,21 @@ def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1):
         The map shape (ny, nx).
     fwhw : float
         The Full Width Half Maximum of the primary lobe.
-    f0 : float
+    f0 : float, optional
         The radius of the first dark ring, where the intensity is zero.
-    origin : tuple of float
-        The pattern center of the form (x0,y0)
-    resolution : float
-        The pixel scale.
+    origin : array-like, optional
+        Center (x0, y0) of the Airy disk, in pixel coordinates. By convention,
+        the coordinates of the center of the pixel [0, 0] are (0, 0).
+        Default is the image center.
+    scale : float or array-like of two elements, optional
+        The inter-pixel distance (dx, dy).
+    dtype : np.dtype, optional
+        The output data type.
 
     """
     if fwhm is None and r0 is None:
         raise ValueError('No scale parameter.')
-    d = distance(shape, origin=origin, resolution=resolution)
+    d = distance(shape, origin=origin, scale=scale, dtype=dtype)
     index = np.where(d == 0)
     d[index] = 1.0e-30
     if fwhm is not None:
@@ -54,7 +65,7 @@ def airy_disk(shape, fwhm=None, r0=None, origin=None, resolution=1):
     return d
 
 
-def aperture_circular(shape, diameter, origin=None, resolution=1):
+def aperture_circular(shape, diameter, origin=None, scale=1, dtype=float):
     """
     Return a two-dimensional map with circular mask.
 
@@ -62,22 +73,24 @@ def aperture_circular(shape, diameter, origin=None, resolution=1):
     ----------
     shape : tuple
         The map shape (ny, nx).
-    fwhw : float
-        The Full Width Half Maximum of the primary lobe.
-    origin : tuple of float
-        The pattern center of the form (x0,y0)
-    resolution : float
-        The pixel scale.
+    diameter : float
+        The aperture diameter.
+    origin : array-like, optional
+        Center (x0, y0) of the aperture, in pixel coordinates. By convention,
+        the coordinates of the center of the pixel [0, 0] are (0, 0).
+        Default is the image center.
+    scale : float or array-like of two elements, optional
+        The inter-pixel distance (dx, dy).
+    dtype : np.dtype, optional
+        The output data type.
 
     """
-    array = distance(shape, origin=origin, resolution=resolution)
-    m = array > diameter / 2
-    array[m] = 0
-    array[~m] = 1
+    array = distance2(shape, origin=origin, scale=scale, dtype=dtype)
+    array[...] = array <= (diameter / 2) ** 2
     return array
 
 
-def distance(shape, origin=None, resolution=1.0):
+def distance(shape, origin=None, scale=1, dtype=float, out=None):
     """
     Returns an array whose values are the distances to a given origin.
 
@@ -86,13 +99,15 @@ def distance(shape, origin=None, resolution=1.0):
     shape : tuple of integer
         dimensions of the output array. For a 2d array, the first integer
         is for the Y-axis and the second one for the X-axis.
-    origin : array-like in the form of (x0, y0, ...), optional
-        The coordinates of the point from which the distance is calculated,
-        assuming a zero-based coordinate indexing. Default value is the array
-        center.
-    resolution : array-like in the form of (dx, dy, ...), optional
-        Inter-pixel distance. Default is one. If resolution is a Quantity, its
+    origin : array-like, optional
+        The coordinates (x0, y0, ...) of the point from which the distance is
+        calculated, assuming a zero-based coordinate indexing. Default value
+        is the array center.
+    scale : float or array-like, optional
+        Inter-pixel distance (dx, dy, ...). If scale is a Quantity, its
         unit will be carried over to the returned distance array
+    dtype : np.dtype, optional
+        The output data type.
 
     Example
     -------
@@ -103,38 +118,41 @@ def distance(shape, origin=None, resolution=1.0):
      [ 1.41421356  1.          1.41421356]]
 
     """
-    if isscalarlike(shape):
-        shape = (shape,)
-    else:
-        shape = tuple(shape)
-    shape = tuple(int(np.round(s)) for s in shape)
-    rank = len(shape)
+    shape = tointtuple(shape)
+    dtype = np.dtype(dtype)
+    unit = getattr(scale, '_unit', None)
+    if out is None:
+        out = np.empty(shape, dtype)
+    ndim = out.ndim
+    dtype = float_intrinsic_dtype(out.dtype)
 
+    if ndim in (1, 2) and dtype != out.dtype:
+        out_ = np.empty(shape, dtype)
+    else:
+        out_ = out
     if origin is None:
-        origin = (np.array(shape[::-1], dtype=float) - 1) / 2
+        origin = (np.array(shape[::-1]) - 1) / 2
     else:
-        origin = np.ascontiguousarray(origin, dtype=float)
+        origin = np.ascontiguousarray(origin, dtype)
+    if isscalarlike(scale):
+        scale = np.resize(scale, out.ndim)
+    scale = np.ascontiguousarray(scale, dtype)
 
-    unit = getattr(resolution, '_unit', None)
-
-    if isscalarlike(resolution):
-        resolution = np.resize(resolution, rank)
-    resolution = np.asanyarray(resolution, dtype=float)
-
-    du = flib.datautils
-    if rank == 1:
-        d = du.distance_1d(shape[0], origin[0], resolution[0])
-    elif rank == 2:
-        d = du.distance_2d(shape[1], shape[0], origin, resolution).T
-    elif rank == 3:
-        d = du.distance_3d(shape[2], shape[1], shape[0], origin, resolution).T
+    if ndim in (1, 2):
+        fname = 'distance_{0}d_r{1}'.format(ndim, dtype.itemsize)
+        func = getattr(flib.datautils, fname)
+        if ndim == 1:
+            func(out_, origin[0], scale[0])
+        else:
+            func(out_.T, origin, scale)
+        if not isalias(out, out_):
+            out[...] = out_
     else:
-        d = _distance_slow(shape, origin, resolution, float)
+        _distance_slow(shape, origin, scale, dtype, out)
+    return Map(out, copy=False, unit=unit)
 
-    return Map(d, copy=False, unit=unit)
 
-
-def _distance_slow(shape, origin, resolution, dtype):
+def _distance_slow(shape, origin, scale, dtype, out=None):
     """
     Returns an array whose values are the distances to a given origin.
 
@@ -144,18 +162,104 @@ def _distance_slow(shape, origin, resolution, dtype):
 
     Refer to `pysimulators.distance` for full documentation.
     """
-
-    if dtype is None:
-        dtype = float
     index = []
-    for n, o, r in zip(reversed(shape), origin, resolution):
+    for n in shape:
         index.append(slice(0, n))
-    d = np.asarray(np.mgrid[index], dtype).T
-    d -= np.asanyarray(origin)
-    d *= resolution
-    np.square(d, d)
-    d = Map(np.sqrt(np.sum(d, axis=d.shape[-1])), dtype=dtype, copy=False)
-    return d
+    d = np.ogrid[index]
+    d = [
+        (s * (a.astype(dtype) - o)) ** 2
+        for a, o, s in zip(d, origin[::-1], scale[::-1])
+    ]
+    return np.sqrt(sum(d), out)
+
+
+def distance2(shape, origin=None, scale=1, dtype=float, out=None):
+    """
+    Returns an array whose values are the squared distances to a given origin.
+
+    Parameters
+    ----------
+    shape : tuple of integer
+        dimensions of the output array. For a 2d array, the first integer
+        is for the Y-axis and the second one for the X-axis.
+    origin : array-like, optional
+        The coordinates (x0, y0, ...) of the point from which the distance is
+        calculated, assuming a zero-based coordinate indexing. Default value
+        is the array center.
+    scale : float or array-like, optional
+        Inter-pixel distance (dx, dy, ...). If scale is a Quantity, its
+        unit will be carried over to the returned distance array
+    dtype : np.dtype, optional
+        The output data type.
+
+    Example
+    -------
+    nx, ny = 3, 3
+    print(distance2((ny,nx)))
+    [[ 2. 1.  2.]
+     [ 1. 0.  1.]
+     [ 2. 1.  2.]]
+
+    """
+    shape = tointtuple(shape)
+    dtype = np.dtype(dtype)
+    unit = getattr(scale, '_unit', None)
+    if out is None:
+        out = np.empty(shape, dtype)
+    ndim = out.ndim
+    dtype = float_intrinsic_dtype(out.dtype)
+
+    if ndim in (1, 2) and dtype != out.dtype:
+        out_ = np.empty(shape, dtype)
+    else:
+        out_ = out
+    if origin is None:
+        origin = (np.array(shape[::-1]) - 1) / 2
+    else:
+        origin = np.ascontiguousarray(origin, dtype)
+    if isscalarlike(scale):
+        scale = np.resize(scale, out.ndim)
+    scale = np.ascontiguousarray(scale, dtype)
+
+    if ndim in (1, 2):
+        fname = 'distance2_{0}d_r{1}'.format(ndim, dtype.itemsize)
+        func = getattr(flib.datautils, fname)
+        if ndim == 1:
+            func(out_, origin[0], scale[0])
+        else:
+            func(out_.T, origin, scale)
+        if not isalias(out, out_):
+            out[...] = out_
+    else:
+        _distance2_slow(shape, origin, scale, dtype, out)
+    return Map(out, copy=False, unit=unit)
+
+
+def _distance2_slow(shape, origin, scale, dtype, out=None):
+    """
+    Returns an array whose values are the distances to a given origin.
+
+    This routine is written using np.meshgrid routine. It is slower
+    than the Fortran-based `distance` routine, but can handle any number
+    of dimensions.
+
+    Refer to `pysimulators.distance` for full documentation.
+    """
+    if out is None:
+        out = np.empty(shape, dtype)
+    index = []
+    for n in shape:
+        index.append(slice(0, n))
+    d = np.ogrid[index]
+    d = [
+        (s * (a.astype(dtype) - o)) ** 2
+        for a, o, s in zip(d, origin[::-1], scale[::-1])
+    ]
+    if len(d) == 1:
+        out[...] = d[0]
+        return out
+    np.sum(sum(d[:-1]), d[-1], out)
+    return out
 
 
 class Ds9(object):
@@ -214,7 +318,7 @@ class Ds9(object):
 ds9 = Ds9()
 
 
-def gaussian(shape, sigma=None, fwhm=None, origin=None, resolution=1, unit=None):
+def gaussian(shape, sigma=None, fwhm=None, origin=None, scale=1, dtype=float):
     """
     Returns an array whose values are the distances to a given origin.
 
@@ -227,30 +331,27 @@ def gaussian(shape, sigma=None, fwhm=None, origin=None, resolution=1, unit=None)
         The Full Width Half Maximum of the gaussian (fwhm_x, fwhm_y, ...).
     sigma : float or tuple of float
         The sigma parameter (sigma_x, sigma_y, ...).
-    origin : array-like in the form of (x0, y0, ...), optional
-        The coordinates of the point from which the distance is calculated,
-        assuming a zero-based coordinate indexing. Default value is the array
-        center.
-    resolution : array-like in the form of (dx, dy, ...), optional
-        Inter-pixel distance. Default is one.
-    unit : string or dict
-        The unit of the returned Map.
+    origin : array-like, optional
+        Center (x0, y0, ...) of the gaussian, in pixel coordinates. By
+        convention, the coordinates of the center of the pixel [0, 0]
+        are (0, 0). Default is the image center.
+    scale : float or array-like, optional
+        Inter-pixel distance (dx, dy, ...).
+    dtype : np.dtype, optional
+        The output data type.
 
     """
     if sigma is None and fwhm is None:
         raise ValueError('The shape of the gaussian is not specified.')
     if sigma is None:
         sigma = fwhm / np.sqrt(8 * np.log(2))
-    d = distance(shape, origin=origin, resolution=resolution / (np.sqrt(2) * sigma))
-    d.unit = ''
-    d = np.exp(-(d**2))
+    d = distance2(shape, origin=origin, scale=scale / (np.sqrt(2) * sigma))
+    d = np.exp(-d)
     d /= np.sum(d)
-    if unit:
-        d.unit = unit
     return d
 
 
-def integrated_profile(input, origin=None, bin=1.0, nbins=None):
+def integrated_profile(input, bin=1, nbins=None, origin=None, scale=1):
     """
     Returns axisymmetric integrated profile of a 2d image.
     x, y = integrated_profile(image, [origin, bin, nbins, histogram])
@@ -259,12 +360,16 @@ def integrated_profile(input, origin=None, bin=1.0, nbins=None):
     ----------
     input: array
         2d input array.
-    origin: (x0,y0)
-        center of the profile. (Fits convention). Default is the image center.
-    bin: number
-        width of the profile bins (in unit of pixels).
-    nbins: integer
+    bin: float, optional
+        width of the profile bins.
+    nbins: integer, optional
         number of profile bins.
+    origin : array-like, optional
+        Center (x0, y0) of the profile, in pixel coordinates. By convention,
+        the coordinates of the center of the pixel [0, 0] are (0, 0).
+        Default is the image center.
+    scale : float, optional
+        The inter-pixel distance.
 
     Returns
     -------
@@ -274,11 +379,12 @@ def integrated_profile(input, origin=None, bin=1.0, nbins=None):
         The integrated profile.
 
     """
-    x, y, n = profile(input, origin=origin, bin=bin, nbins=nbins, histogram=True)
-    x = np.arange(1, y.size + 1) * bin
+    x, y, n = profile(
+        input, bin=bin, nbins=nbins, histogram=True, origin=origin, scale=scale
+    )
     y[~np.isfinite(y)] = 0
-    y *= n
-    return x, np.add.accumulate(y)
+    y *= n * scale**2
+    return x, np.cumsum(y)
 
 
 def phasemask_fourquadrant(shape, phase=-1):
@@ -323,30 +429,37 @@ def plot_tod(tod, mask=None, **kw):
     mp.xlabel('Time sample')
 
 
-def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
+def profile(input, bin=1, nbins=None, histogram=False, origin=None, scale=1):
     """
     Returns axisymmetric profile of a 2d image.
-    x, y[, n] = profile(image, [origin, bin, nbins, histogram])
+    x, y[, n] = profile(image, [origin, bin, nbins, histogram=True])
 
     Parameters
     ----------
     input: array
         2d input array
-    origin: (x0,y0)
-        Center of the profile. (Fits convention). Default is the image center.
-    bin: number
-        Width of the profile bins (in unit of pixels).
-    nbins: integer
+    bin: number, optional
+        Width of the profile bins.
+    nbins: integer, optional
         Number of profile bins.
-    histogram: boolean
+    histogram: boolean, optional
         If set to True, return the histogram.
+    origin : array-like, optional
+        Center (x0, y0) of the profile, in pixel coordinates. By convention,
+        the coordinates of the center of the pixel [0, 0] are (0, 0).
+        Default is the image center.
+    scale : float, optional
+        The inter-pixel distance.
 
     """
-    input = np.ascontiguousarray(input, float)
+    input = np.array(input, order='c', copy=False)
+    dtype = float_intrinsic_dtype(input.dtype)
+    input = np.array(input, dtype=dtype, copy=False)
     if origin is None:
-        origin = (np.array(input.shape[::-1], float) + 1) / 2
+        origin = (np.array(input.shape[::-1], dtype) - 1) / 2
     else:
-        origin = np.ascontiguousarray(origin, float)
+        origin = np.ascontiguousarray(origin, dtype)
+    bin_scaled = bin / scale
 
     if nbins is None:
         nbins = int(
@@ -356,10 +469,13 @@ def profile(input, origin=None, bin=1.0, nbins=None, histogram=False):
                 input.shape[1] - origin[0],
                 origin[0],
             )
-            / bin
+            / bin_scaled
         )
 
-    x, y, n = flib.datautils.profile_axisymmetric_2d(input.T, origin, bin, nbins)
+    fname = 'profile_axisymmetric_2d_r{}'.format(dtype.itemsize)
+    func = getattr(flib.datautils, fname)
+    x, y, n = func(input.T, origin, bin_scaled, nbins)
+    x *= scale
     if histogram:
         return x, y, n
     else:
@@ -389,7 +505,9 @@ def psd2(array, sampling_frequency=1, fftw_flag='FFTW_MEASURE'):
 
     """
     array = np.asarray(array)
-    s = np.abs(FFTOperator(array.shape, fftw_flag=fftw_flag)(array)) ** 2
+    if array.ndim != 2:
+        raise ValueError('The input array is not two-dimensional.')
+    s = abs2(FFTOperator(array.shape, fftw_flag=fftw_flag)(array))
     s /= array.size**2
     bandwidth = sampling_frequency**2 / array.size
     s /= bandwidth
@@ -419,9 +537,7 @@ def profile_psd2(array, sampling_frequency=1, fftw_flag='FFTW_MEASURE'):
            np.mean(y) * sampling_frequency**2 ~= sigma**2
 
     """
-    array = np.asanyarray(array)
-    if array.ndim != 2:
-        raise ValueError('The input array is not two-dimensional.')
+    array = np.asarray(array)
     if array.shape[0] != array.shape[1]:
         raise ValueError('The input array is not square.')
     psd = psd2(array, sampling_frequency=sampling_frequency, fftw_flag=fftw_flag)

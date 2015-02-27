@@ -1,0 +1,138 @@
+module datautils
+
+  use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
+  use module_math, only : NAN_4, NAN_8
+  implicit none
+
+contains
+
+  ! <kind=real32,real64>
+  ! <size=4,8>
+
+  subroutine distance_1d_r<size>(distance, nx, origin, scale)
+
+      integer(int64), intent(in)  :: nx
+      real(<kind>), intent(inout) :: distance(0:nx-1)
+      real(<kind>), intent(in)    :: origin
+      real(<kind>), intent(in)    :: scale
+      integer(int64) :: i
+
+      !$omp parallel do
+      do i = 0, nx - 1
+          distance(i) = abs(scale * (i - origin))
+      end do
+      !$omp end parallel do
+
+  end subroutine
+
+
+  subroutine distance2_1d_r<size>(distance, nx, origin, scale)
+
+      integer(int64), intent(in)  :: nx
+      real(<kind>), intent(inout) :: distance(0:nx-1)
+      real(<kind>), intent(in)    :: origin
+      real(<kind>), intent(in)    :: scale
+      integer(int64) :: i
+
+      !$omp parallel do
+      do i = 0, nx - 1
+          distance(i) = (scale * (i - origin))**2
+      end do
+      !$omp end parallel do
+
+  end subroutine
+
+
+  subroutine distance_2d_r<size>(distance, nx, ny, origin, scaling)
+      integer(int64), intent(in)  :: nx, ny
+      real(<kind>), intent(inout) :: distance(0:nx-1,0:ny-1)
+      real(<kind>), intent(in)    :: origin(2)
+      real(<kind>), intent(in)    :: scaling(2)
+      integer(int64) :: i, j
+      real(<kind>) :: tmp, x2(0:nx-1), y2(0:ny-1)
+
+      call distance2_1d_r<size>(x2, nx, origin(1), scaling(1))
+      call distance2_1d_r<size>(y2, ny, origin(2), scaling(2))
+
+      !$omp parallel do private(tmp)
+      do j = 0, ny - 1
+          tmp = y2(j)
+          do i = 0, nx - 1
+              distance(i,j) = sqrt(x2(i) + tmp)
+          end do
+      end do
+      !$omp end parallel do
+
+  end subroutine
+
+
+  subroutine distance2_2d_r<size>(distance, nx, ny, origin, scaling)
+      integer(int64), intent(in)  :: nx, ny
+      real(<kind>), intent(inout) :: distance(0:nx-1,0:ny-1)
+      real(<kind>), intent(in)    :: origin(2)
+      real(<kind>), intent(in)    :: scaling(2)
+      integer(int64) :: i, j
+      real(<kind>) :: tmp, x2(0:nx-1), y2(0:ny-1)
+
+      call distance2_1d_r<size>(x2, nx, origin(1), scaling(1))
+      call distance2_1d_r<size>(y2, ny, origin(2), scaling(2))
+
+      !$omp parallel do private(tmp)
+      do j = 0, ny - 1
+          tmp = y2(j)
+          do i = 0, nx - 1
+              distance(i,j) = x2(i) + tmp
+          end do
+      end do
+      !$omp end parallel do
+
+  end subroutine
+
+
+  subroutine profile_axisymmetric_2d_r<size>(array, nx, ny, origin, bin, nbins,&
+                                             x, y, n)
+
+      real(<kind>), intent(in)  :: array(0:nx-1,0:ny-1)
+      integer, intent(in)       :: nx, ny
+      real(<kind>), intent(in)  :: origin(2)
+      real(<kind>), intent(in)  :: bin
+      integer, intent(in)       :: nbins
+      real(<kind>), intent(out) :: x(nbins)
+      real(<kind>), intent(out) :: y(nbins)
+      integer, intent(out)      :: n(nbins)
+
+      integer :: i, j, ibin
+      real(<kind>) :: distance, val, tmpj
+
+      x = 0
+      y = 0
+      n = 0
+      !$omp parallel do private(distance, ibin, tmpj, val) reduction(+:x,y,n)
+      do j = 0, ny - 1
+          tmpj = (j - origin(2))**2
+          do i = 0, nx - 1
+              val = array(i,j)
+              if (val /= val) cycle
+              distance = sqrt((i - origin(1))**2 + tmpj)
+              ibin = int(distance / bin) + 1
+              if (ibin > nbins) cycle
+              x(ibin) = x(ibin) + distance
+              y(ibin) = y(ibin) + val
+              n(ibin) = n(ibin) + 1
+          end do
+      end do
+      !$omp end parallel do
+
+      do i = 1, nbins
+          if (n(i) /= 0) then
+              x(i) = x(i) / n(i)
+              y(i) = y(i) / n(i)
+          else
+              x(i) = bin * (i - 0.5_<kind>)
+              y(i) = NAN_<size>
+          end if
+      end do
+ 
+  end subroutine
+
+end module datautils

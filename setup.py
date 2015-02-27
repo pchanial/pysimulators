@@ -76,7 +76,7 @@ ext_modules = [
     Extension(
         'pysimulators._flib',
         sources=[
-            'src/datautils.f90',
+            'src/datautils.f90.src',
             'src/geometry.f90',
             'src/operators.f90.src',
             'src/pointingmatrix_old.f90',
