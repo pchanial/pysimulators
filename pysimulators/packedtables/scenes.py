@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function
 from pyoperators import IdentityOperator, To1dOperator, asoperator
+from pyoperators.memory import empty
 from pyoperators.utils import strenum, product
 from .core import PackedTable
 from .. import _flib as flib
@@ -17,7 +18,7 @@ class Scene(PackedTable):
 
     """
 
-    def __init__(self, shape, topixel=None, ndim=None, **keywords):
+    def __init__(self, shape, topixel=None, ndim=None, dtype=float, **keywords):
         """
         Parameters
         ----------
@@ -37,10 +38,37 @@ class Scene(PackedTable):
             topixel = IdentityOperator(self.shape[: self.ndim])
         else:
             topixel = asoperator(topixel)
+        self.dtype = np.dtype(dtype)
         self.topixel = topixel
         self.toworld = topixel.I
         for k, v in keywords.items():
             setattr(self, k, v)
+
+    def empty(self):
+        """
+        Return a new array as described by the scene, without initializing
+        entries.
+
+        """
+        return empty(self.shape, self.dtype)
+
+    def ones(self):
+        """
+        Return a new array as described by the scene, filled with ones.
+
+        """
+        out = self.empty()
+        out[...] = 1
+        return out
+
+    def zeros(self):
+        """
+        Return a new array as described by the scene, filled with zeros.
+
+        """
+        out = self.empty()
+        out[...] = 0
+        return out
 
 
 class SceneGrid(Scene):
