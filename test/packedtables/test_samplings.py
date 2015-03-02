@@ -1,5 +1,5 @@
 import numpy as np
-from pysimulators import PointingEquatorial
+from pysimulators import SamplingEquatorial
 from numpy.testing import assert_equal, assert_raises
 from pyoperators.utils import isscalarlike
 from pyoperators.utils.testing import assert_is_none, assert_same
@@ -15,12 +15,12 @@ def test_coords():
     def func1(fmt, ra):
         args, keywords = fmt(ra)
         if len(args) > 0 and isscalarlike(args[0]):
-            p = PointingEquatorial(*args, **keywords)
+            p = SamplingEquatorial(*args, **keywords)
             assert_is_none(p.ra)
             assert_is_none(p.dec)
             assert_equal(p.pa, 0)
             return
-        assert_raises(ValueError, PointingEquatorial, *args, **keywords)
+        assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
 
     for ra in ras:
         for fmt in (lambda ra: ((ra,), {}), lambda ra: ((), {'ra': ra})):
@@ -29,9 +29,9 @@ def test_coords():
     def func2(fmt, ra, dec):
         args, keywords = fmt(ra, dec)
         if isinstance(ra, np.ndarray) and ra.ndim == 2:
-            assert_raises(ValueError, PointingEquatorial, *args, **keywords)
+            assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
             return
-        p = PointingEquatorial(*args, **keywords)
+        p = SamplingEquatorial(*args, **keywords)
         assert_equal(p.ra, ra)
         assert_equal(p.dec, dec)
         assert_equal(p.pa, 0)
@@ -46,9 +46,9 @@ def test_coords():
     def func3(fmt, ra, dec, pa):
         args, keywords = fmt(ra, dec, pa)
         if isinstance(ra, np.ndarray) and ra.ndim == 2:
-            assert_raises(ValueError, PointingEquatorial, *args, **keywords)
+            assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
             return
-        p = PointingEquatorial(*args, **keywords)
+        p = SamplingEquatorial(*args, **keywords)
         assert_equal(p.ra, ra)
         assert_equal(p.dec, dec)
         assert_equal(p.pa, pa)
@@ -63,9 +63,9 @@ def test_coords():
     def func4(fmt, ra, dec, pa, time):
         args, keywords = fmt(ra, dec, pa, time)
         if isinstance(ra, np.ndarray) and ra.ndim == 2:
-            assert_raises(ValueError, PointingEquatorial, *args, **keywords)
+            assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
             return
-        p = PointingEquatorial(*args, **keywords)
+        p = SamplingEquatorial(*args, **keywords)
         assert_same(p.ra, ra)
         assert_same(p.dec, dec)
         assert_same(p.pa, pa)
@@ -80,7 +80,7 @@ def test_coords():
 
     def func5(fmt, ra, dec, pa, time, junk):
         args, keywords = fmt(ra, dec, pa, time, junk)
-        assert_raises(ValueError, PointingEquatorial, *args, **keywords)
+        assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
 
     for ra, dec, pa, time, junk in zip(ras, decs, pas, times, junks):
         fmt = lambda ra, dec, pa, t, junk: ((ra, dec, pa, junk), {'time': t})

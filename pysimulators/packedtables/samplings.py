@@ -6,7 +6,7 @@ from pyoperators import (
     NormalizeOperator,
     Spherical2CartesianOperator,
 )
-from pyoperators.utils import isscalarlike, tointtuple
+from pyoperators.utils import deprecated, isscalarlike, tointtuple
 from pyoperators.utils.mpi import as_mpi
 from .core import PackedTable
 from ..datatypes import Map
@@ -16,8 +16,9 @@ from ..operators import (
 )
 from ..quantities import Quantity
 import numpy as np
+import pyoperators
 
-__all__ = ['Sampling', 'PointingSpherical', 'PointingEquatorial', 'PointingHorizontal']
+__all__ = ['Sampling', 'SamplingSpherical', 'SamplingEquatorial', 'SamplingHorizontal']
 
 
 class Sampling(PackedTable):
@@ -49,12 +50,12 @@ class Sampling(PackedTable):
         return self.index * self.period
 
 
-class PointingSpherical(Sampling):
+class SamplingSpherical(Sampling):
     def __init__(self, *args, **keywords):
         """
-        ptg = PointingSpherical(n)
-        ptg = PointingSpherical(precession=, nutation=, intrinsic_rotation=)
-        ptg = PointingSpherical(precession, nutation, intrinsic_rotation)
+        ptg = SamplingSpherical(n)
+        ptg = SamplingSpherical(precession=, nutation=, intrinsic_rotation=)
+        ptg = SamplingSpherical(precession, nutation, intrinsic_rotation)
 
         Parameters
         ----------
@@ -173,12 +174,12 @@ class PointingSpherical(Sampling):
         return self.cartesian2spherical(center)
 
 
-class PointingEquatorial(PointingSpherical):
+class SamplingEquatorial(SamplingSpherical):
     def __init__(self, *args, **keywords):
         """
-        ptg = PointingEquatorial(n)
-        ptg = PointingEquatorial(ra, dec[, pa])
-        ptg = PointingEquatorial(ra=..., dec=...[, pa=...])
+        ptg = SamplingEquatorial(n)
+        ptg = SamplingEquatorial(ra, dec[, pa])
+        ptg = SamplingEquatorial(ra=..., dec=...[, pa=...])
 
         Parameters
         ----------
@@ -191,7 +192,7 @@ class PointingEquatorial(PointingSpherical):
         pa : array-like, optional
             The position angle, in degrees (by default: 0).
         """
-        PointingSpherical.__init__(
+        SamplingSpherical.__init__(
             self,
             degrees=True,
             names=('ra', 'dec', 'pa'),
@@ -290,16 +291,16 @@ class PointingEquatorial(PointingSpherical):
         return image
 
 
-class PointingHorizontal(PointingSpherical):
+class SamplingHorizontal(SamplingSpherical):
     DEFAULT_LATITUDE = None
     DEFAULT_LONGITUDE = None
 
     def __init__(self, *args, **keywords):
         """
-        ptg = PointingHorizontal(n, latitude=45, longitude=30)
-        ptg = PointingHorizontal(azimuth, elevation[, pitch],
+        ptg = SamplingHorizontal(n, latitude=45, longitude=30)
+        ptg = SamplingHorizontal(azimuth, elevation[, pitch],
                                  latitude=45, longitude=30)
-        ptg = PointingHorizontal(n, azimuth=..., elevation=..., pitch=...
+        ptg = SamplingHorizontal(n, azimuth=..., elevation=..., pitch=...
                                  latitude=45, longitude=30)
 
         Parameters
@@ -328,7 +329,7 @@ class PointingHorizontal(PointingSpherical):
                 raise ValueError('The reference longitude is not specified.')
         self.longitude = longitude
 
-        PointingSpherical.__init__(
+        SamplingSpherical.__init__(
             self,
             degrees=True,
             names=('azimuth', 'elevation', 'pitch'),
@@ -368,13 +369,13 @@ class PointingHorizontal(PointingSpherical):
         return e2g(h2e)(self.spherical, preserve_input=False)
 
 
-class PointingScanEquatorial(PointingEquatorial):
+class _SamplingEquatorialScan(SamplingEquatorial):
     INSCAN = 0
     TURNAROUND = 1
     OTHER = 2
 
     def __init__(self, *args, **keywords):
-        PointingEquatorial.__init__(
+        SamplingEquatorial.__init__(
             self, info=keywords.pop('info', 0), *args, **keywords
         )
 
@@ -388,3 +389,23 @@ def _plot_scan(image, ra, dec, linewidth=None, **kw):
         if np.isfinite(x_) and np.isfinite(y_):
             mp.plot(x_, y_, 'o', color=p[0]._color)
             break
+
+
+if pyoperators.__version__ >= '0.13.6':
+
+    @deprecated
+    class PointingSpherical(SamplingSpherical):
+        pass
+
+    @deprecated
+    class PointingEquatorial(SamplingEquatorial):
+        pass
+
+    @deprecated
+    class PointingHorizontal(SamplingHorizontal):
+        pass
+
+else:
+    PointingSpherical = SamplingSpherical
+    PointingEquatorial = SamplingEquatorial
+    PointingHorizontal = SamplingHorizontal
