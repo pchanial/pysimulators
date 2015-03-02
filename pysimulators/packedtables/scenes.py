@@ -1,5 +1,10 @@
 from __future__ import absolute_import, division, print_function
-from pyoperators import IdentityOperator, To1dOperator, asoperator
+from pyoperators import (
+    asoperator,
+    IdentityOperator,
+    MPIDistributionIdentityOperator,
+    To1dOperator,
+)
 from pyoperators.memory import empty
 from pyoperators.utils import strenum, product
 from .core import PackedTable
@@ -69,6 +74,34 @@ class Scene(PackedTable):
         out = self.empty()
         out[...] = 0
         return out
+
+    def get_distribution_operator(self, comm):
+        """
+        Distribute a global scene, of which each MPI process has a copy, to the
+        MPI processes.
+
+        It is a block column operator whose blocks are identities distributed
+        across the MPI processes.
+
+                       |1   O|
+        MPI rank 0 --> |  .  |
+                       |O   1|
+                       +-----+
+                       |1   O|
+        MPI rank 1 --> |  .  |
+                       |O   1|
+                       +-----+
+                       |1   O|
+        MPI rank 2 --> |  .  |
+                       |O   1|
+
+        For an MPI process, the direct method is the Identity and the transpose
+        method is a reduction.
+
+        """
+        if self.comm.size > 1:
+            raise ValueError('The scene is already distributed.')
+        return MPIDistributionIdentityOperator(comm)
 
 
 class SceneGrid(Scene):
