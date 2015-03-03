@@ -126,6 +126,14 @@ class Instrument(object):
         """
         self.detector.plot(**keywords)
 
+    def get_operator(self, sampling, scene):
+        """
+        Return the acquisition model for the specified sampling and scene
+        as an operator.
+
+        """
+        raise NotImplementedError()
+
     def get_invntt_operator(
         self,
         sampling,
