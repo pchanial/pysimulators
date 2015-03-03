@@ -141,27 +141,39 @@ class Acquisition(object):
 
     def __getitem__(self, x):
         """
-        Used to select instrument detectors and samplings.
+        Restrict the acquisition model to a set of detectors, samplings or
+        scene pixels.
 
-        new_acq = acq[selection_instrument, selection_sampling]
+        new_acq = acq[selection_instrument, selection_sampling,
+                      selection_scene]
 
+        Example
+        -------
+        >>> acq = MyAcquisition()
+        Restrict to the first 10 detectors:
+        >>> new_acq = acq[:10]
+        Restrict to the first 10 samplings:
+        >>> new_acq = acq[:, :10]
+        Restrict to the first 10 pixels of the scene:
+        >>> new_acq = acq[..., :10]
         """
         out = copy(self)
-        if isinstance(x, tuple):
-            if len(x) == 0:
-                x = (Ellipsis, Ellipsis)
-            elif len(x) == 1:
-                x += (Ellipsis,)
-            elif len(x) > 2:
-                raise ValueError('Invalid selection.')
-            instrument = self.instrument[x[0]]
-            sampling = self.sampling[x[1]]
-            # XXX FIX BLOCKS!!!
-        else:
-            instrument = self.instrument[x]
-            sampling = self.sampling
-        out.instrument = instrument
-        out.sampling = sampling
+        if not isinstance(x, tuple):
+            out.instrument = self.instrument[x]
+            return out
+        if len(x) == 2 and x[0] is Ellipsis:
+            x = Ellipsis, Ellipsis, x[1]
+        if len(x) > 3:
+            raise ValueError('Invalid selection.')
+        x = x + (3 - len(x)) * (Ellipsis,)
+        if x[2] is not Ellipsis and (
+            not isinstance(x[2], slice) or x[2] == slice(None)
+        ):
+            self._operator = None
+            gc.collect()
+        out.instrument = self.instrument[x[0]]
+        out.sampling = self.sampling[x[1]]  # XXX FIX BLOCKS!!!
+        out.scene = self.scene[x[2]]
         return out
 
     def __str__(self):
