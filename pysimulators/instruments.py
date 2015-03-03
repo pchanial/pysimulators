@@ -1,9 +1,8 @@
 from __future__ import absolute_import, division, print_function
 from pyoperators import DiagonalOperator, SymmetricBandToeplitzOperator, asoperator
-from pyoperators.memory import empty
-from pyoperators.utils import split
+from pyoperators.memory import empty, ones, zeros
+from pyoperators.utils import operation_assignment, split
 from pyoperators.utils.mpi import MPI
-from .geometry import convex_hull
 from .noises import (
     _fold_psd,
     _gaussian_psd_1f,
@@ -238,6 +237,7 @@ class Instrument(object):
         fknee=0,
         fslope=1,
         out=None,
+        operation=operation_assignment,
     ):
         """
         Return the noise realization following a given PSD.
@@ -281,23 +281,24 @@ class Instrument(object):
             sigma = nep / np.sqrt(2 * sampling.period)
         if bandwidth is None and psd is None and sigma is None:
             raise ValueError('The noise model is not specified.')
+        if out is None and operation is not operation_assignment:
+            raise ValueError('The output buffer is not specified.')
 
         shape = (len(self), len(sampling))
 
         # handle non-correlated case first
         if bandwidth is None and fknee == 0:
-            noise = np.random.standard_normal(shape)
+            sigma = np.atleast_1d(sigma)
+            noise = np.random.standard_normal(shape) * sigma[:, None]
             if out is None:
-                out = noise
-            else:
-                out[...] = noise
-            np.multiply(out.T, sigma, out.T)
+                return noise
+            operation(out, noise)
             return out
 
-        sampling_frequency = 1 / sampling.period
-
         if out is None:
-            out = empty(shape)
+            out = empty((len(self), len(sampling)))
+
+        sampling_frequency = 1 / sampling.period
 
         # fold two-sided input PSD
         if bandwidth is not None and psd is not None:
@@ -319,7 +320,9 @@ class Instrument(object):
 
         # looping over the detectors
         for out_ in out:
-            out_[...] = _gaussian_sample(n, sampling_frequency, p, twosided=twosided)
+            operation(
+                out_, _gaussian_sample(n, sampling_frequency, p, twosided=twosided)
+            )
 
         return out
 

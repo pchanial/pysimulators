@@ -8,6 +8,7 @@ from pyoperators.memory import empty
 from pyoperators.utils import (
     ifirst,
     isscalarlike,
+    operation_assignment,
     product,
     split,
     strelapsed,
@@ -25,6 +26,7 @@ from .wcsutils import (
     create_fitsheader,
     fitsheader2shape,
 )
+import operator
 import numpy as np
 import time
 
@@ -276,7 +278,7 @@ class Acquisition(object):
         proj = acq.get_projection_operator(**keywords)
         return proj.nbytes * len(self.sampling)
 
-    def get_noise(self, out=None):
+    def get_noise(self, out=None, operation=operation_assignment):
         """
         Return the noise realization according the instrument's noise model.
 
@@ -287,9 +289,13 @@ class Acquisition(object):
 
         """
         if out is None:
+            if operation is not operation_assignment:
+                raise ValueError('The output buffer is not specified.')
             out = empty((len(self.instrument), len(self.sampling)))
         for b in self.block:
-            self.instrument.get_noise(self.sampling[b], out=out[:, b])
+            self.instrument.get_noise(
+                self.sampling[b], out=out[:, b], operation=operation
+            )
         return out
 
     @classmethod
