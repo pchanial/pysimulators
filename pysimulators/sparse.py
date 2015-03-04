@@ -919,7 +919,7 @@ class SparseOperator(SparseBase):
             self.delete()
         return out
 
-    def restrict(self, mask, inplace=False):
+    def restrict_new(self, mask, inplace=False):
         """
         Restrict the operator to a subspace defined by a mask
         (True means that the element is kept). Indices are renumbered in-place
@@ -993,7 +993,7 @@ class SparseOperator(SparseBase):
             self.delete()
         return out
 
-    def restrict_old(self, mask, inplace=False):
+    def restrict(self, mask, inplace=False):
         """
         Restrict the operator to a subspace defined by a mask
         (True means that the element is kept). Indices are renumbered in-place
