@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 from pyoperators import CompositionOperator, DiagonalOperator, operation_assignment
 from pyoperators.linear import SparseBase
 from pyoperators.memory import empty
-from pyoperators.utils import isscalarlike, product, tointtuple
+from pyoperators.utils import isscalarlike, ilast, product, tointtuple
 from pysimulators._flib import sparse as fsp
 from pysimulators._flib import operators as fop
 import numpy as np
@@ -797,18 +797,20 @@ class SparseOperator(SparseBase):
             else:
                 shapein = tointtuple(shapein)
                 test = np.cumprod(shapein) == arg.shape[1]
-                if np.max(test) == 0:
+                try:
+                    bshapein = shapein[: ilast(test, lambda x: x) + 1]
+                except ValueError:
                     bshapein = (arg.shape[1],)
-                bshapein = shapein[: np.argmax(test) + 1]
             self.broadcastable_shapein = bshapein
             if shapeout is None:
                 bshapeout = keywords.pop('broadcastable_shapeout', (arg.shape[0],))
             else:
                 shapeout = tointtuple(shapeout)
                 test = np.cumprod(shapeout) == arg.shape[0]
-                if np.max(test) == 0:
+                try:
+                    bshapeout = shapeout[: ilast(test, lambda x: x) + 1]
+                except ValueError:
                     bshapeout = (arg.shape[0],)
-                bshapeout = shapeout[: np.argmax(test) + 1]
             self.broadcastable_shapeout = bshapeout
         else:
             bs = arg.block_shape
