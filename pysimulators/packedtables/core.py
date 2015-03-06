@@ -365,6 +365,15 @@ class PackedTable(object):
 
     __repr__ = __str__
 
+    def copy(self):
+        """
+        Return a deep copy of the packed array.
+
+        """
+        out = copy.deepcopy(self)
+        out.comm = self.comm.Dup()
+        return out
+
     def pack(self, x, out=None, copy=False):
         """
         Convert a multi-dimensional array into a 1-dimensional array which
