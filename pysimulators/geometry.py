@@ -359,7 +359,7 @@ def surface_simple_polygon(coords, out=None, dtype=float):
     if coords.ndim < 3:
         coords = coords[None, ...]
     if out.ndim == 0:
-        out_ = out[None, ...]
+        out_ = out.reshape(1)
     else:
         out_ = out
     _flib.geometry.surface_simple_polygon(coords.T, out_.T)
