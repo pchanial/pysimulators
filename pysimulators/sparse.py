@@ -106,7 +106,7 @@ class _FSMatrix(object):
         self.ndim = 2
         self.shape = tuple(shape)
         self.block_shape = tuple(block_shape)
-        setattr(self, 'n' + straxes[0][:3] + 'max', nmax)
+        setattr(self, 'n' + straxes[0][:3] + 'max', int(nmax))
 
     def _matvec(self, v, out, nmax):
         v = np.asarray(v).ravel()
