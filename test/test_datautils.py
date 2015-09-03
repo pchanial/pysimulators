@@ -102,9 +102,23 @@ def test_fwhm():
         m = f((1000, 1000), fwhm=fwhm, scale=scale)
         assert np.sum(m[500, :] > np.max(m) / 2) == n
 
-    for f in [gaussian, airy_disk]:
+    for f in [airy_disk]:
         for fwhm, scale, n in zip([10, 10, 100], [0.1, 1, 10], [100, 10, 10]):
             yield func, f, fwhm, scale, n
+
+
+def test_gaussian():
+    shape = (100, 90)
+    sigma = 2.1, 2.4
+    origin = 14.3, 52.2
+    dtype = float
+    y, x = np.ogrid[0 : shape[0], 0 : shape[1]]
+    ref = np.exp(
+        -((x - origin[0]) ** 2) / (2 * sigma[0] ** 2)
+        + -((y - origin[1]) ** 2) / (2 * sigma[1] ** 2)
+    ) / (2 * np.pi * sigma[0] * sigma[1])
+    actual = gaussian(shape, sigma=sigma, origin=origin, dtype=dtype)
+    assert_same(actual, ref, atol=2)
 
 
 def test_profile():

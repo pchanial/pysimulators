@@ -225,9 +225,9 @@ def distance2(shape, origin=None, scale=1, dtype=float, out=None):
         fname = 'distance2_{0}d_r{1}'.format(ndim, dtype.itemsize)
         func = getattr(flib.datautils, fname)
         if ndim == 1:
-            func(out_, origin[0], scale[0])
+            func(out_, origin[0], scale[0] ** 2)
         else:
-            func(out_.T, origin, scale)
+            func(out_.T, origin, scale**2)
         if not isalias(out, out_):
             out[...] = out_
     else:
@@ -318,7 +318,7 @@ class Ds9(object):
 ds9 = Ds9()
 
 
-def gaussian(shape, sigma=None, fwhm=None, origin=None, scale=1, dtype=float):
+def gaussian(shape, sigma=None, fwhm=None, origin=None, dtype=float):
     """
     Returns an array whose values are the distances to a given origin.
 
@@ -327,28 +327,49 @@ def gaussian(shape, sigma=None, fwhm=None, origin=None, scale=1, dtype=float):
     shape : tuple of integer
         dimensions of the output array. For a 2d array, the first integer
         is for the Y-axis and the second one for the X-axis.
-    fwhm : float or tuple of float
+    fwhm : array-like
         The Full Width Half Maximum of the gaussian (fwhm_x, fwhm_y, ...).
-    sigma : float or tuple of float
-        The sigma parameter (sigma_x, sigma_y, ...).
+    sigma : array-like
+        The sigma parameter (sigma_x, sigma_y, ...) in pixel units.
     origin : array-like, optional
-        Center (x0, y0, ...) of the gaussian, in pixel coordinates. By
+        Center (x0, y0, ...) of the gaussian, in pixel units. By
         convention, the coordinates of the center of the pixel [0, 0]
         are (0, 0). Default is the image center.
-    scale : float or array-like, optional
-        Inter-pixel distance (dx, dy, ...).
     dtype : np.dtype, optional
         The output data type.
 
     """
     if sigma is None and fwhm is None:
         raise ValueError('The shape of the gaussian is not specified.')
+    shape = tointtuple(shape)
+    n = len(shape)
     if sigma is None:
         sigma = fwhm / np.sqrt(8 * np.log(2))
-    d = distance2(shape, origin=origin, scale=scale / (np.sqrt(2) * sigma))
-    d = np.exp(-d)
-    d /= np.sum(d)
-    return d
+    if origin is None:
+        origin = (np.array(shape[::-1], dtype) - 1) / 2
+    else:
+        origin = np.ascontiguousarray(origin, dtype)
+    if isscalarlike(sigma):
+        sigma = np.resize(sigma, n).astype(dtype)
+    else:
+        sigma = np.ascontiguousarray(sigma, dtype)
+    dtype = np.dtype(dtype)
+    if n == 2 and dtype in (np.float32, np.float64):
+        out = np.empty(shape, dtype)
+        func = getattr(flib.datautils, 'gaussian_2d_r{0}'.format(dtype.itemsize))
+        func(out.T, origin, sigma)
+    else:
+        scale = 1 / (np.sqrt(2) * sigma[::-1])
+        axes = np.ogrid[
+            [
+                slice(-o * sc, (sh - 1 - o) * sc, complex(sh))
+                for o, sh, sc in zip(origin[::-1], shape, scale)
+            ]
+        ]
+        out = 1 / ((2 * np.pi) ** (n / 2) * product(sigma))
+        for a in axes:
+            out = out * np.exp(-(a**2))
+    return out
 
 
 def integrated_profile(input, bin=1, nbins=None, origin=None, scale=1):

@@ -1,7 +1,7 @@
 module datautils
 
   use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
-  use module_math, only : NAN_4, NAN_8
+  use module_math, only : NAN_4, NAN_8, PI_4, PI_8
   implicit none
 
 contains
@@ -9,34 +9,34 @@ contains
   ! <kind=real32,real64>
   ! <size=4,8>
 
-  subroutine distance_1d_r<size>(distance, nx, origin, scale)
+  subroutine distance_1d_r<size>(distance, nx, origin, scaling)
 
       integer(int64), intent(in)  :: nx
       real(<kind>), intent(inout) :: distance(0:nx-1)
       real(<kind>), intent(in)    :: origin
-      real(<kind>), intent(in)    :: scale
+      real(<kind>), intent(in)    :: scaling
       integer(int64) :: i
 
       !$omp parallel do
       do i = 0, nx - 1
-          distance(i) = abs(scale * (i - origin))
+          distance(i) = abs(scaling * (i - origin))
       end do
       !$omp end parallel do
 
   end subroutine
 
 
-  subroutine distance2_1d_r<size>(distance, nx, origin, scale)
+  subroutine distance2_1d_r<size>(distance, nx, origin, scaling2)
 
       integer(int64), intent(in)  :: nx
       real(<kind>), intent(inout) :: distance(0:nx-1)
       real(<kind>), intent(in)    :: origin
-      real(<kind>), intent(in)    :: scale
+      real(<kind>), intent(in)    :: scaling2
       integer(int64) :: i
 
       !$omp parallel do
       do i = 0, nx - 1
-          distance(i) = (scale * (i - origin))**2
+          distance(i) = scaling2 * (i - origin)**2
       end do
       !$omp end parallel do
 
@@ -51,8 +51,8 @@ contains
       integer(int64) :: i, j
       real(<kind>) :: tmp, x2(0:nx-1), y2(0:ny-1)
 
-      call distance2_1d_r<size>(x2, nx, origin(1), scaling(1))
-      call distance2_1d_r<size>(y2, ny, origin(2), scaling(2))
+      call distance2_1d_r<size>(x2, nx, origin(1), scaling(1)**2)
+      call distance2_1d_r<size>(y2, ny, origin(2), scaling(2)**2)
 
       !$omp parallel do private(tmp)
       do j = 0, ny - 1
@@ -66,22 +66,48 @@ contains
   end subroutine
 
 
-  subroutine distance2_2d_r<size>(distance, nx, ny, origin, scaling)
+  subroutine distance2_2d_r<size>(distance, nx, ny, origin, scaling2)
       integer(int64), intent(in)  :: nx, ny
       real(<kind>), intent(inout) :: distance(0:nx-1,0:ny-1)
       real(<kind>), intent(in)    :: origin(2)
-      real(<kind>), intent(in)    :: scaling(2)
+      real(<kind>), intent(in)    :: scaling2(2)
       integer(int64) :: i, j
       real(<kind>) :: tmp, x2(0:nx-1), y2(0:ny-1)
 
-      call distance2_1d_r<size>(x2, nx, origin(1), scaling(1))
-      call distance2_1d_r<size>(y2, ny, origin(2), scaling(2))
+      call distance2_1d_r<size>(x2, nx, origin(1), scaling2(1))
+      call distance2_1d_r<size>(y2, ny, origin(2), scaling2(2))
 
       !$omp parallel do private(tmp)
       do j = 0, ny - 1
           tmp = y2(j)
           do i = 0, nx - 1
               distance(i,j) = x2(i) + tmp
+          end do
+      end do
+      !$omp end parallel do
+
+  end subroutine
+
+
+  subroutine gaussian_2d_r<size>(out, nx, ny, origin, sigma)
+      integer(int64), intent(in)  :: nx, ny
+      real(<kind>), intent(inout) :: out(0:nx-1,0:ny-1)
+      real(<kind>), intent(in)    :: origin(2)
+      real(<kind>), intent(in)    :: sigma(2)
+      integer(int64) :: i, j
+      real(<kind>) :: coef, tmp, x2(0:nx-1), y2(0:ny-1)
+
+      coef = 1._<kind> / (2._<kind> * pi_<size> * sigma(1) * sigma(2))
+      call distance2_1d_r<size>(x2, nx, origin(1), 0.5_<kind> / sigma(1)**2)
+      x2 = coef * exp(-x2)
+      call distance2_1d_r<size>(y2, ny, origin(2), 0.5_<kind> / sigma(2)**2)
+      y2 = exp(-y2)
+
+      !$omp parallel do private(tmp)
+      do j = 0, ny - 1
+          tmp = y2(j)
+          do i = 0, nx - 1
+              out(i,j) = x2(i) * tmp
           end do
       end do
       !$omp end parallel do
