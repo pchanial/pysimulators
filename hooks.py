@@ -285,11 +285,9 @@ def get_cmdclass():
     class CleanCommand(clean):
         def run(self):
             clean.run(self)
-            try:
+            if is_git_tree():
                 print(run_git('clean -fdX' + ('n' if self.dry_run else '')))
                 return
-            except RuntimeError:
-                pass
 
             extensions = '.o', '.pyc', 'pyd', 'pyo', '.so'
             for root_, dirs, files in os.walk(root):
@@ -381,9 +379,13 @@ def run_git(cmd, cwd=root):
         if stderr != '':
             stderr = '\n' + stderr.decode('utf-8')
         raise RuntimeError(
-            'Command failed (error {}): {}{}'.format(process.returncode, cmd, stderr)
+            'Command failed (error {0}): {1}{2}'.format(process.returncode, cmd, stderr)
         )
     return stdout.strip().decode('utf-8')
+
+
+def is_git_tree():
+    return os.path.exists(os.path.join(root, '.git'))
 
 
 def _get_version_git(default):
@@ -405,9 +407,9 @@ def _get_version_git(default):
     def get_description():
         branch = get_branch_name()
         try:
-            description = run_git('describe --abbrev={} --tags'.format(ABBREV))
+            description = run_git('describe --abbrev={0} --tags'.format(ABBREV))
         except RuntimeError:
-            description = run_git('describe --abbrev={} --always'.format(ABBREV))
+            description = run_git('describe --abbrev={0} --always'.format(ABBREV))
             regex = r"""^
             (?P<commit>.*?)
             (?P<dirty>(-dirty)?)
@@ -461,9 +463,7 @@ def _get_version_git(default):
         # no branch has been created from an ancestor
         return INF
 
-    try:
-        run_git('rev-parse --is-inside-work-tree')
-    except (OSError, RuntimeError):
+    if not is_git_tree():
         return ''
 
     branch, tag, rev_tag, commit, dirty = get_description()
@@ -510,7 +510,7 @@ def _get_version_git(default):
             suffix = 'pre'
     if name != '':
         name += '.'
-    return '{}{}{:02}{}'.format(name, suffix, rev, dirty)
+    return '{0}{1}{2:02}{3}'.format(name, suffix, rev, dirty)
 
 
 def _get_version_init_file(name):
