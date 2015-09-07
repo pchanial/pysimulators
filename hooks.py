@@ -124,7 +124,10 @@ def get_cmdclass():
                 numpy.distutils.log.set_verbosity(old_value)
 
         def build_libraries(self, libraries):
-            fcompiler = self._f_compiler
+            if numpy.__version__ < "1.7":
+                fcompiler = self.fcompiler
+            else:
+                fcompiler = self._f_compiler
             if isinstance(fcompiler, numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
                 old_value = numpy.distutils.log.set_verbosity(-2)
                 exe = numpy.distutils.exec_command.find_executable('gcc-ar')
