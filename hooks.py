@@ -443,7 +443,8 @@ def _get_version_git(default):
             common = run_git('merge-base HEAD ' + branch)
         except RuntimeError:
             return INF  # no common ancestor, the branch is dangling
-        return int(run_git('rev-list --count HEAD ^' + common))
+        # git 1.8: return int(run_git('rev-list --count HEAD ^' + common))
+        return len(run_git('rev-list HEAD ^' + common).split('\n'))
 
     def get_rev_since_any_branch():
         if REGEX_RELEASE.startswith('^'):
@@ -495,7 +496,7 @@ def _get_version_git(default):
 
     if rev_branch == rev_tag == INF:
         # no branch and no tag from ancestors, counting from root
-        rev = int(run_git('rev-list --count HEAD'))
+        rev = len(run_git('rev-list HEAD').split('\n'))
         if branch != 'master':
             suffix = 'rev'
     elif rev_tag <= rev_branch:
