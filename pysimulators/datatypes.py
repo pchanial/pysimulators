@@ -481,14 +481,14 @@ class FitsArray(Quantity):
 
         """
         try:
-            import ds9
+            import pyds9
         except ImportError:
             raise ImportError('The library pyds9 has not been installed.')
         import xpa
 
         id = None
         if not new:
-            list = ds9.ds9_targets()
+            list = pyds9.ds9_targets()
             if list is not None:
                 id = list[-1]
 
@@ -499,7 +499,9 @@ class FitsArray(Quantity):
             if 'scale' not in keywords:
                 keywords['scale'] = ('scope local', 'mode 99.5')
 
-            if origin == 'upper' or 'orient' not in keywords and self.origin == 'upper':
+            if origin is None:
+                origin = getattr(self, 'origin', 'lower')
+            if origin == 'upper' and 'orient' not in keywords:
                 keywords['orient'] = 'y'
 
             wait = 10
@@ -536,7 +538,7 @@ class FitsArray(Quantity):
                 raise ValueError('No active ds9 running for target: %s' % list)
 
         # get ds9 instance with given id
-        d = ds9.ds9(id_)
+        d = pyds9.DS9(id_)
 
         # load array
         input = self.view(np.ndarray)
