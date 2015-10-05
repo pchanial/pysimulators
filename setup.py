@@ -6,7 +6,7 @@ import sys
 from distutils.util import get_platform
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
-from hooks import get_cmdclass, get_version
+from hooks import cmdclass, get_version
 
 VERSION = '1.1'
 
@@ -100,7 +100,7 @@ setup(
     ],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
-    cmdclass=get_cmdclass(),
+    cmdclass=cmdclass,
     ext_modules=ext_modules,
     license='CeCILL-B',
     classifiers=[
