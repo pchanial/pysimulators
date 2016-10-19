@@ -60,10 +60,10 @@ MIN_VERSION_CYTHON = '0.13'
 
 import numpy
 import re
+import setuptools
 import shutil
 import sys
 from distutils.command.clean import clean
-from numpy.distutils.command.build import build
 from numpy.distutils.command.build_clib import build_clib
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.build_src import build_src
@@ -113,13 +113,6 @@ if _id is not None:
     numpy.distutils.fcompiler._default_compilers = _df
 
 
-class BuildCommand(build):
-    sub_commands = [
-        ('build_pre', lambda *args: True),
-        ('build_cy', lambda *args: True),
-    ] + build.sub_commands
-
-
 class BuildClibCommand(build_clib):
     def build_libraries(self, libraries):
         if parse_version(numpy.__version__) < parse_version('1.7'):
@@ -163,7 +156,7 @@ class BuildClibCommand(build_clib):
                 flags += ['-openmp']
             fcompiler.executables['compiler_f90'] += flags
             fcompiler.libraries += [LIBRARY_OPENMP_IFORT]
-        else:
+        elif fcompiler is not None:
             raise RuntimeError("Unhandled compiler: '{}'.".format(fcompiler))
         build_clib.build_libraries(self, libraries)
 
@@ -323,29 +316,24 @@ class BuildSrcCommand(build_src):
         self.f2py_opts = '--quiet'
 
     def run(self):
+        self.run_command('build_pre')
+        self.run_command('build_cy')
         if self._has_fortran():
             with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
                 f.write(repr(F2PY_TABLE))
         build_src.run(self)
+
+    def pyrex_sources(self, sources, extension):
+        return sources
 
     def _has_fortran(self):
         return any(has_f_sources(ext.sources) for ext in self.extensions)
 
 
 class SDistCommand(sdist):
-    sub_commands = [
-        ('build_pre', lambda *args: True),
-        ('build_cy', lambda *args: True),
-    ] + sdist.sub_commands
-
-    def add_defaults(self):
-        sdist.add_defaults(self)
+    def make_distribution(self):
         self.filelist.append('hooks.py')
-        extensions = self.distribution.ext_modules
-        for ext in extensions:
-            for source in ext.sources:
-                if source.endswith('.pyx'):
-                    self.filelist.append(source)
+        sdist.make_distribution(self)
 
 
 class CleanCommand(clean):
@@ -422,7 +410,6 @@ class TestCommand(Command):
 
 
 cmdclass = {
-    'build': BuildCommand,
     'build_clib': BuildClibCommand,
     'build_cy': BuildCyCommand,
     'build_ext': BuildExtCommand,
@@ -455,7 +442,9 @@ def run(cmd, cwd=root):
         if stderr != '':
             stderr = '\n' + stderr
         raise RuntimeError(
-            'Command failed (error {0}): {1}{2}'.format(process.returncode, cmd, stderr)
+            u'Command failed (error {0}): {1}{2}'.format(
+                process.returncode, cmd, stderr
+            )
         )
     return stdout.strip().decode('utf-8')
 
