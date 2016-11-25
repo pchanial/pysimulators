@@ -908,7 +908,7 @@ class SparseOperator(SparseBase):
         out = self.copy()
         out.matrix = type(self.matrix)(
             (nrow * self.matrix.block_shape[0], self.matrix.shape[1]),
-            self.matrix.data[mask_],
+            data=self.matrix.data[mask_],
         )
         if isinstance(self.matrix, FSRMatrix):
             out.broadcastable_shapeout = (nrow,)
