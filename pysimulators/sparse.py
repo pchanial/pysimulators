@@ -937,12 +937,6 @@ class SparseOperator(SparseBase):
                     type(self.matrix).__name__
                 )
             )
-        flib_id = {
-            FSRMatrix: '',
-            FSRBlockMatrix: '_block',
-            FSRRotation2dMatrix: '_rot2d',
-            FSRRotation3dMatrix: '_rot3d',
-        }[type(self.matrix)]
         mask = np.asarray(mask)
         if mask.dtype != bool:
             raise TypeError('The mask is not boolean.')
