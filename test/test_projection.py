@@ -5,7 +5,7 @@ import operator
 from numpy.testing import assert_equal
 from pyoperators import MaskOperator, PackOperator, Rotation2dOperator
 from pyoperators.core import DeletedOperator
-from pyoperators.utils.testing import assert_same, assert_is_type
+from pyoperators.utils.testing import assert_same, assert_is_type, skiptest
 from pysimulators.operators import ProjectionOperator
 from pysimulators.sparse import FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix
 
@@ -118,6 +118,7 @@ def test_pT1():
                     yield func, cls, itype, ftype, vtype
 
 
+@skiptest
 def test_pTx_pT1():
     input_fsr = np.array([1.1, 2, -1.3, 2, -3, 4.1], dtype=np.float128)
     input_fsrrot2d = input_fsr[:, None] * Rotation2dOperator(
