@@ -575,7 +575,7 @@ def _get_version_git(default):
             suffix = 'pre'
     if name != '':
         name += '.'
-    return '{0}{1}{2:02}{3}'.format(name, suffix, rev, dirty)
+    return '{0}{1}{2}{3}'.format(name, suffix, rev, dirty)
 
 
 def _get_version_init_file(name):
