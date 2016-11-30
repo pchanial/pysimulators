@@ -58,11 +58,15 @@ REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
 USE_CYTHON = bool(int(os.getenv('SETUPHOOKS_USE_CYTHON', '1') or '0'))
 MIN_VERSION_CYTHON = '0.13'
 
+import sys
+
+# we disable setuptools sdist see numpy github issue #7127
+if 'sdist' not in sys.argv:
+    import setuptools
+
 import numpy
 import re
-import setuptools
 import shutil
-import sys
 from distutils.command.clean import clean
 from numpy.distutils.command.build_clib import build_clib
 from numpy.distutils.command.build_ext import build_ext
