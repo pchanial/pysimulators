@@ -1,11 +1,12 @@
-*pyc
 .coverage
 .f2py_f2cmap
 MANIFEST
 build
 dist
-_site
 htmlcov
+_site
+*pyc
+**/__pycache__
 pysimulators/__init__.py
 pysimulators/*.so
 src/module_geometry.f90
