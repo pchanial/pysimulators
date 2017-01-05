@@ -332,9 +332,14 @@ class BuildSrcCommand(build_src):
 
 
 class SDistCommand(sdist):
-    def make_distribution(self):
+    def run(self):
+        self.run_command('build_pre')
+        self.run_command('build_cy')
+        sdist.run(self)
+
+    def get_file_list(self):
+        sdist.get_file_list(self)
         self.filelist.append('hooks.py')
-        sdist.make_distribution(self)
 
 
 class CleanCommand(clean):
