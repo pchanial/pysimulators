@@ -307,7 +307,7 @@ class BuildPreCommand(Command):
             init = open(os.path.join(root, name, '__init__.py.in')).readlines()
         except IOError:
             return
-        init += ['\n', '__version__ = ' + repr(version) + '\n']
+        init += ['\n', "__version__ = '{}'\n".format(version)]
         open(os.path.join(root, name, '__init__.py'), 'w').writelines(init)
 
 
