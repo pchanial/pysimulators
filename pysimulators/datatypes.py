@@ -205,7 +205,7 @@ class FitsArray(Quantity):
         if self._header is not None:
             typename = np.dtype(dtype).name
             result._header = self._header.copy()
-            result._header['BITPIX'] = pyfits.PrimaryHDU.ImgCode[typename]
+            result._header['BITPIX'] = pyfits.DTYPE2BITPIX[typename]
         return result
 
     @classmethod
