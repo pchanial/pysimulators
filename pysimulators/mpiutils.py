@@ -264,7 +264,7 @@ def write_fits(filename, data, header, extension, extname, comm):
     if comm.size == 1:
         if not extension:
             hdu = pyfits.PrimaryHDU(data, header)
-            hdu.writeto(filename, clobber=True)
+            hdu.writeto(filename, overwrite=True)
         else:
             pyfits.append(filename, data, header)
         return
