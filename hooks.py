@@ -72,7 +72,7 @@ from numpy.distutils.command.build_clib import build_clib
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.build_src import build_src
 from numpy.distutils.command.sdist import sdist
-from numpy.distutils.core import Command
+from distutils.cmd import Command
 from numpy.distutils.exec_command import find_executable
 from numpy.distutils.fcompiler import new_fcompiler
 from numpy.distutils.fcompiler.gnu import Gnu95FCompiler
@@ -151,13 +151,13 @@ class BuildClibCommand(build_clib):
             if self.debug:
                 flags += F77_COMPILE_DEBUG_IFORT
             if F77_OPENMP:
-                flags += ['-openmp']
+                flags += ['-qopenmp']
             fcompiler.executables['compiler_f77'] += flags
             flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
             if self.debug:
                 flags += F90_COMPILE_DEBUG_IFORT
             if F90_OPENMP:
-                flags += ['-openmp']
+                flags += ['-qopenmp']
             fcompiler.executables['compiler_f90'] += flags
             fcompiler.libraries += [LIBRARY_OPENMP_IFORT]
         elif fcompiler is not None:
@@ -272,13 +272,13 @@ class BuildExtCommand(build_ext):
                 if self.debug:
                     flags += F77_COMPILE_DEBUG_IFORT
                 if F77_OPENMP:
-                    flags += ['-openmp']
+                    flags += ['-qopenmp']
                 fc.executables['compiler_f77'] += flags
                 flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
                 if self.debug:
                     flags += F90_COMPILE_DEBUG_IFORT
                 if F90_OPENMP:
-                    flags += ['-openmp']
+                    flags += ['-qopenmp']
                 fc.executables['compiler_f90'] += flags
                 fc.libraries += [LIBRARY_OPENMP_IFORT]
             elif fc is not None:
