@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 import numpy as np
-import hooks
 import sys
-
 from distutils.util import get_platform
+
+import setuptools
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
+
+import hooks
 from hooks import cmdclass, get_version
 
 VERSION = '1.1'
@@ -37,7 +39,12 @@ long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 define_macros = [('GFORTRAN', None), ('PRECISION_REAL', 8)]
-mod_dir = 'build/temp.' + get_platform() + '-%s.%s' % sys.version_info[:2]
+setuptools_version = tuple(map(int, setuptools.__version__.split('.')))
+if setuptools_version >= (62, 1):
+    mod_dir = f'build/temp.{get_platform()}-{sys.implementation.cache_tag}'
+else:
+    major, minor = sys.version_info[:2]
+    mod_dir = f'build/temp.{get_platform()}-{major}.{minor}'
 
 flib = (
     'fmod',
