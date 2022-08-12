@@ -26,12 +26,12 @@ from pyoperators.utils import (
     tointtuple,
 )
 from ..warnings import PySimulatorsWarning, warn
-import collections
 import copy
 import functools
 import inspect
 import numpy as np
 import types
+from collections.abc import Callable
 
 __all__ = ['PackedTable']
 
@@ -148,7 +148,7 @@ class PackedTable(object):
             self._special_attributes += (k,)
             if v is None and isclassattr(k, type(self)):
                 continue
-            if not isinstance(v, collections.Callable):
+            if not isinstance(v, Callable):
                 v = self.pack(v, copy=True)
             setattr(self, k, v)
 
@@ -255,7 +255,7 @@ class PackedTable(object):
             raise AttributeError('The attribute {0!r} is not writeable.'.format(key))
         if (
             value is not None
-            and not isinstance(value, collections.Callable)
+            and not isinstance(value, Callable)
             and key in self._special_attributes
         ):
             value = np.asanyarray(value)
@@ -267,9 +267,7 @@ class PackedTable(object):
             elif value.ndim == 0:
                 try:
                     old_value = object.__getattribute__(self, key)
-                    if old_value is not None and not isinstance(
-                        old_value, collections.Callable
-                    ):
+                    if old_value is not None and not isinstance(old_value, Callable):
                         old_value[...] = value
                         return
                 except AttributeError:
@@ -288,7 +286,7 @@ class PackedTable(object):
         value = object.__getattribute__(self, key)
         if key not in object.__getattribute__(
             self, '_special_attributes'
-        ) or not isinstance(value, collections.Callable):
+        ) or not isinstance(value, Callable):
             return value
         spec = inspect.getargspec(value)
         nargs = len(spec.args)
@@ -796,7 +794,7 @@ class UnpackedTable(object):
         v = getattr(self._packed, key)
         if v is None:
             return v
-        if isinstance(v, collections.Callable):
+        if isinstance(v, Callable):
             return lambda *args: self._packed.unpack(v(*args))
         out = self._packed.unpack(v).view()
         out.flags.writeable = False
@@ -817,6 +815,6 @@ class UnpackedTable(object):
             raise AttributeError('{0!r} is not an unpacked attribute.'.format(key))
         if key in p._reserved_attributes:
             raise AttributeError('The attribute {0!r} is not writeable.'.format(key))
-        if isinstance(value, collections.Callable):
+        if isinstance(value, Callable):
             raise TypeError('A function cannot be set as an unpacked attribute.')
         object.__setattr__(p, key, p.pack(value, copy=True))

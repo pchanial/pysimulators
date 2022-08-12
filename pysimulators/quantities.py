@@ -4,9 +4,9 @@
 from __future__ import absolute_import, division, print_function
 from pyoperators.memory import empty
 from . import _flib as flib
-import collections
 import numpy as np
 import re
+from collections.abc import Callable
 
 __all__ = ['Quantity', 'UnitError', 'units']
 
@@ -868,7 +868,7 @@ def _get_du(input, key, derived_units):
         du, broadcast = _check_in_du(key, derived_units)
     except ValueError:
         return None, None
-    if isinstance(du, collections.Callable):
+    if isinstance(du, Callable):
         du = du(input)
     if du is None:
         return None, None
