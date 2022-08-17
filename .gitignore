@@ -8,7 +8,6 @@ _site
 *pyc
 **/__pycache__
 /*.egg-info
-pysimulators/__init__.py
 pysimulators/*.so
 src/module_geometry.f90
 src/module_math.f90

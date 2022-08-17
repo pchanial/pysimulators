@@ -8,9 +8,7 @@ from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
 
 import hooks
-from hooks import cmdclass, get_version
-
-VERSION = '1.1'
+from hooks import cmdclass
 
 hooks.F2PY_TABLE = {
     'integer': {'int8': 'char', 'int16': 'short', 'int32': 'int', 'int64': 'long_long'},
@@ -34,7 +32,6 @@ hooks.F90_COMPILE_ARGS_IFORT += ['-align norecords']
 if sys.platform == 'darwin':
     hooks.F90_COMPILE_OPT_GFORTRAN = ['-O2']
 
-name = 'pysimulators'
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
@@ -88,8 +85,6 @@ ext_modules = [
 
 
 setup(
-    name=name,
-    version=get_version(name, VERSION),
     description='Tools to build an instrument model.',
     long_description=long_description,
     url='http://pchanial.github.com/pysimulators',
