@@ -10,7 +10,48 @@ requires = [
 
 [project]
 name = "pysimulators"
+authors = [
+    {name = "Pierre Chanial", email = "pierre.chanial@gmail.com"},
+]
+maintainers = [
+    {name = "Pierre Chanial", email = "pierre.chanial@gmail.com"},
+]
+description = "Tools to build an instrument model."
+readme = "README.md"
+keywords = [
+    "scientific computing",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: C",
+    "Programming Language :: Fortran",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+dependencies = [
+    "pyoperators>=0.12.5",
+    "astropy>=0.3.2",
+    "scipy>=0.9",
+]
 dynamic = ["version"]
+
+[project.urls]
+repository = "https://github.com/pchanial/pysimulators"
+
+[tool.setuptools.packages.find]
+include = ["pysimulators*"]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"

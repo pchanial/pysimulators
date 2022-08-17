@@ -32,9 +32,6 @@ hooks.F90_COMPILE_ARGS_IFORT += ['-align norecords']
 if sys.platform == 'darwin':
     hooks.F90_COMPILE_OPT_GFORTRAN = ['-O2']
 
-long_description = open('README.rst').read()
-keywords = 'scientific computing'
-platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 define_macros = [('GFORTRAN', None), ('PRECISION_REAL', 8)]
 setuptools_version = tuple(map(int, setuptools.__version__.split('.')))
 if setuptools_version >= (62, 1):
@@ -85,44 +82,6 @@ ext_modules = [
 
 
 setup(
-    description='Tools to build an instrument model.',
-    long_description=long_description,
-    url='http://pchanial.github.com/pysimulators',
-    author='Pierre Chanial',
-    author_email='pierre.chanial@gmail.com',
-    maintainer='Pierre Chanial',
-    maintainer_email='pierre.chanial@gmail.com',
-    install_requires=['pyoperators>=0.12.15', 'astropy>=0.3.2'],
-    packages=[
-        'pysimulators',
-        'pysimulators/interfaces',
-        'pysimulators/interfaces/healpy',
-        'pysimulators/interfaces/madmap1',
-        'pysimulators/packedtables',
-    ],
-    platforms=platforms.split(','),
-    keywords=keywords.split(','),
     cmdclass=cmdclass,
     ext_modules=ext_modules,
-    license='CeCILL-B',
-    classifiers=[
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Fortran',
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Science/Research',
-        'Operating System :: OS Independent',
-        'Topic :: Scientific/Engineering',
-        'Topic :: Scientific/Engineering :: Astronomy',
-        'Topic :: Scientific/Engineering :: Atmospheric Science',
-        'Topic :: Scientific/Engineering :: Information Analysis',
-        'Topic :: Scientific/Engineering :: Medical Science Apps.',
-        'Topic :: Scientific/Engineering :: Physics',
-    ],
 )
