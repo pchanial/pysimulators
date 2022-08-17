@@ -177,7 +177,8 @@ def test_dtype():
     assert_is(Quantity(complex(1, 0)).dtype, np.dtype(np.complex128))
     assert_is(Quantity(1.0, dtype=np.complex64).dtype, np.dtype(np.complex64))
     assert_is(Quantity(1.0, dtype=np.complex128).dtype, np.dtype(np.complex128))
-    assert_is(Quantity(1.0, dtype=np.complex256).dtype, np.dtype(np.complex256))
+    if hasattr(np, 'complex256'):
+        assert_is(Quantity(1.0, dtype=np.complex256).dtype, np.dtype(np.complex256))
     assert_is(Quantity(np.array(complex(1, 0))).dtype, np.dtype(complex))
     assert_is(Quantity(np.array(np.complex64(1.0))).dtype, np.dtype(np.complex64))
     assert_is(Quantity(np.array(np.complex128(1.0))).dtype, np.dtype(complex))

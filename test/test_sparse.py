@@ -24,9 +24,7 @@ from pysimulators.sparse import (
     SparseOperator,
 )
 
-ftypes = np.float16, np.float32, np.float64, np.float128
-iutypes = (np.uint8, np.uint16, np.uint32, np.uint64)
-itypes = (np.int8, np.int16, np.int32, np.int64)
+from .common import BIGGEST_FLOAT_TYPE, FLOAT_TYPES, INT_TYPES, SINT_TYPES
 
 
 def min_dtype(t1, t2):
@@ -63,9 +61,9 @@ def test_fsc1():
         op._matvec(np.array(input_, vtype), out=out)
         assert_same(out, exp)
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
-            for vtype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
+            for vtype in FLOAT_TYPES:
                 for block_size in (1, 2):
                     yield func, itype, ftype, vtype, block_size
 
@@ -117,9 +115,9 @@ def test_fsc2():
         out = (mat * 3) * input_fsc_
         assert_same(out, 3 * exp)
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
-            for vtype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
+            for vtype in FLOAT_TYPES:
                 for block_size in (1, 2):
                     yield func1, itype, ftype, vtype, block_size
 
@@ -131,8 +129,8 @@ def test_fsc2():
         op2 = SparseOperator(mat, shapeout=(2, 2) + shapein, shapein=(3, 2) + shapein)
         assert_same(op2.todense(), todense)
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
             for shapein in (), (3,):
                 yield func2, itype, ftype, shapein
 
@@ -202,9 +200,9 @@ def test_fsr1():
         op._matvec(input_, out=out)
         assert_same(out, exp)
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
-            for vtype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
+            for vtype in FLOAT_TYPES:
                 for block_size in (1, 2):
                     yield func1, itype, ftype, vtype, block_size
 
@@ -224,8 +222,8 @@ def test_fsr1():
         assert_is_type(pTp, DiagonalOperator)
         assert_same(pTp.todense(), np.dot(todense.T, todense))
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
             yield func2, itype, ftype
 
 
@@ -276,9 +274,9 @@ def test_fsr2():
         out = (mat * 3) * input_fsr_
         assert_same(out, 3 * exp)
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
-            for vtype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
+            for vtype in FLOAT_TYPES:
                 for block_size in (1, 2):
                     yield func1, itype, ftype, vtype, block_size
 
@@ -292,8 +290,8 @@ def test_fsr2():
         op2 = SparseOperator(mat, shapein=(2, 2) + shapein, shapeout=(3, 2) + shapein)
         assert_same(op2.todense(), todense)
 
-    for itype in iutypes + itypes:
-        for ftype in ftypes:
+    for itype in INT_TYPES:
+        for ftype in FLOAT_TYPES:
             for shapein in (), (3,):
                 yield func2, itype, ftype, shapein
 
@@ -372,8 +370,8 @@ def test_block():
         assert_equal(op.dtype, ftype)
         assert_same(op.todense(), dense.T)
         assert_same(op.T.todense(), dense)
-        ref = mat_fsc._matvec(input_fsc.astype(np.float128))
-        for ftype2 in ftypes[:-1]:
+        ref = mat_fsc._matvec(input_fsc.astype(BIGGEST_FLOAT_TYPE))
+        for ftype2 in FLOAT_TYPES:
             out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
             assert_same(out, ref.astype(min_dtype(ftype, ftype2)), atol=10)
@@ -387,8 +385,8 @@ def test_block():
         assert_equal(op.dtype, ftype)
         assert_same(op.todense(), dense)
         assert_same(op.T.todense(), dense.T)
-        ref = mat_fsr._matvec(input_fsr.astype(np.float128))
-        for ftype2 in ftypes[:-1]:
+        ref = mat_fsr._matvec(input_fsr.astype(BIGGEST_FLOAT_TYPE))
+        for ftype2 in FLOAT_TYPES:
             out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
             assert_same(out, ref.astype(min_dtype(ftype, ftype2)), atol=10)
@@ -397,8 +395,8 @@ def test_block():
         assert_same((2 * mat_fsr) * input_fsr, ref, atol=10)
         assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc, atol=10)
 
-    for itype in itypes:
-        for ftype in ftypes:
+    for itype in SINT_TYPES:
+        for ftype in FLOAT_TYPES:
             for block_shape in itertools.product([1, 2, 3], repeat=2):
                 yield func1, itype, ftype, block_shape
 
@@ -441,8 +439,8 @@ def test_rot2d():
         assert_equal(op.dtype, ftype)
         assert_same(op.todense(), dense.T)
         assert_same(op.T.todense(), dense)
-        ref = mat_fsc._matvec(input_fsc.astype(np.float128))
-        for ftype2 in ftypes[:-1]:
+        ref = mat_fsc._matvec(input_fsc.astype(BIGGEST_FLOAT_TYPE))
+        for ftype2 in FLOAT_TYPES:
             out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
             assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
@@ -456,8 +454,8 @@ def test_rot2d():
         assert_equal(op.dtype, ftype)
         assert_same(op.todense(), dense)
         assert_same(op.T.todense(), dense.T)
-        ref = mat_fsr._matvec(input_fsr.astype(np.float128))
-        for ftype2 in ftypes[:-1]:
+        ref = mat_fsr._matvec(input_fsr.astype(BIGGEST_FLOAT_TYPE))
+        for ftype2 in FLOAT_TYPES:
             out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
             assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
@@ -466,8 +464,8 @@ def test_rot2d():
         assert_same((2 * mat_fsr) * input_fsr, ref)
         assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc)
 
-    for itype in itypes:
-        for ftype in ftypes:
+    for itype in SINT_TYPES:
+        for ftype in FLOAT_TYPES:
             yield func1, itype, ftype
 
     def func2(itype, ftype):
@@ -489,8 +487,8 @@ def test_rot2d():
         assert_is_type(pTp, DiagonalOperator)
         assert_same(pTp.todense(), np.dot(dense.T, dense))
 
-    for itype in itypes:
-        for ftype in ftypes:
+    for itype in SINT_TYPES:
+        for ftype in FLOAT_TYPES:
             yield func2, itype, ftype
 
 
@@ -587,8 +585,8 @@ def test_rot3d():
         assert_equal(op.dtype, ftype)
         assert_same(op.todense(), dense.T)
         assert_same(op.T.todense(), dense)
-        ref = mat_fsc._matvec(input_fsc.astype(np.float128))
-        for ftype2 in ftypes[:-1]:
+        ref = mat_fsc._matvec(input_fsc.astype(BIGGEST_FLOAT_TYPE))
+        for ftype2 in FLOAT_TYPES:
             out = np.zeros_like(ref, ftype2)
             mat_fsc._matvec(input_fsc.astype(ftype2), out)
             assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
@@ -602,8 +600,8 @@ def test_rot3d():
         assert_equal(op.dtype, ftype)
         assert_same(op.todense(), dense)
         assert_same(op.T.todense(), dense.T)
-        ref = mat_fsr._matvec(input_fsr.astype(np.float128))
-        for ftype2 in ftypes[:-1]:
+        ref = mat_fsr._matvec(input_fsr.astype(BIGGEST_FLOAT_TYPE))
+        for ftype2 in FLOAT_TYPES:
             out = np.zeros_like(ref, ftype2)
             mat_fsr._matvec(input_fsr.astype(ftype2), out)
             assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
@@ -612,8 +610,8 @@ def test_rot3d():
         assert_same((3 * mat_fsr) * input_fsr, ref)
         assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc)
 
-    for itype in itypes:
-        for ftype in ftypes:
+    for itype in SINT_TYPES:
+        for ftype in FLOAT_TYPES:
             yield func1, itype, ftype
 
     def func2(itype, ftype):
@@ -636,8 +634,8 @@ def test_rot3d():
         assert_is_type(pTp, DiagonalOperator)
         assert_same(pTp.todense(), np.dot(dense.T, dense), atol=1)
 
-    for itype in itypes:
-        for ftype in ftypes:
+    for itype in SINT_TYPES:
+        for ftype in FLOAT_TYPES:
             yield func2, itype, ftype
 
 

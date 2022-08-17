@@ -9,15 +9,19 @@ from pyoperators.utils.testing import assert_same, assert_is_type, skiptest
 from pysimulators.operators import ProjectionOperator
 from pysimulators.sparse import FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix
 
+from .common import BIGGEST_FLOAT_TYPE, FLOAT_TYPES, SINT_TYPES
+
 clss = FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix
-ftypes = np.float16, np.float32, np.float64, np.float128
-itypes = np.int8, np.int16, np.int32, np.int64
 index1 = [2, -1, 2, 1, 3, -1]
 index2 = [-1, 3, 1, 1, 0, -1]
 value1 = [0, 0, 0, 1.1, 0.3, 10]
 value2 = [1, 2.2, 0.5, 1, 1, 10]
-rotation1 = Rotation2dOperator(np.arange(6) * 30, degrees=True, dtype=np.float128)
-rotation2 = Rotation2dOperator(np.arange(6, 12) * 30, degrees=True, dtype=np.float128)
+rotation1 = Rotation2dOperator(
+    np.arange(6) * 30, degrees=True, dtype=BIGGEST_FLOAT_TYPE
+)
+rotation2 = Rotation2dOperator(
+    np.arange(6, 12) * 30, degrees=True, dtype=BIGGEST_FLOAT_TYPE
+)
 
 
 def min_dtype(t1, t2):
@@ -92,8 +96,8 @@ def test_kernel():
         assert_equal(out, np.array(kernel0) | expected)
 
     for cls in clss:
-        for itype in itypes:
-            for ftype in ftypes:
+        for itype in SINT_TYPES:
+            for ftype in FLOAT_TYPES:
                 yield func, cls, itype, ftype
 
 
@@ -109,20 +113,20 @@ def test_pT1():
         proj.pT1(out=pT1, operation=operator.iadd)
         assert_same(pT1, 2 + expected_)
 
-    proj_ref = _get_projection[FSRMatrix](np.int32, np.float128)
-    expected = proj_ref.T(np.ones(proj_ref.matrix.shape[0], np.float128))
+    proj_ref = _get_projection[FSRMatrix](np.int32, BIGGEST_FLOAT_TYPE)
+    expected = proj_ref.T(np.ones(proj_ref.matrix.shape[0], BIGGEST_FLOAT_TYPE))
     for cls in clss:
-        for itype in itypes:
-            for ftype in ftypes:
-                for vtype in ftypes:
+        for itype in SINT_TYPES:
+            for ftype in FLOAT_TYPES:
+                for vtype in FLOAT_TYPES:
                     yield func, cls, itype, ftype, vtype
 
 
 @skiptest
 def test_pTx_pT1():
-    input_fsr = np.array([1.1, 2, -1.3, 2, -3, 4.1], dtype=np.float128)
+    input_fsr = np.array([1.1, 2, -1.3, 2, -3, 4.1], dtype=BIGGEST_FLOAT_TYPE)
     input_fsrrot2d = input_fsr[:, None] * Rotation2dOperator(
-        np.arange(6) * 30, dtype=np.float128
+        np.arange(6) * 30, dtype=BIGGEST_FLOAT_TYPE
     )([1, 0])
     input_fsrrot3d = np.array(
         [input_fsr, np.random.random_sample(6), np.random.random_sample(6)]
@@ -150,13 +154,13 @@ def test_pTx_pT1():
         assert_same(pTx, 1 + expectedx_)
         assert_same(pT1, 2 + expected1_)
 
-    proj_ref = _get_projection[FSRMatrix](np.int32, np.float128)
+    proj_ref = _get_projection[FSRMatrix](np.int32, BIGGEST_FLOAT_TYPE)
     expectedx = proj_ref.T(input_fsr)
-    expected1 = proj_ref.T(np.ones(proj_ref.matrix.shape[0], np.float128))
+    expected1 = proj_ref.T(np.ones(proj_ref.matrix.shape[0], BIGGEST_FLOAT_TYPE))
     for cls in clss[0], clss[2]:
-        for itype in itypes:
-            for ftype in ftypes:
-                for vtype in ftypes:
+        for itype in SINT_TYPES:
+            for ftype in FLOAT_TYPES:
+                for vtype in FLOAT_TYPES:
                     yield func, cls, itype, ftype, vtype
 
 
@@ -186,7 +190,7 @@ def test_restrict():
         assert_equal(pack(kernel), proj.canonical_basis_in_kernel())
 
     for cls in clss:
-        for itype in itypes:
-            for ftype in ftypes:
+        for itype in SINT_TYPES:
+            for ftype in FLOAT_TYPES:
                 for inplace in False, True:
                     yield func, cls, itype, ftype, inplace

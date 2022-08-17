@@ -16,7 +16,8 @@ from pysimulators.geometry import (
     surface_simple_polygon,
 )
 
-DTYPES = [np.float16, np.float32, np.float64, np.float128]
+from .common import BIGGEST_FLOAT_TYPE, FLOAT_TYPES
+
 SHAPES = [(), (1,), (1, 1), (1, 2), (2, 1), (2, 2)]
 
 
@@ -34,7 +35,10 @@ def test_convex_hull():
 
 
 def test_rotate():
-    e = [np.array(1, np.float128) / 2, np.sqrt(np.array(3, np.float128)) / 2]
+    e = [
+        np.array(1, BIGGEST_FLOAT_TYPE) / 2,
+        np.sqrt(np.array(3, BIGGEST_FLOAT_TYPE)) / 2,
+    ]
 
     def func(dtype, shape):
         sqrt3 = np.sqrt(np.array(3, dtype))
@@ -44,7 +48,7 @@ def test_rotate():
         assert_same(rotate(coords, 30), e, broadcasting=True)
         assert_same(rotate(coords, 30, out=coords), e, broadcasting=True)
 
-    for dtype in DTYPES:
+    for dtype in FLOAT_TYPES:
         for shape in SHAPES:
             yield func, dtype, shape
 
@@ -59,7 +63,7 @@ def test_circle():
         actual = np.sqrt(np.sum((circle - origin) ** 2, axis=-1))
         assert_same(actual, radius[..., None], broadcasting=True)
 
-    for dtype in DTYPES:
+    for dtype in FLOAT_TYPES:
         for shape in SHAPES:
             yield func, dtype, shape
 
@@ -191,7 +195,7 @@ def test_square():
         expected[..., 3, 1] = origin[1] - size / 2
         assert_same(actual, expected)
 
-    for dtype in DTYPES:
+    for dtype in FLOAT_TYPES:
         for shape in SHAPES:
             yield func, dtype, shape
 
@@ -217,7 +221,7 @@ def test_rectangle():
         expected[..., 3, 1] = origin[1] - size_y / 2
         assert_same(actual, expected)
 
-    for dtype in DTYPES:
+    for dtype in FLOAT_TYPES:
         for shape in SHAPES:
             yield func, dtype, shape
 

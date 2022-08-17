@@ -137,7 +137,9 @@ class _FSMatrix(object):
 
         if (
             dv.kind != 'f'
-            or dv.type in (np.float16, np.float128)
+            or dv.type is np.float16
+            or hasattr(np, 'float128')
+            and dv.type is np.float128
             or dv.type is np.float32
             and ds.type is np.float64
         ):

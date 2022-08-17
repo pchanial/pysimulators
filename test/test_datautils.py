@@ -14,7 +14,7 @@ from pysimulators.datautils import (
 )
 import numpy as np
 
-ftypes = np.float16, np.float32, np.float64, np.float128
+from .common import FLOAT_TYPES
 
 
 def test_distance_1d():
@@ -33,7 +33,7 @@ def test_distance_1d():
         assert_same(d1, ref.astype(dtype))
         assert_same(d2, ref.astype(dtype))
 
-    for ftype in ftypes:
+    for ftype in FLOAT_TYPES:
         yield func, ftype
 
 
@@ -53,7 +53,7 @@ def test_distance_2d():
         assert_same(d1, ref)
         assert_same(d2, ref)
 
-    for ftype in ftypes:
+    for ftype in FLOAT_TYPES:
         yield func, ftype
 
 
@@ -73,7 +73,7 @@ def test_distance2_1d():
         assert_same(d1, ref.astype(dtype))
         assert_same(d2, ref.astype(dtype))
 
-    for ftype in ftypes:
+    for ftype in FLOAT_TYPES:
         yield func, ftype
 
 
@@ -93,7 +93,7 @@ def test_distance2_2d():
         assert_same(d1, ref)
         assert_same(d2, ref)
 
-    for ftype in ftypes:
+    for ftype in FLOAT_TYPES:
         yield func, ftype
 
 
