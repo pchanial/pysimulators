@@ -48,6 +48,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
+homepage = "https://pchanial.github.io/pysimulators"
 repository = "https://github.com/pchanial/pysimulators"
 
 [tool.setuptools.packages.find]
