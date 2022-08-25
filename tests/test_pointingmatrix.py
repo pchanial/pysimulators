@@ -1,25 +1,29 @@
 import numpy as np
+import pytest
 from numpy.testing import assert_equal
 
 from pysimulators import PointingMatrix
 
+CONSTRUCTOR_SHAPE = (2,)
+CONSTRUCTOR_SHAPE_INPUT = (3, 4)
 
-def test_constructor():
-    shape = (2,)
-    shape_input = (3, 4)
-    array = np.zeros(shape, dtype=np.int64)
 
-    def func(matrix):
-        assert matrix.shape_input == shape_input
-        assert matrix.value.shape == shape
-        assert matrix.index.shape == shape
-
-    for matrix in [
-        PointingMatrix(array, shape_input, copy=False),
-        PointingMatrix.empty(shape, shape_input),
-        PointingMatrix.zeros(shape, shape_input),
-    ]:
-        yield func, matrix
+@pytest.mark.parametrize(
+    'matrix',
+    [
+        PointingMatrix(
+            np.zeros(CONSTRUCTOR_SHAPE, dtype=np.int64),
+            CONSTRUCTOR_SHAPE_INPUT,
+            copy=False,
+        ),
+        PointingMatrix.empty(CONSTRUCTOR_SHAPE, CONSTRUCTOR_SHAPE_INPUT),
+        PointingMatrix.zeros(CONSTRUCTOR_SHAPE, CONSTRUCTOR_SHAPE_INPUT),
+    ],
+)
+def test_constructor(matrix):
+    assert matrix.shape_input == CONSTRUCTOR_SHAPE_INPUT
+    assert matrix.value.shape == CONSTRUCTOR_SHAPE
+    assert matrix.index.shape == CONSTRUCTOR_SHAPE
 
 
 # we assume that the input map is 2x5

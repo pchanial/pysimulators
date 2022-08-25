@@ -47,7 +47,7 @@ class MadMap1Observation(Acquisition):
 
         if commin.size > 1 or commout.size > 1:
             raise NotImplementedError(
-                'The parallelisation of the TOD is not i' 'mplemented'
+                'The parallelisation of the TOD is not implemented'
             )
 
         # Get information from files
@@ -90,7 +90,7 @@ class MadMap1Observation(Acquisition):
 
         # Store instrument information
         layout = PackedTable(ndetectors)
-        self.instrument = Instrument(name, layout, commin=commin, commout=commout)
+        self.instrument = Instrument(name, layout)
 
         # Store observation information
         class MadMap1ObservationInfo:
@@ -125,7 +125,7 @@ class MadMap1Observation(Acquisition):
     def get_invntt_operator(self, fftw_flag='FFTW_MEASURE', nthreads=None):
         ops = [
             SymmetricBandToeplitzOperator(
-                (self.get_ndetectors(), b.n),
+                (len(self.instrument), b.n),
                 self._filters,
                 fftw_flag=fftw_flag,
                 nthreads=nthreads,
@@ -171,8 +171,8 @@ class MadMap1Observation(Acquisition):
         return self._filters
 
     def _read_tod_pmatrix(self):
-        ndetectors = self.get_ndetectors()
-        nsamples = np.sum(self.get_nsamples())
+        ndetectors = len(self.instrument)
+        nsamples = np.sum(len(self.pointing))
         npps = self.info.npixels_per_sample
         filesize = os.stat(self.info.todfilename).st_size
         if filesize != 32 + (npps + 1) * ndetectors * nsamples * 8:

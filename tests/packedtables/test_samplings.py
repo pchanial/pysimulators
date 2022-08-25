@@ -1,88 +1,136 @@
 import numpy as np
-from numpy.testing import assert_equal, assert_raises
+import pytest
+from numpy.testing import assert_equal
 
 from pyoperators.utils import isscalarlike
-from pyoperators.utils.testing import assert_is_none, assert_same
+from pyoperators.utils.testing import assert_same
 from pysimulators import SamplingEquatorial
 
 
-def test_coords():
-    ras = 1.0, (1.0,), [1.0], np.ones(10), np.ones((2, 3))
-    decs = 2.0, (2.0,), [2.0], 2 * np.ones(10), 2 * np.ones((2, 3))
-    pas = 3.0, (3.0,), [3.0], 3 * np.ones(10), 3 * np.ones((2, 3))
-    times = 1.0, (1.0,), [1.0], np.r_[1:11], np.r_[1:4]
-    junks = 4.0, (4.0,), [4.0], 4 * np.ones(10), 4 * np.ones((2, 3))
+@pytest.mark.parametrize('fmt', [lambda ra: ((ra,), {}), lambda ra: ((), {'ra': ra})])
+@pytest.mark.parametrize('ra', [1.0, (1.0,), [1.0], np.ones(10), np.ones((2, 3))])
+def test_coords_ra(fmt, ra):
 
-    def func1(fmt, ra):
-        args, keywords = fmt(ra)
-        if len(args) > 0 and isscalarlike(args[0]):
-            p = SamplingEquatorial(*args, **keywords)
-            assert_is_none(p.ra)
-            assert_is_none(p.dec)
-            assert_equal(p.pa, 0)
-            return
-        assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
-
-    for ra in ras:
-        for fmt in (lambda ra: ((ra,), {}), lambda ra: ((), {'ra': ra})):
-            yield func1, fmt, ra
-
-    def func2(fmt, ra, dec):
-        args, keywords = fmt(ra, dec)
-        if isinstance(ra, np.ndarray) and ra.ndim == 2:
-            assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
-            return
+    args, keywords = fmt(ra)
+    if len(args) > 0 and isscalarlike(args[0]):
         p = SamplingEquatorial(*args, **keywords)
-        assert_equal(p.ra, ra)
-        assert_equal(p.dec, dec)
-        assert_equal(p.pa, 0)
+        assert p.ra is None
+        assert p.dec is None
+        assert p.pa == 0
+        return
+    with pytest.raises(ValueError):
+        SamplingEquatorial(*args, **keywords)
 
-    for ra, dec in zip(ras, decs):
-        for fmt in (
-            lambda ra, dec: ((ra, dec), {}),
-            lambda ra, dec: ((), {'ra': ra, 'dec': dec}),
-        ):
-            yield func2, fmt, ra, dec
 
-    def func3(fmt, ra, dec, pa):
-        args, keywords = fmt(ra, dec, pa)
-        if isinstance(ra, np.ndarray) and ra.ndim == 2:
-            assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
-            return
-        p = SamplingEquatorial(*args, **keywords)
-        assert_equal(p.ra, ra)
-        assert_equal(p.dec, dec)
-        assert_equal(p.pa, pa)
+@pytest.mark.parametrize(
+    'fmt',
+    [
+        lambda ra, dec: ((ra, dec), {}),
+        lambda ra, dec: ((), {'ra': ra, 'dec': dec}),
+    ],
+)
+@pytest.mark.parametrize(
+    'ra, dec',
+    [
+        (1.0, 2.0),
+        ((1.0,), (2.0,)),
+        ([1.0], [2.0]),
+        (np.ones(10), 2 * np.ones(10)),
+        (np.ones((2, 3)), 2 * np.ones((2, 3))),
+    ],
+)
+def test_coords_radec(fmt, ra, dec):
+    args, keywords = fmt(ra, dec)
+    if isinstance(ra, np.ndarray) and ra.ndim == 2:
+        with pytest.raises(ValueError):
+            SamplingEquatorial(*args, **keywords)
+        return
+    p = SamplingEquatorial(*args, **keywords)
+    assert_equal(p.ra, ra)
+    assert_equal(p.dec, dec)
+    assert p.pa == 0
 
-    for ra, dec, pa in zip(ras, decs, pas):
-        for fmt in (
-            lambda ra, dec, pa: ((ra, dec, pa), {}),
-            lambda ra, dec, pa: ((), {'ra': ra, 'dec': dec, 'pa': pa}),
-        ):
-            yield func3, fmt, ra, dec, pa
 
-    def func4(fmt, ra, dec, pa, time):
-        args, keywords = fmt(ra, dec, pa, time)
-        if isinstance(ra, np.ndarray) and ra.ndim == 2:
-            assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
-            return
-        p = SamplingEquatorial(*args, **keywords)
-        assert_same(p.ra, ra)
-        assert_same(p.dec, dec)
-        assert_same(p.pa, pa)
-        assert_same(p.time, time)
+@pytest.mark.parametrize(
+    'fmt',
+    [
+        lambda ra, dec, pa: ((ra, dec, pa), {}),
+        lambda ra, dec, pa: ((), {'ra': ra, 'dec': dec, 'pa': pa}),
+    ],
+)
+@pytest.mark.parametrize(
+    'ra, dec, pa',
+    [
+        (1.0, 2.0, 3.0),
+        ((1.0,), (2.0,), (3.0,)),
+        ([1.0], [2.0], [3.0]),
+        (np.ones(10), 2 * np.ones(10), 3 * np.ones(10)),
+        (np.ones((2, 3)), 2 * np.ones((2, 3)), 3 * np.ones((2, 3))),
+    ],
+)
+def test_coords_radecpa(fmt, ra, dec, pa):
+    args, keywords = fmt(ra, dec, pa)
+    if isinstance(ra, np.ndarray) and ra.ndim == 2:
+        with pytest.raises(ValueError):
+            SamplingEquatorial(*args, **keywords)
+        return
+    p = SamplingEquatorial(*args, **keywords)
+    assert_equal(p.ra, ra)
+    assert_equal(p.dec, dec)
+    assert_equal(p.pa, pa)
 
-    for ra, dec, pa, time in zip(ras, decs, pas, times):
-        for fmt in (
-            lambda ra, dec, pa, t: ((ra, dec, pa), {'time': t}),
-            lambda ra, dec, pa, t: ((), {'ra': ra, 'dec': dec, 'pa': pa, 'time': t}),
-        ):
-            yield func4, fmt, ra, dec, pa, time
 
-    def func5(fmt, ra, dec, pa, time, junk):
-        args, keywords = fmt(ra, dec, pa, time, junk)
-        assert_raises(ValueError, SamplingEquatorial, *args, **keywords)
+@pytest.mark.parametrize(
+    'fmt',
+    [
+        lambda ra, dec, pa, t: ((ra, dec, pa), {'time': t}),
+        lambda ra, dec, pa, t: ((), {'ra': ra, 'dec': dec, 'pa': pa, 'time': t}),
+    ],
+)
+@pytest.mark.parametrize(
+    'ra, dec, pa, time',
+    [
+        (1.0, 2.0, 3.0, 1.0),
+        ((1.0,), (2.0,), (3.0,), (1.0,)),
+        ([1.0], [2.0], [3.0], [1.0]),
+        (np.ones(10), 2 * np.ones(10), 3 * np.ones(10), np.r_[1:11]),
+        (np.ones((2, 3)), 2 * np.ones((2, 3)), 3 * np.ones((2, 3)), np.r_[1:4]),
+    ],
+)
+def test_coords_radecpatime(fmt, ra, dec, pa, time):
+    args, keywords = fmt(ra, dec, pa, time)
+    if isinstance(ra, np.ndarray) and ra.ndim == 2:
+        with pytest.raises(ValueError):
+            SamplingEquatorial(*args, **keywords)
+        return
+    p = SamplingEquatorial(*args, **keywords)
+    assert_same(p.ra, ra)
+    assert_same(p.dec, dec)
+    assert_same(p.pa, pa)
+    assert_same(p.time, time)
 
-    for ra, dec, pa, time, junk in zip(ras, decs, pas, times, junks):
-        fmt = lambda ra, dec, pa, t, junk: ((ra, dec, pa, junk), {'time': t})
-        yield func5, fmt, ra, dec, pa, time, junk
+
+@pytest.mark.parametrize(
+    'fmt',
+    [lambda ra, dec, pa, t, other: ((ra, dec, pa, other), {'time': t})],
+)
+@pytest.mark.parametrize(
+    'ra, dec, pa, time, junk',
+    [
+        (1.0, 2.0, 3.0, 1.0, 4.0),
+        ((1.0,), (2.0,), (3.0,), (1.0,), (4.0,)),
+        ([1.0], [2.0], [3.0], [1.0], [4.0]),
+        (np.ones(10), 2 * np.ones(10), 3 * np.ones(10), np.r_[1:11], 4 * np.ones(10)),
+        (
+            np.ones((2, 3)),
+            2 * np.ones((2, 3)),
+            3 * np.ones((2, 3)),
+            np.r_[1:4],
+            4 * np.ones((2, 3)),
+        ),
+    ],
+)
+def test_coords_radecpatimejunk(fmt, ra, dec, pa, time, junk):
+    args, keywords = fmt(ra, dec, pa, time, junk)
+    with pytest.raises(ValueError):
+        SamplingEquatorial(*args, **keywords)

@@ -41,19 +41,47 @@ classifiers = [
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
 dependencies = [
-    "pyoperators>=0.12.5",
+    "pyoperators[fft]>=0.12.5",
     "astropy>=0.3.2",
     "numexpr",
     "scipy>=0.9",
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+healpix = ["healpy"]
+dev = [
+    "healpy",
+    "pyfftw",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pchanial-legacy-install-hooks",
+    "setuptools_scm",
+]
+
 [project.urls]
 homepage = "https://pchanial.github.io/pysimulators"
 repository = "https://github.com/pchanial/pysimulators"
 
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "except ImportError:",
+    "raise NotImplementedError",
+    "if typing.TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = true
+
 [tool.isort]
 known_first_party = ["pyoperators", "pysimulators"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --cov=pysimulators"
+testpaths = [
+    "tests",
+]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"

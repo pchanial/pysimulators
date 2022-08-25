@@ -1,30 +1,36 @@
+import pytest
+from numpy.testing import assert_equal
+
 from pyoperators import I
-from pyoperators.utils.testing import assert_raises, assert_same
 from pysimulators import Imager, Instrument, PackedTable
 
 
-def test_instrument():
-    def func(cls, keywords):
-        instrument = cls(name, PackedTable(shape), **keywords)
-        assert instrument.name == name
-        assert instrument.detector.shape == shape
-        assert len(instrument.detector) == len(instrument.detector.all)
-        assert instrument
-
+@pytest.mark.parametrize(
+    'cls, keywords',
+    [
+        (Instrument, {}),
+        (Imager, {'object2image': I}),
+        (Imager, {'image2object': I}),
+    ],
+)
+def test_instrument(cls, keywords):
     name = 'instrument'
     shape = (3, 2)
-    yield func, Instrument, {}
-    yield func, Imager, {'object2image': I}
-    yield func, Imager, {'image2object': I}
+    instrument = cls(name, PackedTable(shape), **keywords)
+    assert instrument.name == name
+    assert instrument.detector.shape == shape
+    assert len(instrument.detector) == len(instrument.detector.all)
+    assert instrument
 
 
 def test_error():
-    assert_raises(ValueError, Imager, 'instrument', (3, 2))
+    with pytest.raises(ValueError):
+        Imager('instrument', (3, 2))
 
 
 def test_pack_unpack():
     layout = PackedTable(4, selection=[True, False, True, True])
     instrument = Instrument('instrument', layout)
     v = [1, 2, 3, 4]
-    assert_same(instrument.pack(v), [1, 3, 4])
-    assert_same(instrument.unpack([1, 3, 4]), [1, -1, 3, 4])
+    assert_equal(instrument.pack(v), [1, 3, 4])
+    assert_equal(instrument.unpack([1, 3, 4]), [1, -1, 3, 4])

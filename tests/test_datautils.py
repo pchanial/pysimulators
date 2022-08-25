@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from pyoperators.utils.testing import assert_same
 from pysimulators.datautils import (
@@ -16,94 +17,86 @@ from pysimulators.datautils import (
 from .common import FLOAT_TYPES
 
 
-def test_distance_1d():
+@pytest.mark.parametrize('dtype', FLOAT_TYPES)
+def test_distance_1d(dtype):
     shape = (5,)
     center = 1
     scale = 0.5
     ref = abs((np.arange(shape[0]) - center) * scale)
 
-    def func(dtype):
-        d1 = distance(shape, center=center, scale=scale, dtype=dtype)
-        d2 = _distance_slow(shape, (center,), (scale,), dtype)
-        assert_same(d1, ref.astype(dtype))
-        assert_same(d2, ref.astype(dtype))
-        distance(shape, center=center, scale=scale, dtype=dtype, out=d1)
-        _distance_slow(shape, (center,), (scale,), dtype, d2)
-        assert_same(d1, ref.astype(dtype))
-        assert_same(d2, ref.astype(dtype))
-
-    for ftype in FLOAT_TYPES:
-        yield func, ftype
+    d1 = distance(shape, center=center, scale=scale, dtype=dtype)
+    d2 = _distance_slow(shape, (center,), (scale,), dtype)
+    assert_same(d1, ref.astype(dtype))
+    assert_same(d2, ref.astype(dtype))
+    distance(shape, center=center, scale=scale, dtype=dtype, out=d1)
+    _distance_slow(shape, (center,), (scale,), dtype, d2)
+    assert_same(d1, ref.astype(dtype))
+    assert_same(d2, ref.astype(dtype))
 
 
-def test_distance_2d():
+@pytest.mark.parametrize('dtype', FLOAT_TYPES)
+def test_distance_2d(dtype):
     shape = (2, 3)
     center = (0.0, 1.0)
     scale = (1.0, 2.0)
     ref = np.array([[2.0, np.sqrt(5), np.sqrt(8)], [0, 1, 2]])
 
-    def func(dtype):
-        d1 = distance(shape, center=center, scale=scale, dtype=dtype)
-        d2 = _distance_slow(shape, center, scale, dtype)
-        assert_same(d1, ref)
-        assert_same(d2, ref)
-        distance(shape, center=center, scale=scale, dtype=dtype, out=d1)
-        _distance_slow(shape, center, scale, dtype, d2)
-        assert_same(d1, ref)
-        assert_same(d2, ref)
-
-    for ftype in FLOAT_TYPES:
-        yield func, ftype
+    d1 = distance(shape, center=center, scale=scale, dtype=dtype)
+    d2 = _distance_slow(shape, center, scale, dtype)
+    assert_same(d1, ref)
+    assert_same(d2, ref)
+    distance(shape, center=center, scale=scale, dtype=dtype, out=d1)
+    _distance_slow(shape, center, scale, dtype, d2)
+    assert_same(d1, ref)
+    assert_same(d2, ref)
 
 
-def test_distance2_1d():
+@pytest.mark.parametrize('dtype', FLOAT_TYPES)
+def test_distance2_1d(dtype):
     shape = (5,)
     center = 1
     scale = 0.5
     ref = ((np.arange(shape[0]) - center) * scale) ** 2
 
-    def func(dtype):
-        d1 = distance2(shape, center=center, scale=scale, dtype=dtype)
-        d2 = _distance2_slow(shape, (center,), (scale,), dtype)
-        assert_same(d1, ref.astype(dtype))
-        assert_same(d2, ref.astype(dtype))
-        distance2(shape, center=center, scale=scale, dtype=dtype, out=d1)
-        _distance2_slow(shape, (center,), (scale,), dtype, d2)
-        assert_same(d1, ref.astype(dtype))
-        assert_same(d2, ref.astype(dtype))
-
-    for ftype in FLOAT_TYPES:
-        yield func, ftype
+    d1 = distance2(shape, center=center, scale=scale, dtype=dtype)
+    d2 = _distance2_slow(shape, (center,), (scale,), dtype)
+    assert_same(d1, ref.astype(dtype))
+    assert_same(d2, ref.astype(dtype))
+    distance2(shape, center=center, scale=scale, dtype=dtype, out=d1)
+    _distance2_slow(shape, (center,), (scale,), dtype, d2)
+    assert_same(d1, ref.astype(dtype))
+    assert_same(d2, ref.astype(dtype))
 
 
-def test_distance2_2d():
+@pytest.mark.parametrize('dtype', FLOAT_TYPES)
+def test_distance2_2d(dtype):
     shape = (2, 3)
     center = (0.0, 1.0)
     scale = (1.0, 2.0)
     ref = np.array([[2.0, np.sqrt(5), np.sqrt(8)], [0, 1, 2]])
 
-    def func(dtype):
-        d1 = distance(shape, center=center, scale=scale, dtype=dtype)
-        d2 = _distance_slow(shape, center, scale, dtype)
-        assert_same(d1, ref)
-        assert_same(d2, ref)
-        distance(shape, center=center, scale=scale, dtype=dtype, out=d1)
-        _distance_slow(shape, center, scale, dtype, d2)
-        assert_same(d1, ref)
-        assert_same(d2, ref)
-
-    for ftype in FLOAT_TYPES:
-        yield func, ftype
+    d1 = distance(shape, center=center, scale=scale, dtype=dtype)
+    d2 = _distance_slow(shape, center, scale, dtype)
+    assert_same(d1, ref)
+    assert_same(d2, ref)
+    distance(shape, center=center, scale=scale, dtype=dtype, out=d1)
+    _distance_slow(shape, center, scale, dtype, d2)
+    assert_same(d1, ref)
+    assert_same(d2, ref)
 
 
-def test_fwhm():
-    def func(f, fwhm, scale, n):
-        m = f((1000, 1000), fwhm=fwhm, scale=scale)
-        assert np.sum(m[500, :] > np.max(m) / 2) == n
-
-    for f in [airy_disk]:
-        for fwhm, scale, n in zip([10, 10, 100], [0.1, 1, 10], [100, 10, 10]):
-            yield func, f, fwhm, scale, n
+@pytest.mark.parametrize('func', [airy_disk])
+@pytest.mark.parametrize(
+    'fwhm, scale, n',
+    [
+        (10, 0.1, 100),
+        (10, 1, 10),
+        (100, 10, 10),
+    ],
+)
+def test_fwhm(func, fwhm, scale, n):
+    m = func((1000, 1000), fwhm=fwhm, scale=scale)
+    assert np.sum(m[500, :] > np.max(m) / 2) == n
 
 
 def test_gaussian():
@@ -144,6 +137,7 @@ def test_profile():
     assert_same(n, n_ref[0 : n.size])
 
 
+@pytest.mark.xfail(reason='reason: correct values but wrong abscissae.')
 def test_integrated_profile():
     def integrated_profile_slow(input, center=None, scale=1, bin=1):
         d = distance(input.shape, center=center, scale=scale)

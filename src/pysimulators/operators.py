@@ -445,12 +445,10 @@ class PowerLawOperator(DiagonalNumexprOperator):
     -------
     >>> import scipy.constants
     >>> c = scipy.constants.c
-    >>> nu0 = c/10.e-6
-    >>> op = PowerLawOperator(-1, c/11.e-6, nu0)
-    >>> fnu0 = 1e-3
-    >>> op(fnu0)
-    array(0.0010999999999999998)
-
+    >>> nu0 = c/10e-6
+    >>> op = PowerLawOperator(-1, c/11e-6, nu0)
+    >>> op([1, 10, 100])
+    array([2.75e-11, 2.75e-10, 2.75e-09])
     """
 
     def __init__(self, alpha, x, x0, scalar=1, **keywords):
@@ -469,8 +467,8 @@ class PowerLawOperator(DiagonalNumexprOperator):
         if 'dtype' not in keywords:
             keywords['dtype'] = float
         global_dict = {'x': x, 'x0': x0, 's': scalar}
-        DiagonalNumexprOperator.__init__(
-            self, alpha, 's * (x / x0) ** alpha', global_dict, var='alpha', **keywords
+        super().__init__(
+            alpha, 's * (x / x0) ** alpha', global_dict, var='alpha', **keywords
         )
         self.alpha = alpha
         self.x = x
@@ -658,7 +656,7 @@ class ProjectionBaseOperator(Operator):
         if matrix.size == 0:
             return
         if not input.flags.contiguous:
-            if pyoperators.memory.verbose:
+            if pyoperators.config.VERBOSE:
                 print('Optimize me: Projection.T input is not contiguous.')
             input_ = np.ascontiguousarray(input)
         else:
