@@ -1,12 +1,15 @@
 # Copyrights 2010-2011 Pierre Chanial
 # All rights reserved
 #
-from __future__ import absolute_import, division, print_function
-from pyoperators.memory import empty
-from . import _flib as flib
-import numpy as np
+
 import re
 from collections.abc import Callable
+
+import numpy as np
+
+from pyoperators.memory import empty
+
+from . import _flib as flib
 
 __all__ = ['Quantity', 'UnitError', 'units']
 
@@ -317,7 +320,7 @@ class Quantity(np.ndarray):
 
                 print(
                     "Warning: applying function '" + str(ufunc) + "' to Quan"
-                    "tities of different units may have changed operands to "
+                    'tities of different units may have changed operands to '
                     "common unit '" + _strunit(self._unit) + "'."
                 )
                 arg.inunit(self._unit)
@@ -476,7 +479,7 @@ class Quantity(np.ndarray):
         for d, v in item._derived_units.items():
             try:
                 pos = d.index('[')
-            except:
+            except ValueError:
                 continue
 
             # the derived unit is broadcastable, let's update it
@@ -579,8 +582,8 @@ class Quantity(np.ndarray):
                     continue
                 if key[pos:] not in ('[leftward]', '[rightward]'):
                     raise UnitError(
-                        "Invalid broadcast : '{0}'. Valid values a"
-                        "re '[leftward]' or '[rightward]'.".format(key[pos:])
+                        f'Invalid broadcast : {key[pos:]!r}. Valid values a'
+                        f"re '[leftward]' or '[rightward]'."
                     )
         self._derived_units = derived_units
 

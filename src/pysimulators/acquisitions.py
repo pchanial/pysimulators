@@ -1,26 +1,29 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 
-from __future__ import absolute_import, division, print_function
+
+import gc
+import operator
 from copy import copy
+
+import numpy as np
+
 from pyoperators import (
+    MPI,
     BlockColumnOperator,
     BlockDiagonalOperator,
     CompositionOperator,
-    MPI,
 )
 from pyoperators.memory import empty
 from pyoperators.utils import isscalarlike, operation_assignment, split, strenum
+
 from .instruments import Instrument
 from .packedtables import Layout, Sampling, Scene
-import gc
-import operator
-import numpy as np
 
 __all__ = ['Acquisition', 'MaskPolicy']
 
 
-class Acquisition(object):
+class Acquisition:
     """
     The Acquisition class, which combines the instrument, sampling and scene
     models.
@@ -67,19 +70,16 @@ class Acquisition(object):
         """
         if not isinstance(instrument, Instrument):
             raise TypeError(
-                "The instrument input has an invalid type '{}'.".format(
-                    type(instrument).__name__
-                )
+                f'The instrument input has an invalid type '
+                f'{type(instrument).__name__!r}.'
             )
         if not isinstance(sampling, Sampling):
             raise TypeError(
-                "The sampling input has an invalid type '{}'.".format(
-                    type(instrument).__name__
-                )
+                f'The sampling input has an invalid type {type(instrument).__name__!r}.'
             )
         if not isinstance(scene, Scene):
             raise TypeError(
-                "The scene input has an invalid type '{}'.".format(type(scene).__name__)
+                f'The scene input has an invalid type {type(scene).__name__!r}.'
             )
 
         if comm is None:
@@ -89,15 +89,13 @@ class Acquisition(object):
         if nprocs_instrument is None:
             if nprocs_sampling < 1 or nprocs_sampling > comm.size:
                 raise ValueError(
-                    "Invalid value for nprocs_sampling '{0}'.".format(nprocs_sampling)
+                    f"Invalid value for nprocs_sampling '{nprocs_sampling}'."
                 )
             nprocs_instrument = comm.size // nprocs_sampling
         elif nprocs_sampling is None:
             if nprocs_instrument < 1 or nprocs_sampling > comm.size:
                 raise ValueError(
-                    "Invalid value for nprocs_instrument '{0}'.".format(
-                        nprocs_instrument
-                    )
+                    f"Invalid value for nprocs_instrument '{nprocs_instrument}'."
                 )
             nprocs_sampling = comm.size // nprocs_instrument
         if nprocs_instrument * nprocs_sampling != comm.size:
@@ -123,7 +121,7 @@ class Acquisition(object):
         elif not isinstance(block, (list, tuple)) or any(
             not isinstance(b, slice) for b in block
         ):
-            raise TypeError("Invalid block argument '{}'.".format(block))
+            raise TypeError(f"Invalid block argument: '{block}'.")
 
     _operator = None
 
@@ -165,7 +163,7 @@ class Acquisition(object):
         return out
 
     def __str__(self):
-        return '{}\nSamplings: {}'.format(self.instrument, len(self.sampling))
+        return f'{self.instrument}\nSamplings: {len(self.sampling)}'
 
     __repr__ = __str__
 
@@ -291,7 +289,7 @@ class Acquisition(object):
         return annim
 
 
-class MaskPolicy(object):
+class MaskPolicy:
     KEEP = 0
     MASK = 1
     REMOVE = 2
@@ -325,8 +323,8 @@ class MaskPolicy(object):
             choices = 'keep', 'mask', 'remove'
             if value not in choices:
                 raise KeyError(
-                    'Invalid policy {}={!r}. Expected values are {}'
-                    '.'.format(flag, value, strenum(choices))
+                    f'Invalid policy {flag}={value!r}. Expected values are '
+                    f'{strenum(choices)}.'
                 )
             setattr(self, flag, value)
         self._flags = flags
@@ -339,5 +337,5 @@ class MaskPolicy(object):
 
     def __str__(self):
         s = self._description + ': ' if self._description is not None else ''
-        s += ', '.join('{}={!r}'.format(_, getattr(self, _)) for _ in self._flags)
+        s += ', '.join(f'{_}={getattr(self, _)!r}' for _ in self._flags)
         return s

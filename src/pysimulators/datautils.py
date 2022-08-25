@@ -1,4 +1,8 @@
-from __future__ import absolute_import, division, print_function
+import numpy as np
+import scipy.fftpack
+import scipy.signal
+import scipy.special
+
 from pyoperators import FFTOperator
 from pyoperators.utils import (
     float_intrinsic_dtype,
@@ -8,12 +12,9 @@ from pyoperators.utils import (
     tointtuple,
 )
 from pyoperators.utils.ufuncs import abs2
+
 from . import _flib as flib
 from .datatypes import Map
-import numpy as np
-import scipy.fftpack
-import scipy.signal
-import scipy.special
 
 __all__ = [
     'airy_disk',
@@ -139,7 +140,7 @@ def distance(shape, center=None, scale=1, dtype=float, out=None):
     scale = np.ascontiguousarray(scale, dtype)
 
     if ndim in (1, 2):
-        fname = 'distance_{0}d_r{1}'.format(ndim, dtype.itemsize)
+        fname = f'distance_{ndim}d_r{dtype.itemsize}'
         func = getattr(flib.datautils, fname)
         if ndim == 1:
             func(out_, center[0], scale[0])
@@ -222,7 +223,7 @@ def distance2(shape, center=None, scale=1, dtype=float, out=None):
     scale = np.ascontiguousarray(scale, dtype)
 
     if ndim in (1, 2):
-        fname = 'distance2_{0}d_r{1}'.format(ndim, dtype.itemsize)
+        fname = f'distance2_{ndim}d_r{dtype.itemsize}'
         func = getattr(flib.datautils, fname)
         if ndim == 1:
             func(out_, center[0], scale[0] ** 2)
@@ -262,7 +263,7 @@ def _distance2_slow(shape, center, scale, dtype, out=None):
     return out
 
 
-class Ds9(object):
+class Ds9:
     """
     Helper around the ds9 package.
 
@@ -356,7 +357,7 @@ def gaussian(shape, sigma=None, fwhm=None, center=None, dtype=float):
     dtype = np.dtype(dtype)
     if n == 2 and dtype in (np.float32, np.float64):
         out = np.empty(shape, dtype)
-        func = getattr(flib.datautils, 'gaussian_2d_r{0}'.format(dtype.itemsize))
+        func = getattr(flib.datautils, f'gaussian_2d_r{dtype.itemsize}')
         func(out.T, center, sigma)
     else:
         scale = 1 / (np.sqrt(2) * sigma[::-1])
@@ -493,7 +494,7 @@ def profile(input, bin=1, nbins=None, histogram=False, center=None, scale=1):
             / bin_scaled
         )
 
-    fname = 'profile_axisymmetric_2d_r{}'.format(dtype.itemsize)
+    fname = f'profile_axisymmetric_2d_r{dtype.itemsize}'
     func = getattr(flib.datautils, fname)
     x, y, n = func(input.T, center, bin_scaled, nbins)
     x *= scale

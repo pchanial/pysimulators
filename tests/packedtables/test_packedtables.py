@@ -1,7 +1,8 @@
-from __future__ import division
-import numpy as np
 import string
+
+import numpy as np
 from numpy.testing import assert_equal, assert_raises
+
 from pyoperators.utils import isalias, isscalarlike, product
 from pyoperators.utils.testing import assert_eq, assert_is_none, assert_same, skiptest
 from pysimulators import PackedTable

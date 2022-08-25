@@ -132,7 +132,7 @@ contains
             if (.not. found) then
                 crota2 = 0.
             end if
-            
+
             crota2 = crota2 * DEG2RAD
             myastr%cd(1,1) =  cos(crota2) * cdelt1
             myastr%cd(2,1) = -sin(crota2) * cdelt1
@@ -189,7 +189,7 @@ contains
         real(p), intent(in)  :: cd(2,2)
         real(p), intent(out) :: cdelt(2)
         real(p), intent(out) :: crota2
-        
+
         real(p) :: det
 
         det = cd(1,1) * cd(2,2) - cd(2,1) * cd(1,2)
@@ -298,7 +298,7 @@ contains
 
 
     subroutine projection_scale(astr, array, status)
-        
+
         type(Astrometry), intent(in) :: astr
         real(p), intent(out)         :: array(:,:)
         integer, intent(out)         :: status
@@ -389,7 +389,7 @@ contains
 
         real(p) :: cdinv(2,2), crpix(2)
         common /rotation/ cdinv, crpix
-        
+
         refpix_area = 1 / abs(cdinv(1,1) * cdinv(2,2) - cdinv(1,2) * cdinv(2,1)) * 3600._p**2
 
     end function refpix_area

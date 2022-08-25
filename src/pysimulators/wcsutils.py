@@ -1,16 +1,18 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 #
-from __future__ import absolute_import, division, print_function
-from astropy.io import fits as pyfits
-from astropy.wcs import WCS
-from pyoperators import Operator
-from pyoperators.flags import inplace, real, square
-from pyoperators.utils import isscalarlike, operation_assignment
-from . import _flib as flib
+
 import astropy.wcs
 import numpy as np
 import scipy.interpolate as interp
+from astropy.io import fits as pyfits
+from astropy.wcs import WCS
+
+from pyoperators import Operator
+from pyoperators.flags import inplace, real, square
+from pyoperators.utils import isscalarlike, operation_assignment
+
+from . import _flib as flib
 
 __all__ = [
     'angle_lonlat',
@@ -111,7 +113,7 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
         cdeltpa = [get_cdelt_pa(h) for h in headers]
 
     if cdelt is None:
-        cdelt = min([np.min(abs(cdelt_)) for cdelt_, pa_ in cdeltpa])
+        cdelt = min(np.min(abs(cdelt_)) for cdelt_, pa_ in cdeltpa)
 
     if pa is None:
         pa = flib.wcsutils.mean_degrees(np.array([pa_ for cdelt_, pa_ in cdeltpa]))
@@ -136,10 +138,10 @@ def combine_fitsheader(headers, cdelt=None, pa=None):
         )
         xy0.append(proj0.wcs_world2pix(edges[0], edges[1], 1))
 
-    xmin0 = np.round(min([min(c[0]) for c in xy0]))
-    xmax0 = np.round(max([max(c[0]) for c in xy0]))
-    ymin0 = np.round(min([min(c[1]) for c in xy0]))
-    ymax0 = np.round(max([max(c[1]) for c in xy0]))
+    xmin0 = np.round(min(min(c[0]) for c in xy0))
+    xmax0 = np.round(max(max(c[0]) for c in xy0))
+    ymin0 = np.round(min(min(c[1]) for c in xy0))
+    ymax0 = np.round(max(max(c[1]) for c in xy0))
 
     header0['NAXIS1'] = int(xmax0 - xmin0 + 1)
     header0['NAXIS2'] = int(ymax0 - ymin0 + 1)
@@ -223,8 +225,8 @@ def create_fitsheader(
     else:
         print(
             "The keyword 'from_data' in create_fitsheader is deprecated and "
-            "will be removed in an upcoming release. Use the function create"
-            "_fitsheader_for instead."
+            'will be removed in an upcoming release. Use the function create'
+            '_fitsheader_for instead.'
         )
         array = np.array(fromdata, copy=False)
         naxes = tuple(reversed(array.shape))
@@ -407,7 +409,7 @@ def create_fitsheader_for(
 
 def fitsheader2shape(header):
     ndim = header['NAXIS']
-    return tuple(header['NAXIS{0}'.format(i)] for i in range(ndim, 0, -1))
+    return tuple(header[f'NAXIS{i}'] for i in range(ndim, 0, -1))
 
 
 def get_cdelt_pa(header):
@@ -433,7 +435,7 @@ def get_cdelt_pa(header):
             float,
         )
     except KeyError:
-        if any(not k in header for k in ('CDELT1', 'CDELT2', 'CROTA2')):
+        if any(k not in header for k in ('CDELT1', 'CDELT2', 'CROTA2')):
             raise KeyError('Header has no astrometry.')
         return (np.array([header['CDELT1'], header['CDELT2']]), -header['CROTA2'])
 
@@ -546,7 +548,7 @@ class DistortionOperator(Operator):
 
 @real
 class RotationBoresightEquatorialOperator(Operator):
-    """
+    r"""
     Convert coordinates in the instrument object plane into celestial
     coordinates, assuming a pointing direction and a position angle.
 
@@ -608,7 +610,7 @@ class _WCSKapteynOperator(Operator):
         if len(shapein) == 0:
             raise ValueError('Invalid scalar input.')
         if shapein[-1] != 2:
-            raise ValueError("Invalid last dimension: '{0}'.".format(shapein[-1]))
+            raise ValueError(f"Invalid last dimension: '{shapein[-1]}'.")
 
 
 class WCSKapteynToPixelOperator(_WCSKapteynOperator):
@@ -682,7 +684,7 @@ class _WCSOperator(Operator):
         if len(shapein) == 0:
             raise ValueError('Invalid scalar input.')
         if shapein[-1] != 2:
-            raise ValueError("Invalid last dimension: '{0}'.".format(shapein[-1]))
+            raise ValueError(f"Invalid last dimension: '{shapein[-1]}'.")
 
 
 class WCSToPixelOperator(_WCSOperator):

@@ -1,6 +1,6 @@
 from pyoperators import I
 from pyoperators.utils.testing import assert_raises, assert_same
-from pysimulators import Instrument, Imager, PackedTable
+from pysimulators import Imager, Instrument, PackedTable
 
 
 def test_instrument():

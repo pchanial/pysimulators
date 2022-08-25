@@ -1,8 +1,9 @@
 import numpy as np
-from pysimulators import SamplingEquatorial
 from numpy.testing import assert_equal, assert_raises
+
 from pyoperators.utils import isscalarlike
 from pyoperators.utils.testing import assert_is_none, assert_same
+from pysimulators import SamplingEquatorial
 
 
 def test_coords():

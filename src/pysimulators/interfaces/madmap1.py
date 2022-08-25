@@ -1,25 +1,27 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 
-from __future__ import division
 
-import astropy.io.fits as pyfits
 import glob
-import numpy as np
 import os
 import re
+
+import astropy.io.fits as pyfits
+import numpy as np
+
 from pyoperators import (
+    MPI,
     BlockColumnOperator,
     BlockDiagonalOperator,
     SymmetricBandToeplitzOperator,
-    MPI,
 )
-from ...acquisitions import Acquisition
-from ...datatypes import Map, Tod
-from ...instruments import Instrument
-from ...packedtables import PackedTable
-from ...operators import PointingMatrix, ProjectionInMemoryOperator
-from ...wcsutils import create_fitsheader
+
+from ..acquisitions import Acquisition
+from ..datatypes import Map, Tod
+from ..instruments import Instrument
+from ..operators import PointingMatrix, ProjectionInMemoryOperator
+from ..packedtables import PackedTable
+from ..wcsutils import create_fitsheader
 
 __all__ = ['MadMap1Observation']
 
@@ -66,7 +68,7 @@ class MadMap1Observation(Acquisition):
             extname = m.group('extname')
             mask = pyfits.open(filename)[str(extname)].data  # XXX Python3
         if mask is None:
-            raise IOError('HDU ' + mapmaskfilename + ' has no data.')
+            raise OSError('HDU ' + mapmaskfilename + ' has no data.')
         mapmask = np.zeros(mask.shape, dtype=bool)
         if missing_value is None:
             mapmask[mask != 0] = True
@@ -91,7 +93,7 @@ class MadMap1Observation(Acquisition):
         self.instrument = Instrument(name, layout, commin=commin, commout=commout)
 
         # Store observation information
-        class MadMap1ObservationInfo(object):
+        class MadMap1ObservationInfo:
             pass
 
         self.info = MadMap1ObservationInfo()
@@ -175,9 +177,7 @@ class MadMap1Observation(Acquisition):
         filesize = os.stat(self.info.todfilename).st_size
         if filesize != 32 + (npps + 1) * ndetectors * nsamples * 8:
             raise ValueError(
-                "Invalid size '{0}' for file '{1}'.".format(
-                    filesize, self.info.todfilename
-                )
+                f"Invalid size '{filesize}' for file {self.info.todfilename!r}."
             )
         tod = Tod.empty((ndetectors, nsamples))
         pmatrix = []
@@ -211,7 +211,7 @@ def _read_one_filter(filename, bigendian=False):
 
 def _read_filters(filename, bigendian=False):
     files = glob.glob(filename + '.*')
-    regex = re.compile(filename + '\.[0-9]+$')
+    regex = re.compile(filename + r'\.[0-9]+$')
     files = sorted(
         (f for f in files if regex.match(f)),
         key=lambda s: int(s[-s[::-1].index('.') :]),

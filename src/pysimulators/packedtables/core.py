@@ -14,7 +14,15 @@ PackedTable:
       - SceneHealpix
 
 """
-from __future__ import absolute_import, division, print_function
+
+import copy
+import functools
+import inspect
+import types
+from collections.abc import Callable
+
+import numpy as np
+
 from pyoperators import MPI
 from pyoperators.utils import (
     ilast_is_not,
@@ -25,18 +33,13 @@ from pyoperators.utils import (
     split,
     tointtuple,
 )
+
 from ..warnings import PySimulatorsWarning, warn
-import copy
-import functools
-import inspect
-import numpy as np
-import types
-from collections.abc import Callable
 
 __all__ = ['PackedTable']
 
 
-class PackedTable(object):
+class PackedTable:
     """
     The PackedTable class gathers information from a set of elements which can
     have a multi-dimensional layout. This information can transparently be
@@ -137,7 +140,7 @@ class PackedTable(object):
         if ndim is None:
             ndim = len(shape)
         elif ndim < 1 or ndim > len(shape):
-            raise ValueError("Invalid ndim value '{0}'.".format(ndim))
+            raise ValueError(f"Invalid ndim value '{ndim}'.")
         object.__setattr__(self, 'shape', shape)
         object.__setattr__(self, 'ndim', ndim)
         object.__setattr__(self, 'comm', MPI.COMM_SELF)
@@ -252,7 +255,7 @@ class PackedTable(object):
 
     def __setattr__(self, key, value):
         if key in self._reserved_attributes:
-            raise AttributeError('The attribute {0!r} is not writeable.'.format(key))
+            raise AttributeError(f'The attribute {key!r} is not writeable.')
         if (
             value is not None
             and not isinstance(value, Callable)
@@ -261,8 +264,8 @@ class PackedTable(object):
             value = np.asanyarray(value)
             if value.ndim > 0 and value.shape[0] != len(self):
                 raise ValueError(
-                    "The shape '{0}' is invalid. The expected first dimension "
-                    "is '{1}'.".format(value.shape, len(self))
+                    f"The shape '{value.shape}' is invalid. The expected first "
+                    f"dimension is '{len(self)}'."
                 )
             elif value.ndim == 0:
                 try:
@@ -278,7 +281,7 @@ class PackedTable(object):
         if key == 'packed':
             warn(
                 "Please update your code: the 'packed' attribute is not requi"
-                "red anymore: the attributes are already packed. To access th"
+                'red anymore: the attributes are already packed. To access th'
                 "e unpacked ones, use the 'all' attribute.",
                 PySimulatorsWarning,
             )
@@ -341,7 +344,7 @@ class PackedTable(object):
         return out
 
     def __str__(self):
-        out = type(self).__name__ + '({0}, '.format(self._shape_actual)
+        out = type(self).__name__ + f'({self._shape_actual}, '
         attributes = ['index'] + sorted(
             _
             for _ in self._special_attributes
@@ -354,9 +357,7 @@ class PackedTable(object):
         if len(attributes) > 1:
             out += '\n    '
         out += (
-            ',\n    '.join(
-                '{0}={1}'.format(_, str(getattr(self, _))[:65]) for _ in attributes
-            )
+            ',\n    '.join(f'{_}={str(getattr(self, _))[:65]}' for _ in attributes)
             + ')'
         )
         return out
@@ -413,8 +414,8 @@ class PackedTable(object):
             return x
         if x.shape[: self.ndim] != self._shape_actual:
             raise ValueError(
-                "Invalid unpacked shape '{0}'. The first dimension(s) must be "
-                "'{1}'.".format(x.shape, self._shape_actual)
+                f"Invalid unpacked shape '{x.shape}'. The first dimension(s) must be "
+                f"'{self._shape_actual}'."
             )
         index = self._indexable
 
@@ -425,8 +426,8 @@ class PackedTable(object):
                 raise TypeError('The output array is not an ndarray.')
             if out.shape != packed_shape:
                 raise ValueError(
-                    "The output array shape '{0}' is invalid. The expected sha"
-                    "pe is '{1}'.".format(out.shape, packed_shape)
+                    f"The output array shape '{out.shape}' is invalid. The expected "
+                    f"shape is '{packed_shape}'."
                 )
         else:
             if not copy:
@@ -528,9 +529,7 @@ class PackedTable(object):
         if len(args) == 1:
             return func(args[0])
         elif len(args) > 1:
-            raise TypeError(
-                'gather takes at most 1 argument ({} given)'.format(len(args))
-            )
+            raise TypeError(f'gather takes at most 1 argument ({len(args)} given)')
 
         out = copy.copy(self)
         out._index = self._normalize_int_selection(
@@ -602,8 +601,8 @@ class PackedTable(object):
         x = np.array(x, copy=False, ndmin=1, subok=True)
         if x.shape[0] not in (1, len(self)):
             raise ValueError(
-                "Invalid input packed shape '{0}'. The expected first dimensio"
-                "n is '{1}'.".format(x.shape, len(self))
+                f"Invalid input packed shape '{x.shape}'. The expected first dimension "
+                f"is '{len(self)}'."
             )
         index = self._indexable
 
@@ -615,8 +614,8 @@ class PackedTable(object):
                 raise TypeError('The output array is not an ndarray.')
             if out.shape != unpacked_shape:
                 raise ValueError(
-                    "The output array shape '{0}' is invalid. The expected sha"
-                    "pe is '{1}'.".format(out.shape, unpacked_shape)
+                    f"The output array shape '{out.shape}' is invalid. The expected "
+                    f"shape is '{unpacked_shape}'."
                 )
         else:
             if (
@@ -660,7 +659,7 @@ class PackedTable(object):
             'f': np.nan,
             'c': np.nan,
             'S': '',
-            'U': u'',
+            'U': '',
             'O': None,
         }[dtype.kind]
 
@@ -767,7 +766,7 @@ class PackedTable(object):
         return out
 
 
-class UnpackedTable(object):
+class UnpackedTable:
     def __init__(self, packed):
         object.__setattr__(self, '_packed', packed)
         for k in packed._special_attributes:
@@ -788,9 +787,7 @@ class UnpackedTable(object):
         if key.startswith('_') or key == 'removed':
             return object.__getattribute__(self, key)
         if key not in self._packed._special_attributes:
-            raise AttributeError(
-                'The unpacked table has no attribute {0!r}.'.format(key)
-            )
+            raise AttributeError(f'The unpacked table has no attribute {key!r}.')
         v = getattr(self._packed, key)
         if v is None:
             return v
@@ -812,9 +809,9 @@ class UnpackedTable(object):
     def __setattr__(self, key, value):
         p = self._packed
         if key not in p._special_attributes:
-            raise AttributeError('{0!r} is not an unpacked attribute.'.format(key))
+            raise AttributeError(f'{key!r} is not an unpacked attribute.')
         if key in p._reserved_attributes:
-            raise AttributeError('The attribute {0!r} is not writeable.'.format(key))
+            raise AttributeError(f'The attribute {key!r} is not writeable.')
         if isinstance(value, Callable):
             raise TypeError('A function cannot be set as an unpacked attribute.')
         object.__setattr__(p, key, p.pack(value, copy=True))

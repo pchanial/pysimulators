@@ -158,7 +158,7 @@ contains
               y(i) = NAN_<size>
           end if
       end do
- 
+
   end subroutine
 
 end module datautils

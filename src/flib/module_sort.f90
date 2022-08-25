@@ -566,7 +566,7 @@ contains
                 index(nuniqs) = inindex(i)
             end if
         end do
-        
+
         allocate (outindex(nuniqs))
         outindex = index(1:nuniqs)
 
@@ -617,7 +617,7 @@ contains
 
         allocate (table(nuniqs))
         table = tmptable(:nuniqs)
-        
+
     end subroutine reorder_nomask_double
 
 
@@ -666,7 +666,7 @@ contains
 
         allocate (table(nuniqs))
         table = tmptable(:nuniqs)
-        
+
     end subroutine reorder_mask_double
 
 
@@ -686,7 +686,7 @@ contains
             if (array(i) == huge(array)) cycle
             histogram(array(i)) = histogram(array(i)) + 1
         end do
-        
+
     end function histogram_nomask_int
 
 
@@ -707,7 +707,7 @@ contains
             if (array(i) == huge(array) .or. mask(i)) cycle
             histogram(array(i)) = histogram(array(i)) + 1
         end do
-        
+
     end function histogram_mask_int
 
 
@@ -715,7 +715,7 @@ contains
 
 
     subroutine where_1d_1d(array, indices, count)
-        
+
         logical, intent(in) :: array(:)
         integer, intent(out), allocatable :: indices(:)
         integer, intent(out), optional :: count
@@ -730,11 +730,11 @@ contains
                 indices_(count_) = i
             end if
         end do
-        
+
         allocate (indices(count_))
         indices = indices_(1:count_)
         if (present(count)) count = count_
-        
+
     end subroutine where_1d_1d
 
 
@@ -742,7 +742,7 @@ contains
 
 
     subroutine where_2d_1d(mask, indices, n)
-        
+
         logical, intent(in) :: mask(:,:)
         integer, intent(out), allocatable :: indices(:)
         integer, intent(out), optional :: n
@@ -754,7 +754,7 @@ contains
 #endif
         indices = pack([(i, i=1, size(mask))], reshape(mask,[size(mask)]))
         n = size(indices)
-        
+
     end subroutine where_2d_1d
 
 
@@ -762,7 +762,7 @@ contains
 
 
     subroutine where_2d_2d(array, i1, i2, count)
-        
+
         logical, intent(in) :: array(:,:)
         integer, intent(out), allocatable :: i1(:), i2(:)
         integer, intent(out), optional :: count
@@ -780,13 +780,13 @@ contains
                 end if
             end do
         end do
-        
+
         allocate (i1(count_))
         allocate (i2(count_))
         i1 = i1_(1:count_)
         i2 = i2_(1:count_)
         if (present(count)) count = count_
-        
+
     end subroutine where_2d_2d
 
 
@@ -794,7 +794,7 @@ contains
 
 
     subroutine where_3d_3d(array, i1, i2, i3, count)
-        
+
         logical, intent(in) :: array(:,:,:)
         integer, intent(out), allocatable :: i1(:), i2(:), i3(:)
         integer, intent(out), optional :: count
@@ -823,7 +823,7 @@ contains
         i2 = i2_(1:count_)
         i3 = i3_(1:count_)
         if (present(count)) count = count_
-        
+
     end subroutine where_3d_3d
 
 

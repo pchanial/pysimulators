@@ -1,8 +1,7 @@
-from __future__ import division
 import numpy as np
 from pybenchmarks import benchmark
-from pysimulators import _flib as flib, LayoutGridSquares
-from pysimulators.sparse import FSRMatrix
+
+from pysimulators import LayoutGridSquares
 
 grid = LayoutGridSquares(
     (256, 256), 3, filling_factor=0.8, angle=10.0, origin=(128 * 3, 128 * 3)
@@ -15,8 +14,7 @@ from __main__ import grid, ncolmax, nx, ny, FSRMatrix, np, flib
 matrix = FSRMatrix((len(grid), nx * ny), dtype=dtype,
                    dtype_index=itype, ncolmax=ncolmax)
 data = matrix.data.ravel().view(np.int8)
-func = 'matrix_polygon_integration_i{0}_r{1}'.format(itype.itemsize,
-                                                     dtype.itemsize)
+func = f'matrix_polygon_integration_i{itype.itemsize}_r{dtype.itemsize}'
 f = getattr(flib.projection, func)
 """
 

@@ -1,9 +1,7 @@
-from __future__ import division
-
 import numpy as np
-
 from nose.tools import assert_equal, assert_raises
 from numpy.testing import assert_almost_equal, assert_array_equal
+
 from pyoperators.utils.testing import assert_eq, assert_is, assert_is_instance
 from pysimulators.quantities import Quantity, UnitError
 

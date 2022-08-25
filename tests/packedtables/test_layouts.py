@@ -1,20 +1,9 @@
-from __future__ import division
-
 import numpy as np
 from numpy.testing import assert_equal, assert_raises
-from pyoperators.utils import isalias, isscalarlike, product
-from pyoperators.utils.testing import (
-    assert_eq,
-    assert_is,
-    assert_is_instance,
-    assert_is_none,
-    assert_is_type,
-    assert_same,
-    skiptest,
-)
-from pysimulators import Quantity
+
+from pyoperators.utils.testing import assert_is_instance, assert_is_type, assert_same
+from pysimulators import Layout, LayoutGrid, LayoutGridSquares, Quantity
 from pysimulators.geometry import create_grid, create_grid_squares
-from pysimulators import Layout, LayoutGrid, LayoutGridSquares
 
 
 def test_layout_grid_errors():

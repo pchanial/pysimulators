@@ -1,19 +1,17 @@
-# coding: utf-8
-from __future__ import division
-
 import numpy as np
 import scipy
 import scipy.constants
 from astropy.coordinates.angles import Angle
 from astropy.time import Time
 from numpy.testing import assert_allclose, assert_equal, assert_raises
+
 from pyoperators import (
-    Operator,
+    BlockDiagonalOperator,
     Cartesian2SphericalOperator,
     CompositionOperator,
-    BlockDiagonalOperator,
     IdentityOperator,
     MultiplicationOperator,
+    Operator,
     Spherical2CartesianOperator,
     flags,
 )
@@ -21,18 +19,18 @@ from pyoperators.utils import all_eq, isscalarlike, product
 from pyoperators.utils.testing import assert_is_instance, assert_is_type, assert_same
 from pysimulators.operators import (
     BlackBodyOperator,
-    ConvolutionTruncatedExponentialOperator,
-    PowerLawOperator,
-    RollOperator,
-    block_diagonal,
     CartesianEquatorial2GalacticOperator,
     CartesianEquatorial2HorizontalOperator,
     CartesianGalactic2EquatorialOperator,
     CartesianHorizontal2EquatorialOperator,
+    ConvolutionTruncatedExponentialOperator,
+    PowerLawOperator,
+    RollOperator,
     SphericalEquatorial2GalacticOperator,
     SphericalEquatorial2HorizontalOperator,
     SphericalGalactic2EquatorialOperator,
     SphericalHorizontal2EquatorialOperator,
+    block_diagonal,
 )
 
 

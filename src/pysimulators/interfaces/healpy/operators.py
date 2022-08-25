@@ -1,11 +1,15 @@
-from __future__ import division
-
-import healpy as hp
-import healpy._healpy_pixel_lib as pixlib
+try:
+    import healpy as hp
+    import healpy._healpy_pixel_lib as pixlib
+except ImportError:
+    hp = None
+    pixlib = None
 import numpy as np
+
 from pyoperators import CompositionOperator, IdentityOperator, Operator
 from pyoperators.flags import inplace, real, square, symmetric
 from pyoperators.utils import pi, strenum
+
 from ...sparse import FSRMatrix, SparseOperator
 
 __all__ = [
@@ -124,15 +128,12 @@ class _HealPixSpherical(Operator):
 
     def __init__(self, nside, convention, nest=False, dtype=float, **keywords):
         if not isinstance(convention, str):
-            raise TypeError(
-                "The input convention '{0}' is not a string.".format(convention)
-            )
+            raise TypeError(f"The input convention '{convention}' is not a string.")
         convention_ = convention.replace(' ', '').lower()
         if convention_ not in self.CONVENTIONS:
             raise ValueError(
-                "Invalid spherical convention '{0}'. Expected values are {1}.".format(
-                    convention, strenum(self.CONVENTIONS)
-                )
+                f'Invalid spherical convention {convention!r}. Expected values are '
+                f'{strenum(self.CONVENTIONS)}.'
             )
         self.nside = int(nside)
         self.convention = convention_
@@ -348,8 +349,8 @@ class HealpixConvolutionGaussianOperator(Operator):
         nside = int(np.round(np.sqrt(shape[0] / 12)))
         if 12 * nside**2 != shape[0]:
             raise ValueError(
-                'The nside value cannot be inferred from the input number of p'
-                "ixels '{0}'.".format(shape[0])
+                f'The nside value cannot be inferred from the input number of pixels '
+                f"'{shape[0]}'."
             )
 
 

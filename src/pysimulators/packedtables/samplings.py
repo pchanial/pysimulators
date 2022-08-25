@@ -1,22 +1,23 @@
-from __future__ import absolute_import, division, print_function
+import numpy as np
 from astropy.time import Time, TimeDelta
+
+import pyoperators
 from pyoperators import (
-    DifferenceOperator,
     MPI,
+    DifferenceOperator,
     NormalizeOperator,
     Spherical2CartesianOperator,
 )
 from pyoperators.utils import deprecated, isscalarlike, tointtuple
 from pyoperators.utils.mpi import as_mpi
-from .core import PackedTable
+
 from ..datatypes import Map
 from ..operators import (
     SphericalEquatorial2GalacticOperator,
     SphericalHorizontal2EquatorialOperator,
 )
 from ..quantities import Quantity
-import numpy as np
-import pyoperators
+from .core import PackedTable
 
 __all__ = ['Sampling', 'SamplingSpherical', 'SamplingEquatorial', 'SamplingHorizontal']
 

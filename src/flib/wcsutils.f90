@@ -64,17 +64,17 @@ contains
             z = z + sin(cotheta)
         end do
         !$omp end parallel do
-        
+
         lon0 = modulo(atan2(y,x) * RAD2DEG + 360._p, 360._p)
         lat0 = acos(sqrt((x**2 + y**2)/(x**2 + y**2 + z**2))) * RAD2DEG
         lat0 = sign(lat0, z)
-        
+
     end subroutine barycenter_lonlat
 
 
     !---------------------------------------------------------------------------
-    
-    
+
+
     subroutine mean_degrees(array, n, mean)
 
         integer*8, intent(in) :: n
@@ -158,8 +158,8 @@ contains
 
 
     !---------------------------------------------------------------------------
-    
-    
+
+
     subroutine projection_scale(header, nx, ny, array, status)
 
         use module_wcs, only : Astrometry, init_astrometry, &
@@ -195,7 +195,7 @@ contains
         !       \ |
         !        \|_______ input(1) = -R.A. if PA=0
         !
-        ! 
+        !
         ! The routine is not accurate at the poles.
 
         integer*8, intent(in)    :: ncoords           ! number of coordinates
@@ -303,7 +303,7 @@ contains
             end if
 
             call object2ad(coords, coords2, ncoords, ra(isample), dec(isample), pa(isample))
-            
+
             call ad2xys_gnomonic(coords2, x, y, s)
 
             ! the input map has flux densities, not surface brightness

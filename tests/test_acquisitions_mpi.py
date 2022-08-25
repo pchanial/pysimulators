@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 from pyoperators import MPI
 from pysimulators import Acquisition, Instrument, PackedTable, Sampling, Scene
 

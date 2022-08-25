@@ -1,8 +1,8 @@
-from __future__ import absolute_import, division, print_function
-from .core import PackedTable
+import numpy as np
+
 from ..geometry import create_circle, create_grid, create_grid_squares
 from ..quantities import Quantity
-import numpy as np
+from .core import PackedTable
 
 __all__ = ['Layout', 'LayoutGrid', 'LayoutGridSquares']
 

@@ -1,6 +1,5 @@
-from __future__ import division
-
 import numpy as np
+
 from pyoperators.utils.testing import assert_same
 from pysimulators.beams import BeamGaussian, BeamUniformHalfSpace
 

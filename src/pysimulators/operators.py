@@ -1,16 +1,22 @@
-# encoding: utf-8
-from __future__ import absolute_import, division, print_function
+import functools
+import inspect
+import operator
+
+import numpy as np
+import scipy.constants
+
+import pyoperators
 from pyoperators import (
-    Operator,
     BlockDiagonalOperator,
     Cartesian2SphericalOperator,
     CompositionOperator,
-    DenseOperator,
     DenseBlockDiagonalOperator,
-    DiagonalOperator,
+    DenseOperator,
     DiagonalNumexprOperator,
+    DiagonalOperator,
     HomothetyOperator,
     IdentityOperator,
+    Operator,
     Spherical2CartesianOperator,
 )
 from pyoperators.flags import inplace, linear, orthogonal, real, separable, square
@@ -23,27 +29,18 @@ from pyoperators.utils import (
     strenum,
     tointtuple,
 )
+
 from . import _flib as flib
 from .datatypes import FitsArray, Map
 from .quantities import Quantity, _divide_unit, _multiply_unit
 from .sparse import (
-    FSRMatrix,
     FSRBlockMatrix,
+    FSRMatrix,
     FSRRotation2dMatrix,
     FSRRotation3dMatrix,
     SparseOperator,
 )
 from .wcsutils import create_fitsheader
-import functools
-import inspect
-import numpy as np
-import operator
-import pyoperators
-import scipy.constants
-import sys
-
-if sys.version_info.major == 2:
-    from itertools import izip as zip
 
 __all__ = [
     'BlackBodyOperator',
@@ -370,7 +367,7 @@ class ConvolutionTruncatedExponentialOperator(Operator):
     def direct(self, input, output):
         input_, nd, nt, int_all = _ravel_strided(input)
         output_, nd, nt, ont_all = _ravel_strided(output)
-        f = 'trexp_direct_r{0}'.format(input.dtype.itemsize)
+        f = f'trexp_direct_r{input.dtype.itemsize}'
         try:
             getattr(flib.operators, f)(
                 input_,
@@ -388,7 +385,7 @@ class ConvolutionTruncatedExponentialOperator(Operator):
     def transpose(self, input, output):
         input_, nd, nt, int_all = _ravel_strided(input)
         output_, nd, nt, ont_all = _ravel_strided(output)
-        f = 'trexp_transpose_r{0}'.format(input.dtype.itemsize)
+        f = f'trexp_transpose_r{input.dtype.itemsize}'
         try:
             getattr(flib.operators, f)(
                 input_,
@@ -408,8 +405,8 @@ class ConvolutionTruncatedExponentialOperator(Operator):
             return
         if self.tau.size != product(shape[:-1]):
             raise ValueError(
-                "The shape of the input '{0}' is incompatible with the number "
-                "of scales '{1}'.".format(shape, self.tau.size)
+                f"The shape of the input '{shape}' is incompatible with the number "
+                f"of scales '{self.tau.size}'."
             )
 
 
@@ -501,9 +498,7 @@ class PowerLawOperator(DiagonalNumexprOperator):
         )
 
     def __str__(self):
-        return u'powerlaw(..., \u03B1={0}, x/x0={1})'.encode('utf-8').format(
-            self.alpha, self.x / self.x0
-        )
+        return f'powerlaw(..., α={self.alpha}, x/x0={self.x / self.x0})'
 
 
 class PointingMatrix(FitsArray):
@@ -845,8 +840,8 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         matrix = self.matrix
         if mask.shape != self.shapeout:
             raise ValueError(
-                "The mask shape '{0}' is incompatible with that o"
-                "f the pointing matrix '{1}'.".format(mask.shape, matrix.shape)
+                f"The mask shape '{mask.shape}' is incompatible with that o"
+                f"f the pointing matrix '{matrix.shape}'."
             )
         matrix.value.T[...] *= 1 - mask.T
 
@@ -975,8 +970,8 @@ class ProjectionOperator(SparseOperator):
             operation(out, True)
             return out
 
-        i, m = [_.dtype.itemsize for _ in (data.index, self.matrix)]
-        f = 'fsr{0}_kernel_i{1}_r{2}'.format(self._flib_id, i, m)
+        i, m = (_.dtype.itemsize for _ in (data.index, self.matrix))
+        f = f'fsr{self._flib_id}_kernel_i{i}_r{m}'
         n = product(shape)
         if hasattr(flib.operators, f):
             if operation in (operation_assignment, operator.iand, operator.imul):
@@ -1043,7 +1038,7 @@ class ProjectionOperator(SparseOperator):
             else:
                 kernel = np.ones_like(out)
 
-            f = 'fsr_kernel_i{0}'.format(itype.itemsize)
+            f = f'fsr_kernel_i{itype.itemsize}'
             func = getattr(flib.sparse, f)
             func(
                 data.view(np.int8).ravel(),
@@ -1083,18 +1078,16 @@ class ProjectionOperator(SparseOperator):
             raise TypeError('The output keyword is not an ndarray.')
         elif out.shape != shapeout:
             raise ValueError(
-                "The output arrays have a shape incompatible with"
-                " the expected one '{0}'.".format(shapeout)
+                f'The output arrays have a shape incompatible with'
+                f" the expected one '{shapeout}'."
             )
         if operation not in (operation_assignment, operator.iadd):
             raise ValueError('Invalid reduction operation.')
 
-        f = 'fsr{0}_pt1_i{1}_r{2}_v{3}'.format(
-            self._flib_id,
-            self.matrix.data.index.dtype.itemsize,
-            self.matrix.dtype.itemsize,
-            out.dtype.itemsize,
-        )
+        isize = self.matrix.data.index.dtype.itemsize
+        rsize = self.matrix.dtype.itemsize
+        vsize = out.dtype.itemsize
+        f = f'fsr{self._flib_id}_pt1_i{isize}_r{rsize}_v{vsize}'
         if hasattr(flib.operators, f):
             if operation is operation_assignment:
                 out[...] = 0
@@ -1154,8 +1147,7 @@ class ProjectionOperator(SparseOperator):
             shapeout = shapeout[:-1]
         if x.shape != shapein:
             raise ValueError(
-                "Invalid input shape '{0}'. Expected shape is '{1"
-                "}'.".format(x.shape, shapein)
+                f"Invalid input shape '{x.shape}'. Expected shape is '{shapein}'."
             )
         dtypeout = max(self.dtype, x.dtype)
         if out is None:
@@ -1165,25 +1157,23 @@ class ProjectionOperator(SparseOperator):
             raise TypeError('The out keyword is not a 2-tuple.')
         elif out[0].dtype != dtypeout or out[1].dtype != dtypeout:
             raise TypeError(
-                'The output arrays have a dtype incompatible with '
-                "the expected one '{0}'.".format(dtypeout.type)
+                f'The output arrays have a dtype incompatible with the expected one '
+                f"'{dtypeout.type}'."
             )
         elif out[0].shape != shapeout or out[1].shape != shapeout:
             raise ValueError(
-                "The output arrays have a shape incompatible with"
-                " the expected one '{0}'.".format(shapeout)
+                f'The output arrays have a shape incompatible with the expected one '
+                f"'{shapeout}'."
             )
         else:
             pTx, pT1 = out
         if operation not in (operation_assignment, operator.iadd):
             raise ValueError('Invalid reduction operation.')
 
-        f = 'fsr{0}_ptx_pt1_i{1}_r{2}_v{3}'.format(
-            self._flib_id,
-            self.matrix.data.index.dtype.itemsize,
-            self.matrix.dtype.itemsize,
-            dtypeout.itemsize,
-        )
+        isize = self.matrix.data.index.dtype.itemsize
+        rsize = self.matrix.dtype.itemsize
+        vsize = dtypeout.itemsize
+        f = f'fsr{self._flib_id}_ptx_pt1_i{isize}_r{rsize}_v{vsize}'
         if hasattr(flib.operators, f):
             if operation is operation_assignment:
                 pTx[...] = 0
@@ -1333,8 +1323,8 @@ class _CartesianEquatorialHorizontal(DenseBlockDiagonalOperator):
         conventions = ('NE',)  # 'SW', 'SE')
         if convention not in conventions:
             raise ValueError(
-                "Invalid azimuth angle convention '{0}'. Expected values are {"
-                "1}.".format(convention, strenum(conventions))
+                f'Invalid azimuth angle convention {convention!r}. Expected values are '
+                f'{strenum(conventions)}.'
             )
         lst = self._gst2lst(self._jd2gst(time.jd), longitude)
         lst = np.radians(lst * 15)

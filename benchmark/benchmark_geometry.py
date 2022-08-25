@@ -1,6 +1,6 @@
-from __future__ import division, print_function
-from pybenchmarks import benchmark
 import numpy as np
+from pybenchmarks import benchmark
+
 import pysimulators
 
 
@@ -39,7 +39,7 @@ def benchmark_rotate_2d():
     print('{:^9}{:^12}{:^12}{:15}'.format('N', 'Dot', 'Fortran', 'Fortran Inplace'))
     print(48 * '-')
     for n, t1, t2, t3 in zip(ns, b1['time'], b2['time'], b3['time']):
-        print('{:<9}{:12.9f}{:12.9f}{:12.9f}'.format(n, t1, t2, t3))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}{t3:12.9f}')
 
 
 def benchmark_create_grid():
@@ -65,7 +65,7 @@ def benchmark_create_grid():
     print(header)
     print(len(header) * '-')
     for n, t1, t2 in zip(ids, b['time'][0], b['time'][1]):
-        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}')
 
 
 def benchmark_create_grid_squares():
@@ -98,7 +98,7 @@ def benchmark_create_grid_squares():
     print(header)
     print(len(header) * '-')
     for n, t1, t2 in zip(ids, b['time'][0], b['time'][1]):
-        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}')
 
 
 if __name__ == '__main__':

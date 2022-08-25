@@ -1,18 +1,17 @@
-from __future__ import division
-from numpy.testing import assert_allclose
+import numpy as np
+
 from pyoperators.utils.testing import assert_same
 from pysimulators.datautils import (
+    _distance2_slow,
+    _distance_slow,
     airy_disk,
     distance,
     distance2,
     gaussian,
-    profile,
     integrated_profile,
+    profile,
     psd2,
-    _distance_slow,
-    _distance2_slow,
 )
-import numpy as np
 
 from .common import FLOAT_TYPES
 

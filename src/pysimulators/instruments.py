@@ -1,8 +1,11 @@
-from __future__ import absolute_import, division, print_function
-from pyoperators import DiagonalOperator, SymmetricBandToeplitzOperator, asoperator
-from pyoperators.memory import empty, ones, zeros
+import copy
+
+import numpy as np
+
+from pyoperators import MPI, DiagonalOperator, SymmetricBandToeplitzOperator, asoperator
+from pyoperators.memory import empty
 from pyoperators.utils import operation_assignment, split
-from pyoperators.utils.mpi import MPI
+
 from .noises import (
     _fold_psd,
     _gaussian_psd_1f,
@@ -12,17 +15,11 @@ from .noises import (
     _unfold_psd,
 )
 from .packedtables import Layout
-import copy
-import numpy as np
-import sys
-
-if sys.version_info.major == 2:
-    range = xrange
 
 __all__ = ['Instrument', 'Imager']
 
 
-class Instrument(object):
+class Instrument:
     """
     Class storing information about the instrument.
 
