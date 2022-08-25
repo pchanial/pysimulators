@@ -1,7 +1,5 @@
-from __future__ import division
-
 import numpy as np
-from numpy.testing import assert_almost_equal
+
 from pyoperators.utils import product
 from pyoperators.utils.testing import assert_same
 from pysimulators.geometry import (

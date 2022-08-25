@@ -1,10 +1,12 @@
-import numpy as np
 import os
 
+import numpy as np
 from astropy.io import fits as pyfits
 from astropy.wcs import WCS
+
 from pyoperators.utils.testing import assert_eq, assert_same, skiptest_unless_module
 from pysimulators.wcsutils import (
+    WCSToWorldOperator,
     angle_lonlat,
     barycenter_lonlat,
     combine_fitsheader,
@@ -14,7 +16,6 @@ from pysimulators.wcsutils import (
     get_cdelt_pa,
     has_wcs,
     mean_degrees,
-    WCSToWorldOperator,
 )
 
 

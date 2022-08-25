@@ -1,11 +1,11 @@
-from __future__ import division
+import operator
 
 import numpy as np
-import operator
 from numpy.testing import assert_equal
+
 from pyoperators import MaskOperator, PackOperator, Rotation2dOperator
 from pyoperators.core import DeletedOperator
-from pyoperators.utils.testing import assert_same, assert_is_type, skiptest
+from pyoperators.utils.testing import assert_is_type, assert_same, skiptest
 from pysimulators.operators import ProjectionOperator
 from pysimulators.sparse import FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix
 

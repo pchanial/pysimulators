@@ -10,14 +10,11 @@ of coordinates a, a[..., 0] refers to the X-axis and a[..., 1] to the Y-axis.
 Angles are counted counter-clockwise.
 
 """
-from __future__ import absolute_import, division, print_function
-from . import _flib
+
 import numpy as _np
 import scipy.spatial as _spatial
-import sys
 
-if sys.version_info.major == 2:
-    from itertools import izip as zip
+from . import _flib
 
 
 def convex_hull(points):
@@ -34,8 +31,7 @@ def convex_hull(points):
     points = _np.atleast_1d(points)
     if points.shape[-1] != 2:
         raise ValueError(
-            "Invalid last dimension of 2-dimensional points '{0}'"
-            ".".format(points.shape[-1])
+            f"Invalid last dimension of 2-dimensional points '{points.shape[-1]}'."
         )
     points = points.reshape((-1, 2))
 

@@ -1,7 +1,6 @@
-from __future__ import division
-
 import numpy as np
 from numpy.testing import assert_allclose
+
 from pyoperators.utils.testing import assert_eq, assert_raises
 from pysimulators import (
     Acquisition,

@@ -12,30 +12,26 @@ These classes are useful to load, manipulate and save FITs files.
 They also contain specialised display methods.
 
 """
-from __future__ import absolute_import, division, print_function
-from astropy.io import fits as pyfits
-from functools import reduce
 
-try:
-    from pyoperators.memory import empty
-except ImportError:
-    from pyoperators.memory import allocate as empty
-from pyoperators.utils import isscalarlike
-from pyoperators.utils.mpi import MPI
-from .mpiutils import read_fits, write_fits
-from .quantities import Quantity
-from .wcsutils import create_fitsheader_for, has_wcs
 import io
-import numpy as np
 import os
 import pickle
-import scipy.stats
 import sys
 import time
 import uuid
+from functools import reduce
 
-if sys.version_info.major > 2:
-    basestring = str
+import numpy as np
+import scipy.stats
+from astropy.io import fits as pyfits
+
+from pyoperators import MPI
+from pyoperators.memory import empty
+from pyoperators.utils import isscalarlike
+
+from .mpiutils import read_fits, write_fits
+from .quantities import Quantity
+from .wcsutils import create_fitsheader_for, has_wcs
 
 __all__ = ['FitsArray', 'Map', 'Tod']
 
@@ -114,7 +110,7 @@ class FitsArray(Quantity):
         comm=None,
     ):
 
-        if isinstance(data, basestring):
+        if isinstance(data, str):
 
             if comm is None:
                 comm = MPI.COMM_SELF
@@ -168,13 +164,13 @@ class FitsArray(Quantity):
     def __getattr__(self, name):
         if self.dtype.names and name in self.dtype.names:
             return self[name]
-        return super(FitsArray, self).__getattribute__(name)
+        return super().__getattribute__(name)
 
     def __setattr__(self, name, value):
         if self.dtype.names and name in self.dtype.names:
             self[name] = value
         else:
-            super(FitsArray, self).__setattr__(name, value)
+            super().__setattr__(name, value)
 
     def astype(self, dtype):
         """
@@ -201,7 +197,7 @@ class FitsArray(Quantity):
         FitsArray([1 2 2], '')
 
         """
-        result = super(FitsArray, self).astype(dtype)
+        result = super().astype(dtype)
         if self._header is not None:
             typename = np.dtype(dtype).name
             result._header = self._header.copy()
@@ -519,13 +515,13 @@ class FitsArray(Quantity):
             os.system(command + ' &')
 
             # start the xpans name server
-            if xpa.xpaaccess("xpans", None, 1) is None:
+            if xpa.xpaaccess('xpans', None, 1) is None:
                 _cmd = None
                 # look in install directories
                 for _dir in sys.path:
-                    _fname = os.path.join(_dir, "xpans")
+                    _fname = os.path.join(_dir, 'xpans')
                     if os.path.exists(_fname):
-                        _cmd = _fname + " -e &"
+                        _cmd = _fname + ' -e &'
                 if _cmd:
                     os.system(_cmd)
 
@@ -663,7 +659,7 @@ class Map(FitsArray):
         if not subok and type(result) is not cls:
             result = result.view(cls)
 
-        if isinstance(data, basestring):
+        if isinstance(data, str):
 
             if comm is None:
                 comm = MPI.COMM_SELF
@@ -710,7 +706,7 @@ class Map(FitsArray):
         self.origin = getattr(array, 'origin', 'lower')
 
     def __getitem__(self, key):
-        item = super(Map, self).__getitem__(key)
+        item = super().__getitem__(key)
         if not isinstance(item, Map):
             return item
         if item.coverage is not None:
@@ -747,7 +743,7 @@ class Map(FitsArray):
         array([0, 1, 1])
 
         """
-        result = super(Map, self).astype(dtype)
+        result = super().astype(dtype)
         if self.coverage is not None:
             result.coverage = self.coverage.astype(dtype)
         if self.error is not None:
@@ -868,7 +864,7 @@ class Map(FitsArray):
 
         # check if the map has no astrometry information
         if not self.has_wcs() or km is None:
-            image = super(Map, self).imshow(
+            image = super().imshow(
                 mask=mask,
                 new_figure=new_figure,
                 title=title,
@@ -944,7 +940,7 @@ class Map(FitsArray):
             write_fits(filename, self.error, None, True, 'Error', comm)
 
     def _wrap_func(self, func, unit, *args, **kw):
-        result = super(Map, self)._wrap_func(func, unit, *args, **kw)
+        result = super()._wrap_func(func, unit, *args, **kw)
         if not isinstance(result, np.ndarray):
             return type(self)(result, unit=unit, derived_units=self.derived_units)
         result.coverage = None
@@ -1048,7 +1044,7 @@ class Tod(FitsArray):
         if mask is np.ma.nomask:
             mask = None
 
-        if mask is None and isinstance(data, basestring):
+        if mask is None and isinstance(data, str):
 
             if comm is None:
                 comm = MPI.COMM_SELF
@@ -1057,7 +1053,7 @@ class Tod(FitsArray):
                 mask, junk = read_fits(data, 'mask', comm)
                 mask = mask.view(np.bool8)
                 copy = False
-            except:
+            except Exception:  # FIXME
                 pass
 
         if mask is None and hasattr(data, 'mask') and data.mask is not np.ma.nomask:
@@ -1113,7 +1109,7 @@ class Tod(FitsArray):
         self._mask = getattr(array, 'mask', None)
 
     def __getitem__(self, key):
-        item = super(Tod, self).__getitem__(key)
+        item = super().__getitem__(key)
         if not isinstance(item, Tod):
             return item
         if item.mask is not None:
@@ -1214,7 +1210,7 @@ class Tod(FitsArray):
     ):
         if mask is None:
             mask = self.mask
-        return super(Tod, self).imshow(
+        return super().imshow(
             mask=mask,
             xlabel=xlabel,
             ylabel=ylabel,

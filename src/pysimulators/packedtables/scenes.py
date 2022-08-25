@@ -1,18 +1,19 @@
-from __future__ import absolute_import, division, print_function
+import numpy as np
+
 from pyoperators import (
-    asoperator,
     IdentityOperator,
     MPIDistributionIdentityOperator,
     To1dOperator,
+    asoperator,
 )
 from pyoperators.memory import empty
-from pyoperators.utils import strenum, product
-from .core import PackedTable
+from pyoperators.utils import product, strenum
+
 from .. import _flib as flib
 from ..operators import ProjectionOperator
 from ..sparse import FSRMatrix
-from ..wcsutils import fitsheader2shape, WCSToPixelOperator
-import numpy as np
+from ..wcsutils import WCSToPixelOperator, fitsheader2shape
+from .core import PackedTable
 
 __all__ = ['Scene', 'SceneGrid']
 
@@ -138,9 +139,7 @@ class SceneGrid(Scene):
         origin = origin.lower()
         if origin not in origins:
             raise ValueError(
-                'Invalid origin {0!r}. Expected values are {1}.'.format(
-                    origin, strenum(origins)
-                )
+                f'Invalid origin {origin!r}. Expected values are {strenum(origins)}.'
             )
         Scene.__init__(self, shape, topixel=topixel, **keywords)
         if self.ndim != 2:
@@ -215,8 +214,8 @@ class SceneGrid(Scene):
             'float64',
         ):
             raise TypeError(
-                'The projection matrix cannot be created with types: {0} and {'
-                '1}.'.format(dtype_index, dtype)
+                f'The projection matrix cannot be created with an index type '
+                f'{dtype_index} and a value type {dtype}'
             )
 
         polygons = np.array(polygons, dtype=dtype, copy=False)
@@ -235,9 +234,9 @@ class SceneGrid(Scene):
             data = matrix.data.ravel().view(np.int8)
 
         nvertices = polygons.shape[-2]
-        func = 'matrix_polygon_integration_i{0}_r{1}'.format(
-            dtype_index.itemsize, dtype.itemsize
-        )
+        isize = dtype_index.itemsize
+        rsize = dtype.itemsize
+        func = f'matrix_polygon_integration_i{isize}_r{rsize}'
         min_ncolmax, outside = getattr(flib.projection, func)(
             polygons.reshape(-1, nvertices, 2).T,
             self.shape[1],

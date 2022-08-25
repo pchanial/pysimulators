@@ -1,8 +1,8 @@
-from __future__ import division, print_function
+import numpy as np
 from pybenchmarks import benchmark
+
 from pyoperators.utils.testing import assert_same
 from pysimulators._flib import datautils as du
-import numpy as np
 
 
 def benchmark_distance_1d():
@@ -36,7 +36,7 @@ def benchmark_distance_1d():
     print(title)
     print(len(title) * '-')
     for n, t1, t2 in zip(ns, b['time'][0], b['time'][1]):
-        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}')
 
     print()
     print('BENCHMARK DISTANCE2_1D')
@@ -46,7 +46,7 @@ def benchmark_distance_1d():
     print(title)
     print(len(title) * '-')
     for n, t1, t2 in zip(ns, b['time'][0], b['time'][1]):
-        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}')
 
 
 def benchmark_distance_2d():
@@ -90,7 +90,7 @@ def benchmark_distance_2d():
     print(title)
     print(len(title) * '-')
     for n, t1, t2 in zip(ns, b['time'][0], b['time'][1]):
-        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}')
 
     print()
     print('BENCHMARK DISTANCE2_2D')
@@ -100,7 +100,7 @@ def benchmark_distance_2d():
     print(title)
     print(len(title) * '-')
     for n, t1, t2 in zip(ns, b['time'][0], b['time'][1]):
-        print('{:<9}{:12.9f}{:12.9f}'.format(n, t1, t2))
+        print(f'{n:<9}{t1:12.9f}{t2:12.9f}')
 
 
 if __name__ == '__main__':

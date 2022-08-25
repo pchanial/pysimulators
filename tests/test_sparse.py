@@ -1,10 +1,10 @@
-from __future__ import division
-
 import itertools
+
 import numpy as np
-import pyoperators
 import scipy.sparse
 from numpy.testing import assert_equal, assert_raises
+
+import pyoperators
 from pyoperators import (
     CompositionOperator,
     DiagonalOperator,
@@ -14,12 +14,11 @@ from pyoperators import (
 from pyoperators.utils.testing import assert_is_type, assert_same
 from pysimulators.sparse import (
     FSCMatrix,
-    FSRMatrix,
-    FSCBlockMatrix,
-    FSRBlockMatrix,
     FSCRotation2dMatrix,
-    FSRRotation2dMatrix,
     FSCRotation3dMatrix,
+    FSRBlockMatrix,
+    FSRMatrix,
+    FSRRotation2dMatrix,
     FSRRotation3dMatrix,
     SparseOperator,
 )

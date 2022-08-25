@@ -81,7 +81,7 @@ contains
         character(len=len(input))    :: strcompress
 
         integer                      :: i, j
-  
+
         strcompress = ' '
         j = 1
         do i=1, len_trim(input)
@@ -89,7 +89,7 @@ contains
             strcompress(j:j) = input(i:i)
             j = j + 1
         end do
-      
+
     end function strcompress
 
 
@@ -103,7 +103,7 @@ contains
         character(len=*), allocatable, intent(out) :: output(:)
 
         integer :: i, noutputs, ioutput, start
-      
+
         noutputs = 1
         do i = 1, len(input)
             if (input(i:i) == delimiter) then
@@ -137,11 +137,11 @@ contains
         character(len=strinteger_int4_len(input)) :: strinteger
 
         character(len=80)                         :: string
-      
+
         string = ' '
         write(string, '(i80)') input
         strinteger = adjustl(string)
-      
+
     end function strinteger_int4
 
 
@@ -149,7 +149,7 @@ contains
 
 
     pure function strinteger_int4_len(input) result(length)
- 
+
         integer               :: length
         integer*4, intent(in) :: input
 
@@ -176,7 +176,7 @@ contains
 
         write (strinteger, '(i0)') input
         strinteger = adjustl(strinteger)
-      
+
     end function strinteger_int4_left
 
 
@@ -193,7 +193,7 @@ contains
         string = ' '
         write(string, '(i80)') input
         strinteger = adjustl(string)
-      
+
     end function strinteger_int8
 
 
@@ -201,7 +201,7 @@ contains
 
 
     pure function strinteger_int8_len(input) result(length)
- 
+
         integer*8, intent(in) :: input
         integer               :: length
 
@@ -215,8 +215,8 @@ contains
         if (input < 0) length = length + 1
 
     end function strinteger_int8_len
- 
- 
+
+
     !-------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -228,7 +228,7 @@ contains
 
         write (strinteger, '(i0)') input
         strinteger = adjustl(strinteger)
-      
+
     end function strinteger_int8_left
 
 
@@ -240,7 +240,7 @@ contains
         real(p), intent(in) :: input
         integer, intent(in) :: prec
         character(len=strreal_len(input,prec)) :: strreal
-      
+
         character(len=20)   :: charvalue
         integer             :: status
 
@@ -249,7 +249,7 @@ contains
             strreal = '*****'
             return
         end if
-      
+
         strreal = adjustl(charvalue)
 
     end function strreal
@@ -272,7 +272,7 @@ contains
             length = 5
             return
         end if
-      
+
         length = len_trim(adjustl(charvalue))
 
     end function strreal_len
@@ -287,7 +287,7 @@ contains
         character(len=strjoin_trim_len(input)) :: strjoin_trim
 
         integer                                :: i, k
-        
+
         k = 1
         do i = 1, size(input)
             strjoin_trim(k:k+len_trim(input(i))-1) = trim(input(i))
@@ -335,7 +335,7 @@ contains
                 strjoin_opt((i-1)*k+1:i*k) = input(i)
             end do
         end if
-        
+
     end function strjoin_opt
 
 
@@ -366,7 +366,7 @@ contains
 
         integer*4, intent(in)                          :: first, last
         character(len=strsection_int4_len(first,last)) :: str
-        
+
         if (first == 0 .and. last == 0) then
             str = ':'
             return
@@ -410,7 +410,7 @@ contains
 
         integer*8, intent(in)                          :: first, last
         character(len=strsection_int8_len(first,last)) :: str
-        
+
         if (first == 0 .and. last == 0) then
             str = ':'
             return

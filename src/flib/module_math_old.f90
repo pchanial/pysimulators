@@ -504,7 +504,7 @@ contains
 
         real(p), intent(in)  :: lon1, lat1, lon2, lat2
         real(p), intent(out) :: angle
-        
+
         angle = acos(cos(lat1*DEG2RAD) * cos(lat2*DEG2RAD) * cos((lon2 - lon1)*DEG2RAD) + sin(lat1*DEG2RAD) * sin(lat2*DEG2RAD)) * &
                 RAD2DEG
 
@@ -563,7 +563,7 @@ contains
     !-------------------------------------------------------------------------------------------------------------------------------
 
 
-    function median_copy(array, remove_nan, mask) result (median) 
+    function median_copy(array, remove_nan, mask) result (median)
 
         real(p)             :: median
         real(p), intent(in) :: array(:)
@@ -663,30 +663,30 @@ contains
             if (arr(middle) > arr(low))  call swap(arr(middle), arr(low))
 
             ! Swap low item (now in position middle) into position (low+1)
-            call swap(arr(middle), arr(low+1)) 
+            call swap(arr(middle), arr(low+1))
 
             ! Nibble from each end towards middle, swapping items when stuck
             ll = low + 1
             hh = high
             do
-                do 
+                do
                     ll = ll + 1
                     if (arr(low) <= arr(ll)) exit
                 end do
 
-                do 
+                do
                     hh = hh - 1
                     if (arr(hh)  <= arr(low)) exit
                 end do
 
                 if (hh < ll) exit
 
-                call swap(arr(ll), arr(hh)) 
+                call swap(arr(ll), arr(hh))
 
             end do
 
             ! Swap middle item (in position low) back into correct position
-            call swap(arr(low), arr(hh)) 
+            call swap(arr(low), arr(hh))
 
             ! Re-set active partition
             if (hh <= imedian) low = ll
@@ -829,7 +829,7 @@ contains
                 do i = 1, m+d
                     output(i,j) = input(i-d,j)
                 end do
-                output(max(m+d+1,1):m,j) = 0             
+                output(max(m+d+1,1):m,j) = 0
             end if
         end do
         !$omp end parallel do
@@ -865,7 +865,7 @@ contains
                 do j = 1, n+d
                     output(:,j,k) = input(:,j-d,k)
                 end do
-                output(:,max(n+d+1,1):n,k) = 0             
+                output(:,max(n+d+1,1):n,k) = 0
             end if
         end do
         !$omp end parallel do

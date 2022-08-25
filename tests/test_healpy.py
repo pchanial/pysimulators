@@ -1,18 +1,18 @@
-from __future__ import division
+import itertools
 
 import healpy as hp
-import itertools
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal
-from pyoperators import IdentityOperator, CompositionOperator
+
+from pyoperators import CompositionOperator, IdentityOperator
 from pyoperators.utils.testing import assert_is_type, assert_raises, assert_same
 from pysimulators.interfaces.healpy import (
     Cartesian2HealpixOperator,
     Healpix2CartesianOperator,
-    Spherical2HealpixOperator,
     Healpix2SphericalOperator,
     HealpixConvolutionGaussianOperator,
     HealpixLaplacianOperator,
+    Spherical2HealpixOperator,
 )
 
 NSIDE = 512

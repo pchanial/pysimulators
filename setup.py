@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-import numpy as np
 import sys
 from distutils.util import get_platform
 
+import hooks
+import numpy as np
 import setuptools
+from hooks import cmdclass
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
-
-import hooks
-from hooks import cmdclass
 
 hooks.F2PY_TABLE = {
     'integer': {'int8': 'char', 'int16': 'short', 'int32': 'int', 'int64': 'long_long'},

@@ -8,26 +8,23 @@ Patch PyOperator's SparseOperator to include the following formats:
     - Fixed Sparse Row Rotation 3d (FSRRotation3dMatrix)
 
 """
-from __future__ import absolute_import, division, print_function
+
+import operator
+
+import numpy as np
+import scipy.sparse as sp
+
+import pyoperators
 from pyoperators import CompositionOperator, DiagonalOperator, operation_assignment
 from pyoperators.linear import SparseBase
 from pyoperators.memory import empty
-from pyoperators.utils import isscalarlike, ilast, product, tointtuple
+from pyoperators.utils import ilast, isscalarlike, product, tointtuple
 from pysimulators._flib import sparse as fsp
-from pysimulators._flib import operators as fop
-import numpy as np
-import operator
-import pyoperators
-import scipy.sparse as sp
-import sys
-
-if sys.version_info.major == 2:
-    range = xrange
 
 __all__ = []
 
 
-class _FSMatrix(object):
+class _FSMatrix:
     def __init__(
         self,
         flib_id,
@@ -42,24 +39,25 @@ class _FSMatrix(object):
     ):
         self._flib_id = flib_id
         if not isinstance(shape, (list, tuple)):
-            raise TypeError("Invalid shape '{0}'.".format(shape))
+            raise TypeError(f"Invalid shape '{shape}'.")
         if len(shape) != 2:
-            raise ValueError("The number of dimensions is not 2.")
+            raise ValueError('The number of dimensions is not 2.')
         if len(block_shape) != 2:
-            raise ValueError("The number of dimensions of the blocks is not 2.")
+            raise ValueError('The number of dimensions of the blocks is not 2.')
         straxes = ('row', 'column')
         if sparse_axis == 1:
             straxes = straxes[::-1]
         if any(s % b != 0 for s, b in zip(shape, block_shape)):
             raise ValueError(
-                "The shape of the matrix '{0}' is incompatible with blocks of "
-                "shape '{1}'.".format(shape, block_shape)
+                f"The shape of the matrix '{shape}' is incompatible with blocks of "
+                f"shape '{block_shape}'."
             )
+
         if data is None:
             if nmax is None:
                 raise ValueError(
-                    'The maximum number of non-zero {0}s per {1} '
-                    'is not specified.'.format(*straxes)
+                    f'The maximum number of non-zero {straxes[0]}s per {straxes[1]} '
+                    f'is not specified.'
                 )
             shape_data = (shape[1 - sparse_axis] // block_shape[0], nmax)
             if dtype is None:
@@ -68,25 +66,28 @@ class _FSMatrix(object):
                 dtype_index = int
             dtype_data = self._get_dtype_data(dtype, dtype_index, block_shape)
             data = empty(shape_data, dtype_data, verbose=verbose)
+
         elif 'index' not in data.dtype.names:
             raise TypeError('The structured array has no field index.')
+
         elif len(data.dtype.names) == 1:
             raise TypeError('The structured array has no data field.')
+
         elif (
             product(data.shape[:-1]) * block_shape[1 - sparse_axis]
             != shape[1 - sparse_axis]
         ):
             raise ValueError(
-                "The shape of the matrix '{0}' is incompatible with that of th"
-                "e structured array '{1}'.".format(shape, data.shape)
+                f"The shape of the matrix '{shape}' is incompatible with that of the "
+                f"structured array '{data.shape}'."
             )
+
         elif nmax not in (None, data.shape[-1]):
             raise ValueError(
-                "The n{0}max keyword value '{1}' is incompatible with the shap"
-                "e of the structured array '{2}'.".format(
-                    straxes[0][:3], nmax, data.shape
-                )
+                f"The n{straxes[0][:3]}max keyword value '{nmax}' is incompatible with "
+                f"the shape of the structured array '{data.shape}'."
             )
+
         else:
             dtype_index = data.dtype['index']
             dtype = data.dtype[1]
@@ -95,12 +96,12 @@ class _FSMatrix(object):
             expected = self._get_dtype_data(dtype, dtype_index, block_shape)
             if data.dtype != expected:
                 raise TypeError(
-                    'The input dtype {0} is invalid. Expected dtype is {1}.'.format(
-                        data.dtype, expected
-                    )
+                    f'The input dtype {data.dtype} is invalid. Expected dtype is '
+                    f'{expected}.'
                 )
             if nmax is None:
                 nmax = data.shape[-1]
+
         self.dtype = np.dtype(dtype)
         self.data = data.view(np.recarray)
         self.ndim = 2
@@ -122,8 +123,8 @@ class _FSMatrix(object):
             raise ValueError('The output array is not contiguous.')
         elif out.size != v.size * self.shape[0] // self.shape[1]:
             raise ValueError(
-                "The output size '{0}' is incompatible with the number of rows"
-                " of the sparse matrix '{1}'.".format(out.size, self.shape[0])
+                f"The output size '{out.size}' is incompatible with the number of rows"
+                f" of the sparse matrix '{self.shape[0]}'."
             )
         else:
             out = out.ravel()
@@ -150,15 +151,15 @@ class _FSMatrix(object):
             out_[...] = out
         else:
             out_ = out
+
         flib_id = self._flib_id
         if isinstance(self, (FSCMatrix, FSRMatrix)):
             extra_size = v.size // self.shape[1]
             if extra_size > 1:
                 flib_id += '_homothety'
-        f = '{0}_matvec_i{1}_r{2}_v{3}'.format(
-            flib_id, di.itemsize, ds.itemsize, dv.itemsize
-        )
+        f = f'{flib_id}_matvec_i{di.itemsize}_r{ds.itemsize}_v{dv.itemsize}'
         func = getattr(fsp, f)
+
         m = self.data.ravel().view(np.int8)
         if flib_id.endswith('_homothety'):
             func(m, v, out_, nmax, self.shape[1], self.shape[0], extra_size)
@@ -220,8 +221,8 @@ class _FSMatrix(object):
         elif size % self.shape[1] == 0:
             return
         raise ValueError(
-            "The shape '{0}' is incompatible with the number of columns of the"
-            " sparse matrix '{1}'.".format(shape, self.shape[1])
+            f"The shape '{shape}' is incompatible with the number of columns of the "
+            f"sparse matrix '{self.shape[1]}'."
         )
 
     def _validateout(self, shape):
@@ -232,8 +233,8 @@ class _FSMatrix(object):
         elif size % self.shape[0] == 0:
             return
         raise ValueError(
-            "The shape '{0}' is incompatible with the number of rows of the sp"
-            "arse matrix '{1}'.".format(shape, self.shape[0])
+            f"The shape '{shape}' is incompatible with the number of rows of the sparse"
+            f" matrix '{self.shape[0]}'."
         )
 
     def _get_dtype_data(self, dtype, dtype_index, block_shape):
@@ -361,22 +362,19 @@ class _FSBlockMatrix(_FSMatrix):
         data,
         verbose,
     ):
+        kind = flib_id[:3].upper()
         if data is None:
             if block_shape is None:
                 raise TypeError('The block shape is not specified.')
             block_shape = tointtuple(block_shape)
             if len(block_shape) != 2:
-                raise ValueError("The number of dimensions of the blocks is not 2.")
+                raise ValueError('The number of dimensions of the blocks is not 2.')
         if block_shape == (1, 1):
-            raise ValueError(
-                'For block size of (1, 1), use the {}Matrix format.'.format(
-                    flib_id[:3].upper()
-                )
-            )
+            raise ValueError(f'For block size of (1, 1), use the {kind}Matrix format.')
         if any(_ not in (1, 2, 3) for _ in block_shape):
             raise NotImplementedError(
-                "The sparse format {}BlockMatrix is not implemented for block"
-                "s of shape '{}.'".format(flib_id[:3].upper(), block_shape)
+                f'The sparse format {kind}BlockMatrix is not implemented for blocks '
+                f"of shape '{block_shape}.'"
             )
         _FSMatrix.__init__(
             self,
@@ -836,7 +834,7 @@ class SparseOperator(SparseBase):
         if operation is operation_assignment:
             output[...] = 0
         elif operation is not operator.iadd:
-            raise ValueError('Invalid reduction operation: {0}.'.format(operation))
+            raise ValueError(f'Invalid reduction operation: {operation}.')
         self.matrix._matvec(input, output)
 
     def todense(self, shapein=None, shapeout=None, inplace=False):
@@ -876,8 +874,8 @@ class SparseOperator(SparseBase):
         if isinstance(self.matrix, (FSCMatrix, FSRMatrix)):
             if size % self.matrix.shape[1] != 0:
                 raise ValueError(
-                    "The input shape '{0}' is incompatible with the expected n"
-                    "umber of column '{1}'.".format(shape, self.matrix.shape[1])
+                    f"The input shape '{shape}' is incompatible with the expected "
+                    f"number of column '{self.matrix.shape[1]}'."
                 )
         self.matrix._validatein(shape)
 
@@ -886,8 +884,8 @@ class SparseOperator(SparseBase):
         if isinstance(self.matrix, (FSCMatrix, FSRMatrix)):
             if size % self.matrix.shape[0] != 0:
                 raise ValueError(
-                    "The output shape '{0}' is incompatible with the expected "
-                    "number of rows '{1}'.".format(shape, self.matrix.shape[0])
+                    f"The output shape '{shape}' is incompatible with the expected "
+                    f"number of rows '{self.matrix.shape[0]}'."
                 )
         self.matrix._validateout(shape)
 
@@ -901,9 +899,8 @@ class SparseOperator(SparseBase):
             self.matrix, (FSRMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix)
         ):
             raise NotImplementedError(
-                'Corestriction is not implemented for {0} sparse storage.'.format(
-                    type(self.matrix).__name__
-                )
+                f'Corestriction is not implemented for {type(self.matrix).__name__} '
+                f'sparse storage.'
             )
         nrow = np.sum(mask)
         mask_ = np.repeat(mask, self.matrix.block_shape[0])
@@ -935,9 +932,8 @@ class SparseOperator(SparseBase):
             (FSRMatrix, FSRBlockMatrix, FSRRotation2dMatrix, FSRRotation3dMatrix),
         ):
             raise NotImplementedError(
-                'Restriction is not implemented for {0} sparse storage.'.format(
-                    type(self.matrix).__name__
-                )
+                f'Restriction is not implemented for {type(self.matrix).__name__} '
+                f'sparse storage.'
             )
         mask = np.asarray(mask)
         if mask.dtype != bool:
@@ -948,9 +944,7 @@ class SparseOperator(SparseBase):
             block_shapein = self.shapein[:-1]
         if mask.shape != block_shapein:
             raise ValueError(
-                "Invalid shape '{}'. Expected value is '{}'.".format(
-                    mask.shape, block_shapein
-                )
+                f"Invalid shape '{mask.shape}'. Expected value is '{block_shapein}'."
             )
 
         if inplace:
@@ -959,7 +953,7 @@ class SparseOperator(SparseBase):
             matrix = self.matrix.copy()
         itype = matrix.data.dtype['index']
         if itype.type in (np.int8, np.int16, np.int32, np.int64):
-            f = 'fsr_restrict_i{0}'.format(itype.itemsize)
+            f = f'fsr_restrict_i{itype.itemsize}'
             func = getattr(fsp, f)
             block_shape = matrix.block_shape[0]
             ncol = func(
@@ -1021,13 +1015,13 @@ class SparseOperator(SparseBase):
             or dv not in (np.float32, np.float64)
         ):
             return
-        f = 'fsc_{0}_ncolmax1_i{1}_r{2}_v{3}'.format(
-            self.matrix._flib_id, di.itemsize, dr.itemsize, dv.itemsize
-        )
+        id_ = self.matrix._flib_id
+        f = f'fsc_{id_}_ncolmax1_i{di.itemsize}_r{dr.itemsize}_v{dv.itemsize}'
         try:
             func = getattr(fsp, f)
         except AttributeError:
             return
+
         m = self.matrix.data.ravel().view(np.int8)
         data = np.zeros(self.shapein, dtype=self.dtype)
         func(m, data.ravel())

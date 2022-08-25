@@ -36,7 +36,7 @@ contains
         end if
         x0 = -0.5_p * (n + 1)
         y0 = -0.5_p * (m + 1)
-        
+
         !$omp parallel do private(x, y)
         do j = 1, m
             y = (y0 + j) * spacing
@@ -47,7 +47,7 @@ contains
             end do
         end do
         !$omp end parallel do
-        
+
     end subroutine create_grid
 
 
@@ -84,7 +84,7 @@ contains
         end if
         x0 = -0.5_p * ((n + 1) * spacing + size_eff)
         y0 =  0.5_p * ((m + 1) * spacing - size_eff)
-        
+
         !$omp parallel do private(x, y, tmp)
         do j = 1, m
             y = y0 - spacing * j
@@ -106,7 +106,7 @@ contains
             end do
         end do
         !$omp end parallel do
-        
+
     end subroutine create_grid_squares
 
 

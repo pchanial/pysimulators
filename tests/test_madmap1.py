@@ -1,10 +1,9 @@
-from __future__ import absolute_import, division, print_function
-
 import astropy.io.fits as pyfits
 import numpy as np
 from numpy.testing import assert_allclose
+
 from pyoperators import DiagonalOperator, PackOperator, pcg
-from pyoperators.utils.testing import assert_same, assert_eq
+from pyoperators.utils.testing import assert_eq, assert_same
 from pysimulators import Map
 from pysimulators.interfaces.madmap1 import MadMap1Observation
 from pysimulators.interfaces.madmap1.acquisition import _read_filters

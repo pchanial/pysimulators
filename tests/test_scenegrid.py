@@ -1,9 +1,8 @@
-from __future__ import division
-
 import numpy as np
 from numpy.testing import assert_equal
+
 from pyoperators.utils.testing import assert_same
-from pysimulators import create_fitsheader, LayoutGridSquares, Quantity, SceneGrid
+from pysimulators import LayoutGridSquares, Quantity, SceneGrid, create_fitsheader
 from pysimulators.geometry import create_grid_squares
 
 itypes = np.int32, np.int64

@@ -1,12 +1,12 @@
-from __future__ import division
-from pyoperators.utils import reshape_broadcast
 import numexpr as ne
 import numpy as np
+
+from pyoperators.utils import reshape_broadcast
 
 __all__ = ['BeamGaussian', 'BeamUniformHalfSpace']
 
 
-class Beam(object):
+class Beam:
     def __init__(self, solid_angle):
         """
         Parameter
@@ -62,7 +62,9 @@ class BeamGaussian(Beam):
         if self.backward:
             theta = np.pi - theta
         coef = -0.5 / self.sigma**2
-        out = ne.evaluate('exp(coef * theta**2)')
+        out = ne.evaluate(
+            'exp(coef * theta**2)', local_dict={'coef': coef, 'theta': theta}
+        )
         return reshape_broadcast(out, np.broadcast(theta, phi).shape)
 
 

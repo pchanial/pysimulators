@@ -1,13 +1,14 @@
-import numpy as np
 import glob
 import os
 import pickle
+from uuid import uuid1
 
 import astropy.io.fits as fits
+import numpy as np
 from numpy.testing import assert_equal
+
 from pyoperators.utils.testing import assert_eq, assert_is_none
-from pysimulators import Quantity, FitsArray, Map, Tod, create_fitsheader
-from uuid import uuid1
+from pysimulators import FitsArray, Map, Quantity, Tod, create_fitsheader
 
 filename = 'pysimulatorstest-' + str(uuid1())
 types = (Quantity, FitsArray, Map, Tod)

@@ -1,14 +1,17 @@
 # Copyrights 2010-2011 Pierre Chanial
 # All rights reserved
 #
-from __future__ import division
-from astropy.io import fits as pyfits
-from pyoperators.utils import omp_num_threads, product, split, strshape
-from pyoperators.utils.mpi import MPI, DTYPE_MAP, combine
-from .wcsutils import create_fitsheader_for, has_wcs
-import numpy as np
+
 import os
 import sys
+
+import numpy as np
+from astropy.io import fits as pyfits
+
+from pyoperators.utils import omp_num_threads, product, split, strshape
+from pyoperators.utils.mpi import DTYPE_MAP, MPI, combine
+
+from .wcsutils import create_fitsheader_for, has_wcs
 
 __all__ = []
 
@@ -60,8 +63,8 @@ def gather_fitsheader_if_needed(header, comm=MPI.COMM_WORLD):
         values = [h[keyword] for h in headers]
         if any(v != headers[0][keyword] for v in values):
             raise ValueError(
-                "The FITS keyword '{0}' has different values acro"
-                "ss MPI processes: {1}".format(keyword, values)
+                f'The FITS keyword {keyword!r} has different values across MPI '
+                f'processes: {values}'
             )
 
     keyword = 'CRPIX' + str(naxis)
@@ -175,7 +178,7 @@ def read_fits(filename, extname, comm):
             try:
                 hdu = fits[ihdu]
             except IndexError:
-                raise IOError('The FITS file has no data.')
+                raise OSError('The FITS file has no data.')
             if hdu.header['NAXIS'] == 0:
                 ihdu += 1
                 continue
@@ -234,15 +237,12 @@ def write_fits(filename, data, header, extension, extname, comm):
     ndims = comm.allgather(data.ndim)
     if any(n != ndims[0] for n in ndims):
         raise ValueError(
-            "The arrays have an incompatible number of dimensions"
-            ": '{0}'.".format(', '.join(str(n) for n in ndims))
+            f'The arrays have an incompatible number of dimensions: {ndims}.'
         )
     ndim = ndims[0]
     shapes = comm.allgather(data.shape)
     if any(s[1:] != shapes[0][1:] for s in shapes):
-        raise ValueError(
-            "The arrays have incompatible shapes: '{0}'.".format(strshape(shapes))
-        )
+        raise ValueError(f"The arrays have incompatible shapes: '{strshape(shapes)}'.")
 
     # get header
     if header is None:
@@ -274,16 +274,11 @@ def write_fits(filename, data, header, extension, extname, comm):
     s = split(nglobal, comm.size, comm.rank)
     nlocal = s.stop - s.start
     if data.shape[0] != nlocal:
+        msg = '' if comm.rank > 0 else f' Shapes are: {shapes}.'
         raise ValueError(
-            "On rank {}, the local array shape '{}' is invalid. T"
-            "he first dimension does not match the expected local"
-            " number '{}' given the global number '{}'.{}".format(
-                comm.rank,
-                data.shape,
-                nlocal,
-                nglobal,
-                '' if comm.rank > 0 else ' Shapes are: {}.'.format(shapes),
-            )
+            f"On rank {comm.rank}, the local array shape '{data.shape}' is invalid. "
+            f"The first dimension does not match the expected local number '{nlocal}' "
+            f"given the global number '{nglobal}'.{msg}"
         )
 
     # write FITS header

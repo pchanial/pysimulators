@@ -394,8 +394,8 @@ contains
 
 
     !-------------------------------------------------------------------------------------------------------------------------------
-   
-   
+
+
     subroutine pmatrix_ptp(pmatrix, ptp)
         type(pointingelement), intent(in) :: pmatrix(:,:)
         real(kind=p), intent(inout)       :: ptp(0:,0:)
@@ -403,10 +403,10 @@ contains
         integer                           :: ipixel, jpixel, i, j
         integer                           :: npixels, nsamples
         real(kind(pmatrix%value))         :: pi, pj
-       
+
         npixels  = size(pmatrix, 1)
         nsamples = size(pmatrix, 2)
-       
+
         !$omp parallel do private(isample, ipixel, jpixel, i, j, pi, pj)
         do isample = 1, nsamples
             do ipixel = 1, npixels
@@ -511,7 +511,7 @@ contains
         real(kind=p), intent(inout)           :: weight(0:)
 
         integer                               :: npixels, nsamples
-        integer                               :: ipixel, isample, imap          
+        integer                               :: ipixel, isample, imap
         logical                               :: domask
 
         npixels  = size(pmatrix, 1)

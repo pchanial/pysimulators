@@ -1,14 +1,13 @@
-from __future__ import division
-
 import numpy as np
 from numpy.testing import assert_allclose
+
 from pyoperators.utils.testing import assert_same
 from pysimulators.noises import (
     _fold_psd,
-    _unfold_psd,
-    _interp,
     _gaussian_psd_1f,
     _gaussian_sample,
+    _interp,
+    _unfold_psd,
 )
 
 

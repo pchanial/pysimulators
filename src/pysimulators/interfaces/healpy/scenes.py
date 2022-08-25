@@ -1,11 +1,11 @@
-# encoding: utf-8
-from __future__ import absolute_import, division, print_function
-from pyoperators import asoperator, ReciprocalOperator
-from pyoperators.utils import strenum
-from scipy.constants import c, h, k
-from .operators import Spherical2HealpixOperator
-from ...packedtables import Scene
 import numpy as np
+from scipy.constants import c, h, k
+
+from pyoperators import ReciprocalOperator, asoperator
+from pyoperators.utils import strenum
+
+from ...packedtables import Scene
+from .operators import Spherical2HealpixOperator
 
 __all__ = ['SceneHealpix', 'SceneHealpixCMB']
 
@@ -38,14 +38,13 @@ class SceneHealpix(Scene):
         kinds = 'I', 'QU', 'IQU'
         if not isinstance(kind, str):
             raise TypeError(
-                'Invalid type {0!r} for the scene kind. Expected type is strin'
-                'g.'.format(type(kind).__name__)
+                f'Invalid type {type(kind).__name__!r} for the scene kind. Expected '
+                f'type is string.'
             )
         kind = kind.upper()
         if kind not in kinds:
             raise ValueError(
-                'Invalid scene kind {0!r}. Expected kinds are: {1'
-                '}.'.format(kind, strenum(kinds))
+                f'Invalid scene kind {kind!r}. Expected kinds are: {strenum(kinds)}.'
             )
         nside = int(nside)
         topixel = Spherical2HealpixOperator(nside, convention, nest)

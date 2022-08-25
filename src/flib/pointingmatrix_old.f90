@@ -6,7 +6,7 @@ module pointingmatrix
     implicit none
 
 contains
-    
+
     subroutine backprojection_weight(matrix, data, map1d, weight1d, npixels_per_sample, nsamples, npixels)
 
         integer*8, intent(in)             :: nsamples
@@ -77,7 +77,7 @@ contains
         integer, intent(in)                     :: npixels_per_sample
         integer, intent(in)                     :: ndetectors
         logical*1, intent(out)                  :: out
-        
+
         out = any(matrix%index == pixel)
 
     end subroutine intersects
@@ -95,7 +95,7 @@ contains
         integer, intent(in)                     :: npixels_per_sample
         integer, intent(in)                     :: ndetectors
         logical*1, intent(out)                  :: out
-        
+
         !$omp parallel workshare
         out = any(matrix%index == pixel)
         !$omp end parallel workshare
@@ -214,8 +214,8 @@ contains
 
 
     !---------------------------------------------------------------------------
-    
-    
+
+
     subroutine pack(matrix, mask1d, npixels_per_sample, nsamples, npixels)
 
         integer*8, intent(in)                :: nsamples
