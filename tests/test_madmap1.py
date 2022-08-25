@@ -18,7 +18,7 @@ def mapper_naive(tod, H):
 
 
 profile = None  #'test_madcap.png'
-path = 'test/data/madmap1/'
+path = 'tests/data/madmap1/'
 map_ref = pyfits.open(path + 'naivemapSpirePSW.fits')['image'].data
 name = 'SPIRE/PSW'
 obs = MadMap1Observation(
