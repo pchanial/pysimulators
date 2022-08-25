@@ -51,9 +51,6 @@ dynamic = ["version"]
 homepage = "https://pchanial.github.io/pysimulators"
 repository = "https://github.com/pchanial/pysimulators"
 
-[tool.setuptools.packages.find]
-include = ["pysimulators*"]
-
 [tool.setuptools_scm]
 version_scheme = "post-release"
 fallback_version = "0.0.0"
