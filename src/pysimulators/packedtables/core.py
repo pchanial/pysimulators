@@ -19,6 +19,7 @@ import copy
 import functools
 import inspect
 import types
+import warnings
 from collections.abc import Callable
 
 import numpy as np
@@ -34,7 +35,7 @@ from pyoperators.utils import (
     tointtuple,
 )
 
-from ..warnings import PySimulatorsWarning, warn
+from ..warnings import PySimulatorsWarning
 
 __all__ = ['PackedTable']
 
@@ -279,7 +280,7 @@ class PackedTable:
 
     def __getattribute__(self, key):
         if key == 'packed':
-            warn(
+            warnings.warn(
                 "Please update your code: the 'packed' attribute is not requi"
                 'red anymore: the attributes are already packed. To access th'
                 "e unpacked ones, use the 'all' attribute.",

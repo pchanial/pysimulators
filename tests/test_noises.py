@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from numpy.testing import assert_allclose
 
 from pyoperators.utils.testing import assert_same
@@ -23,25 +24,24 @@ def test_unfold():
     assert_same(p_unfolded, [1, 1, 1, 1])
 
 
-def test_interp():
-    x = [1, 2, 3, 5, 7]
-    y = [[1, 2, 3, 5, 7], [0, 1, 2, 4, 6]]
-    zs = (
+@pytest.mark.parametrize(
+    'z',
+    [
         [-1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 7.5, 8],
         [-1, -0.5],
         [2.25, 2.5],
         [8, 10],
-    )
+    ],
+)
+def test_interp(z):
+    x = [1, 2, 3, 5, 7]
+    y = [[1, 2, 3, 5, 7], [0, 1, 2, 4, 6]]
 
-    def func(z):
-        out1 = _interp(z, x, y[0])
-        assert_same(z, out1)
-        out2 = _interp(z, x, y[1])
-        out = _interp(z, x, y)
-        assert_same(out, np.vstack([out1, out2]))
-
-    for z in zs:
-        yield func, z
+    out1 = _interp(z, x, y[0])
+    assert_same(z, out1)
+    out2 = _interp(z, x, y[1])
+    out = _interp(z, x, y)
+    assert_same(out, np.vstack([out1, out2]))
 
 
 def test_gaussian():

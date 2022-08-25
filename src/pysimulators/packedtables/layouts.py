@@ -52,7 +52,7 @@ class Layout(PackedTable):
             A negative value means that the component is removed.
         center : array-like, Quantity, optional
             The position of the components. For 2-dimensional layouts, the expected
-            shape is be (nrows, ncolumns, 2). If not provided, these positions are
+            shape is (nrows, ncolumns, 2). If not provided, these positions are
             derived from the vertex keyword, if present.
         vertex : array-like, Quantity, optional
             The position of the component vertices. For 2-dimensional layouts,
@@ -64,9 +64,9 @@ class Layout(PackedTable):
             keywords['vertex'] = None
         if hasattr(self, 'center') and 'center' not in keywords:
             keywords['center'] = None
-        elif 'center' not in keywords and 'vertex' in keywords:
+        if 'center' not in keywords and 'vertex' in keywords:
             keywords['center'] = lambda s: np.mean(s.vertex, axis=-2)
-        elif keywords.get('center', None) is None:
+        if 'center' not in keywords:
             raise ValueError('The spatial layout is not defined.')
         PackedTable.__init__(self, shape, **keywords)
         if hasattr(self, 'vertex'):

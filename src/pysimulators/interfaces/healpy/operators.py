@@ -25,6 +25,8 @@ __all__ = [
 @real
 class _HealPixCartesian(Operator):
     def __init__(self, nside, nest=False, dtype=float, **keywords):
+        if hp is None:
+            raise ImportError('The package healpy is not installed.')
         self.nside = int(nside)
         self.nest = bool(nest)
         Operator.__init__(self, dtype=dtype, **keywords)
@@ -63,8 +65,7 @@ class Healpix2CartesianOperator(_HealPixCartesian):
             ring scheme.
 
         """
-        _HealPixCartesian.__init__(
-            self,
+        super().__init__(
             nside,
             nest=nest,
             reshapein=self._reshapehealpix,
@@ -98,8 +99,7 @@ class Cartesian2HealpixOperator(_HealPixCartesian):
             ring scheme.
 
         """
-        _HealPixCartesian.__init__(
-            self,
+        super().__init__(
             nside,
             nest=nest,
             reshapein=self._reshapecartesian,
@@ -127,6 +127,8 @@ class _HealPixSpherical(Operator):
     )
 
     def __init__(self, nside, convention, nest=False, dtype=float, **keywords):
+        if hp is None:
+            raise ImportError('The package healpy is not installed.')
         if not isinstance(convention, str):
             raise TypeError(f"The input convention '{convention}' is not a string.")
         convention_ = convention.replace(' ', '').lower()
@@ -192,8 +194,7 @@ class Healpix2SphericalOperator(_HealPixSpherical):
             ring scheme.
 
         """
-        _HealPixSpherical.__init__(
-            self,
+        super().__init__(
             nside,
             convention,
             nest=nest,
@@ -249,8 +250,7 @@ class Spherical2HealpixOperator(_HealPixSpherical):
             ring scheme.
 
         """
-        _HealPixSpherical.__init__(
-            self,
+        super().__init__(
             nside,
             convention,
             nest=nest,
@@ -304,6 +304,8 @@ class HealpixConvolutionGaussianOperator(Operator):
         Keywords are passed to the Healpy function smoothing.
 
         """
+        if hp is None:
+            raise ImportError('The package healpy is not installed.')
         if fwhm is None and sigma is None:
             raise ValueError('The convolution width is not specified.')
         if fwhm is not None and sigma is not None:
@@ -371,6 +373,8 @@ class HealpixLaplacianOperator(SparseOperator):
             The Healpix map nside.
 
         """
+        if hp is None:
+            raise ImportError('The package healpy is not installed.')
         npix = 12 * nside**2
         ipix = np.arange(npix, dtype=np.int32)
         neighbours = hp.get_all_neighbours(nside, ipix)

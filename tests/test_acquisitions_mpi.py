@@ -1,3 +1,5 @@
+import pytest
+
 from pyoperators import MPI
 from pysimulators import Acquisition, Instrument, PackedTable, Sampling, Scene
 
@@ -19,3 +21,4 @@ def test():
         '/',
         acq.sampling.comm.size,
     )
+    pytest.xfail('the test is not finished.')
