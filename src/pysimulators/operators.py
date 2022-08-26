@@ -931,9 +931,8 @@ class ProjectionOperator(SparseOperator):
 
     Attributes
     ----------
-    matrix : FSRMatrix or FSRRotation3dMatrix
+    matrix : FSRMatrix, FSRBlockMatrix, FSRRotation2dMatrix or FSRRotation3dMatrix
         The projection sparse matrix.
-
     """
 
     def __init__(self, arg, **keywords):
@@ -1144,7 +1143,7 @@ class ProjectionOperator(SparseOperator):
         x = np.asarray(x, order='C')
         shapein = self.shapeout
         if shapein is None:
-            block_size = self.matrix.block_size
+            block_size = self.matrix.block_shape[1]
             shapein = (self.matrix.shape[0],) + (
                 () if block_size == 1 else (block_size,)
             )
