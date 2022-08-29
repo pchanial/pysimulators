@@ -1,0 +1,113 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+  release:
+    types: [published]
+
+jobs:
+
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Build sdist
+      run: pipx run build --sdist
+
+    - uses: actions/upload-artifact@v3
+      with:
+        path: dist/*.tar.gz
+
+  build_wheels:
+    name: Build wheels (${{ matrix.python.version }}) on ${{ matrix.platform.os }}/${{ matrix.platform.arch }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: ubuntu-20.04
+            arch: x86_64
+            fflags: -march=x86-64
+          - os: macos-11
+            arch: x86_64
+            fflags: -march=x86-64
+#          - os: macos-11
+#            arch: arm64
+#            fflags: -march=armv8.5-a
+        python:
+          - version: "3.8"
+            cp: cp38
+          - version: "3.9"
+            cp: cp39
+          - version: "3.10"
+            cp: cp310
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+
+      - name: Setup gfortran
+        if: ${{ startsWith(matrix.platform.os, 'macos') }}
+        run: |
+          case ${{ matrix.platform.os }} in
+            macos-11)
+              wget -nv https://github.com/fxcoudert/gfortran-for-macOS/releases/download/11.2-bigsur-intel/gfortran-Intel-11.2-BigSur.dmg
+              ;;
+            macos-12)
+              wget -nv https://github.com/fxcoudert/gfortran-for-macOS/releases/download/12.1-monterey/gfortran-Intel-12.1-Monterey.dmg
+              ;;
+            *)
+              echo "Invalid platform:" ${{ matrix.platform.os }}
+              exit 1
+          esac
+          sudo hdiutil attach gfortran*.dmg
+          sudo installer -package /Volumes/gfortran*/gfortran*/gfortran*.pkg -target /
+
+      - name: Checking gfortran
+        run: gfortran --version
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.9.0
+        env:
+          CIBW_BUILD: ${{ matrix.python.cp }}-*
+          CIBW_BUILD_VERBOSITY: 3
+          CIBW_ENVIRONMENT: NPY_DISTUTILS_APPEND_FLAGS=1 FFLAGS='${{ matrix.platform.fflags }}'
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_ARCHS: ${{ matrix.platform.arch }}
+          CIBW_BEFORE_TEST_LINUX: |
+            yum install -y openmpi-devel
+            MPICC=/lib64/openmpi/bin/mpicc pip install mpi4py
+          CIBW_BEFORE_TEST_MACOS: brew install openmpi
+          CIBW_TEST_EXTRAS: dev
+          CIBW_TEST_COMMAND: pytest {package}/tests
+          PYTHONFAULTHANDLER: "1"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
+  upload_all:
+    needs: [build_sdist, build_wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@v1.5.1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

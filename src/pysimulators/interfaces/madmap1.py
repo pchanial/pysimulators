@@ -1,10 +1,9 @@
 # Copyrights 2010-2013 Pierre Chanial
 # All rights reserved
 
-
-import glob
 import os
 import re
+from pathlib import Path
 
 import astropy.io.fits as pyfits
 import numpy as np
@@ -210,13 +209,17 @@ def _read_one_filter(filename, bigendian=False):
 
 
 def _read_filters(filename, bigendian=False):
-    files = glob.glob(filename + '.*')
-    regex = re.compile(filename + r'\.[0-9]+$')
+    if isinstance(filename, str):
+        filename = Path(filename)
+    regex = re.compile(str(filename) + r'\.[0-9]+$')
     files = sorted(
-        (f for f in files if regex.match(f)),
-        key=lambda s: int(s[-s[::-1].index('.') :]),
+        (_ for _ in filename.parent.iterdir() if regex.match(str(_))),
+        key=lambda f: int(f.suffix[1:]),
     )
-    filters = tuple(_read_one_filter(f, bigendian=bigendian) for f in files)
+    if not files:
+        raise FileNotFoundError(f'Filters {filename} not found.')
+
+    filters = [_read_one_filter(f, bigendian=bigendian) for f in files]
     ncorrelations = filters[0]['data'].size
     if any(f['data'].size != ncorrelations for f in filters):
         raise ValueError('Blocks do not have the same correlation lengths.')

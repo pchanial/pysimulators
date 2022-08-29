@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import astropy.io.fits as pyfits
 import numpy as np
 import pytest
@@ -8,7 +10,7 @@ from pyoperators.utils.testing import assert_eq, assert_same
 from pysimulators import Map
 from pysimulators.interfaces.madmap1 import MadMap1Observation, _read_filters
 
-DATAPATH = 'tests/data/madmap1/'
+DATAPATH = Path(__file__).parent / 'data' / 'madmap1'
 
 
 def mapper_naive(tod, H):
@@ -21,14 +23,14 @@ def mapper_naive(tod, H):
 @pytest.mark.xfail(reason='reason: incorrect coverage in mapper_naive')
 def test_ls():
     profile = None  #'test_madcap.png'
-    map_ref = pyfits.open(DATAPATH + 'naivemapSpirePSW.fits')['image'].data
+    map_ref = pyfits.open(DATAPATH / 'naivemapSpirePSW.fits')['image'].data
     name = 'SPIRE/PSW'
     obs = MadMap1Observation(
         name,
         135,
-        DATAPATH + 'todSpirePSW_be',
-        DATAPATH + 'invnttSpirePSW_be',
-        DATAPATH + 'madmapSpirePSW.fits[coverage]',
+        str(DATAPATH / 'todSpirePSW_be'),
+        str(DATAPATH / 'invnttSpirePSW_be'),
+        str(DATAPATH / 'madmapSpirePSW.fits[coverage]'),
         bigendian=True,
         missing_value=np.nan,
     )
@@ -73,13 +75,13 @@ def test_ls():
         return
     print('Elapsed time:', map_ls_packed.header['TIME'])
     assert m['nit'] < 50
-    ref = packing(Map(DATAPATH + 'madmapSpirePSW.fits'))
+    ref = packing(Map(str(DATAPATH / 'madmapSpirePSW.fits')))
     assert_allclose(map_ls_packed, ref, atol=1e-5)
 
 
 def test_endian():
-    bendian = _read_filters(DATAPATH + 'invntt_be', bigendian=True)
-    lendian = _read_filters(DATAPATH + 'invntt_le')
+    bendian = _read_filters(DATAPATH / 'invntt_be', bigendian=True)
+    lendian = _read_filters(DATAPATH / 'invntt_le')
     assert len(bendian) == 6
     assert bendian[0]['data'].size == 101
     assert_same(bendian[0]['data'][0], 5597147.4155586753)

@@ -10,7 +10,12 @@ from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
 
 hooks.F2PY_TABLE = {
-    'integer': {'int8': 'char', 'int16': 'short', 'int32': 'int', 'int64': 'long_long'},
+    'integer': {
+        'int8': 'char',
+        'int16': 'short',
+        'int32': 'int',
+        'int64': 'long_long',
+    },
     'real': {
         'sp': 'float',
         'dp': 'double',

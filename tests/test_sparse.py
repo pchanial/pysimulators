@@ -26,8 +26,8 @@ from pysimulators.sparse import (
 from .common import BIGGEST_FLOAT_TYPE, FLOAT_TYPES, INT_TYPES, SINT_TYPES
 
 
-def min_dtype(t1, t2):
-    return min(t1, t2, key=lambda x: x().itemsize)
+def min_type(t1, t2):
+    return min(np.dtype(t1), np.dtype(t2)).type
 
 
 @pytest.mark.parametrize('itype', INT_TYPES)
@@ -385,7 +385,7 @@ def test_block(itype, ftype, inner_block_shape):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsc._matvec(input_fsc.astype(ftype2), out)
-        assert_same(out, ref.astype(min_dtype(ftype, ftype2)), atol=10)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)), atol=10)
 
     ref = (2 * (mat_fsc * input_fsc)).astype(ftype)
     assert_same((mat_fsc * 2) * input_fsc, ref, atol=10)
@@ -402,7 +402,7 @@ def test_block(itype, ftype, inner_block_shape):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsr._matvec(input_fsr.astype(ftype2), out)
-        assert_same(out, ref.astype(min_dtype(ftype, ftype2)), atol=10)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)), atol=10)
 
     ref = (2 * (mat_fsr * input_fsr)).astype(ftype)
     assert_same((mat_fsr * 2) * input_fsr, ref, atol=10)
@@ -426,8 +426,8 @@ def fill_rot2d(array, dense, index, value, angle, n):
 @pytest.mark.parametrize('itype', SINT_TYPES)
 @pytest.mark.parametrize('ftype', FLOAT_TYPES)
 def test_rot2d(itype, ftype):
-    input_fsc = np.arange(6 * 2.0)
-    input_fsr = np.arange(4 * 2.0)
+    input_fsc = np.arange(6 * 2, dtype=ftype)
+    input_fsr = np.arange(4 * 2, dtype=ftype)
     index1 = [3, 2, 2, 1, 2, -1]
     index2 = [-1, 3, 1, 1, 0, -1]
     value1 = [1, 1, 0.5, 1, 2, 10]
@@ -454,8 +454,8 @@ def test_rot2d(itype, ftype):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsc._matvec(input_fsc.astype(ftype2), out)
-        assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
-    ref = (2 * (mat_fsc * input_fsc)).astype(ftype)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)))
+    ref = 2 * (mat_fsc * input_fsc)
     assert_same((mat_fsc * 2) * input_fsc, ref)
     assert_same((2 * mat_fsc) * input_fsc, ref)
     assert_same(input_fsr * mat_fsc, mat_fsr * input_fsr)
@@ -469,8 +469,8 @@ def test_rot2d(itype, ftype):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsr._matvec(input_fsr.astype(ftype2), out)
-        assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
-    ref = (2 * (mat_fsr * input_fsr)).astype(ftype)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)))
+    ref = 2 * (mat_fsr * input_fsr)
     assert_same((mat_fsr * 2) * input_fsr, ref)
     assert_same((2 * mat_fsr) * input_fsr, ref)
     assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc)
@@ -632,8 +632,8 @@ def fill_rot3d(array, dense, index, value, angle, n):
 @pytest.mark.parametrize('itype', SINT_TYPES)
 @pytest.mark.parametrize('ftype', FLOAT_TYPES)
 def test_rot3d(itype, ftype):
-    input_fsc = np.arange(6 * 3.0)
-    input_fsr = np.arange(4 * 3.0)
+    input_fsc = np.arange(6 * 3, dtype=ftype)
+    input_fsr = np.arange(4 * 3, dtype=ftype)
     index1 = [3, 2, 2, 1, 2, -1]
     index2 = [-1, 3, 1, 1, 0, -1]
     value1 = [1, 1, 0.5, 1, 2, 10]
@@ -661,8 +661,8 @@ def test_rot3d(itype, ftype):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsc._matvec(input_fsc.astype(ftype2), out)
-        assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
-    ref = (3 * (mat_fsc * input_fsc)).astype(ftype)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)))
+    ref = 3 * (mat_fsc * input_fsc)
     assert_same((mat_fsc * 3) * input_fsc, ref)
     assert_same((3 * mat_fsc) * input_fsc, ref)
     assert_same(input_fsr * mat_fsc, mat_fsr * input_fsr)
@@ -676,11 +676,11 @@ def test_rot3d(itype, ftype):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsr._matvec(input_fsr.astype(ftype2), out)
-        assert_same(out, ref.astype(min_dtype(ftype, ftype2)))
-    ref = (3 * (mat_fsr * input_fsr)).astype(ftype)
-    assert_same((mat_fsr * 3) * input_fsr, ref)
-    assert_same((3 * mat_fsr) * input_fsr, ref)
-    assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)))
+    ref = 3 * (mat_fsr * input_fsr)
+    assert_same((mat_fsr * 3) * input_fsr, ref, rtol=10)
+    assert_same((3 * mat_fsr) * input_fsr, ref, rtol=10)
+    assert_same(input_fsc * mat_fsr, mat_fsc * input_fsc, rtol=10)
 
 
 @pytest.mark.parametrize('itype', SINT_TYPES)
