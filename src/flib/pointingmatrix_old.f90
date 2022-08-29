@@ -1,5 +1,5 @@
 module pointingmatrix
-
+    use, intrinsic :: iso_fortran_env, only : int32
     use module_tamasis, only : p
     use module_pointingmatrix, backprojection_weight_ => backprojection_weight,&
                                roi2pmatrix_cartesian_ => roi2pmatrix_cartesian
@@ -73,7 +73,7 @@ contains
         integer*8, intent(in)                   :: nsamples
         !f2py integer*8, intent(in)             :: matrix(npixels_per_sample*nsamples*ndetectors)
         type(PointingElement), intent(in)       :: matrix(npixels_per_sample,nsamples,ndetectors)
-        integer(kind(matrix%index)), intent(in) :: pixel
+        integer(int32), intent(in) :: pixel
         integer, intent(in)                     :: npixels_per_sample
         integer, intent(in)                     :: ndetectors
         logical*1, intent(out)                  :: out
@@ -91,7 +91,7 @@ contains
         integer*8, intent(in)                   :: nsamples
         !f2py integer*8, intent(in)             :: matrix(npixels_per_sample*nsamples*ndetectors)
         type(PointingElement), intent(in)       :: matrix(npixels_per_sample,nsamples,ndetectors)
-        integer(kind(matrix%index)), intent(in) :: pixel
+        integer(int32), intent(in) :: pixel
         integer, intent(in)                     :: npixels_per_sample
         integer, intent(in)                     :: ndetectors
         logical*1, intent(out)                  :: out
@@ -111,7 +111,7 @@ contains
         integer*8, intent(in)                   :: nsamples
         !f2py integer*8, intent(in)             :: matrix(npixels_per_sample*nsamples*ndetectors)
         type(PointingElement), intent(in)       :: matrix(npixels_per_sample,nsamples,ndetectors)
-        integer(kind(matrix%index)), intent(in) :: pixel
+        integer(int32), intent(in) :: pixel
         integer, intent(in)                     :: npixels_per_sample
         integer, intent(in)                     :: ndetectors
         logical*1, intent(out)                  :: out(ndetectors)
@@ -144,7 +144,7 @@ contains
         integer*8, intent(in)                   :: nsamples
         !f2py integer*8, intent(in)             :: matrix(npixels_per_sample*nsamples*ndetectors)
         type(PointingElement), intent(in)       :: matrix(npixels_per_sample,nsamples,ndetectors)
-        integer(kind(matrix%index)), intent(in) :: pixel
+        integer(int32), intent(in) :: pixel
         integer, intent(in)                     :: npixels_per_sample
         integer, intent(in)                     :: ndetectors
         logical*1, intent(out)                  :: out(nsamples)

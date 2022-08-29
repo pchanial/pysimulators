@@ -1,3 +1,0 @@
-include .coveragerc
-include README.rst
-graft test/data
