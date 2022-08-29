@@ -2,7 +2,7 @@
 build-backend = "setuptools.build_meta"
 requires = [
     "oldest-supported-numpy",
-    "pchanial-legacy-install-hooks",
+    "pchanial-legacy-install-hooks>=1.2",
     "setuptools==64.0.3",
     "setuptools_scm[toml]>=6.2",
     "wheel",
@@ -23,10 +23,9 @@ keywords = [
 ]
 classifiers = [
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
-    "Programming Language :: C",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Fortran",
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
@@ -44,6 +43,7 @@ dependencies = [
     "pyoperators[fft]>=0.12.5",
     "astropy>=0.3.2",
     "numexpr",
+    "numpy>=1.17",
     "scipy>=0.9",
 ]
 dynamic = ["version"]
