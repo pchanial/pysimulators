@@ -303,7 +303,7 @@ def test_healpix_convolution():
     op = HealpixConvolutionGaussianOperator(**keywords)
 
     for i in input, np.repeat(input[:, None], 3, 1):
-        expected = np.transpose(hp.smoothing(i.T, verbose=False, **keywords))
+        expected = np.transpose(hp.smoothing(i.T, **keywords))
         assert_same(op(i), expected)
 
     if hp.__version__ <= '1.8.6':  # healpy #259
@@ -312,7 +312,7 @@ def test_healpix_convolution():
     op = HealpixConvolutionGaussianOperator(pol=False, **keywords)
     input_ = np.arange(12 * nside**2)
     input = np.array([input_, input_, input_]).T
-    expected_ = hp.smoothing(input_, verbose=False, **keywords)
+    expected_ = hp.smoothing(input_, **keywords)
     expected = np.array([expected_, expected_, expected_]).T
     assert_same(op(input), expected)
 
