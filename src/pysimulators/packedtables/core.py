@@ -292,7 +292,7 @@ class PackedTable:
             self, '_special_attributes'
         ) or not isinstance(value, Callable):
             return value
-        spec = inspect.getargspec(value)
+        spec = inspect.getfullargspec(value)
         nargs = len(spec.args)
         if spec.defaults is not None:
             nargs -= len(spec.defaults)

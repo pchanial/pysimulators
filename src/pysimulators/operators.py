@@ -131,7 +131,7 @@ def block_diagonal(*partition_args, **keywords):
                 del keywords['partitionin']
 
             # get __init__ argument names, except self
-            class_args, jk, jk, jk = inspect.getargspec(cls.__init_original__)
+            class_args = inspect.getfullargspec(cls.__init_original__).args
             class_args.pop(0)
 
             # get number of blocks through the arguments
