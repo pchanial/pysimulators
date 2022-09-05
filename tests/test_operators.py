@@ -334,7 +334,7 @@ def test_equ2hor():
     assert_allclose(lst, 0.401453, rtol=1e-6)
 
     ra = Angle(lst - 5.862222, unit='hour').radian
-    dec = Angle((23, 13, 10), unit='degree').radian
+    dec = Angle('23d13m10s').radian
     s2c = Spherical2CartesianOperator('azimuth,elevation')
     op = CartesianEquatorial2HorizontalOperator('NE', date, lat, lon)
     incoords = s2c([ra, dec])
