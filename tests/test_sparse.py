@@ -345,9 +345,8 @@ def get_block_mat(itype, ftype, inner_block_shape):
         mat.data[:, k].index = index
     for i in range(outer_block_shape[0]):
         for k in range(len(indices)):
-            mat.data[i, k]['value'][...] = np.random.random_integers(
-                -10, 10, inner_block_shape
-            )
+            mat.data[i, k]['value'][...] = np.random.randint(-10, 11, inner_block_shape)
+
     dense = np.zeros(shape, dtype=ftype)
     for i, d in enumerate(mat.data):
         a1, z1 = i * inner_block_shape[0], (i + 1) * inner_block_shape[0]
