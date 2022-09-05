@@ -115,7 +115,7 @@ def test_partitioning_chunk(cls, partitionin, value, key):
     key = nn * [key] if isscalarlike(key) else key
     for op_, v_, k_ in zip(op.operands, value, key):
         assert_partioning_chunk(cls, op_, v_, k_)
-    expected = np.hstack(n_ * [v_] for n_, v_ in zip(partitionin, value))
+    expected = np.hstack([n_ * [v_] for n_, v_ in zip(partitionin, value)])
     input = np.ones(np.sum(partitionin))
     output = op(input)
     assert_equal(output, expected)
