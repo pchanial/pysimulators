@@ -148,7 +148,7 @@ contains
 
         if (present(mask)) then
             if (size(mask) /= nsamples) then
-                write (ERROR_UNIT,'(a,2(i0,a))'), 'Error: the mask has an incompatible dimension (', size(mask), ' instead of ',   &
+                write (ERROR_UNIT,'(a,2(i0,a))') 'Error: the mask has an incompatible dimension (', size(mask), ' instead of ',    &
                      size(input), ').'
                 stop 1
             end if
@@ -260,7 +260,7 @@ contains
 
         if (present(mask)) then
             if (size(mask) /= size(input)) then
-                write (ERROR_UNIT,'(a,2(i0,a))'), 'Error: the mask has an incompatible dimension (', size(mask), ' instead of ',   &
+                write (ERROR_UNIT,'(a,2(i0,a))') 'Error: the mask has an incompatible dimension (', size(mask), ' instead of ',    &
                      size(input), ').'
                 stop 1
             end if
