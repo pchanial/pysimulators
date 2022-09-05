@@ -1,4 +1,5 @@
 module geometry
+    use, intrinsic :: iso_fortran_env, only : int64, real64
 
     use module_tamasis, only : p
     use module_math_old, only : DEG2RAD, RAD2DEG
@@ -10,17 +11,17 @@ contains
 
     subroutine create_grid(m, n, spacing, xreflection, yreflection, angle, xcenter, ycenter, coords)
         !f2py threadsafe
-        integer, intent(in)   :: m                ! number of rows
-        integer, intent(in)   :: n                ! number of columns
-        real*8, intent(in)    :: spacing          ! size of the detector placeholder
-        logical, intent(in)   :: xreflection      ! reflection along the x-axis (before rotation)
-        logical, intent(in)   :: yreflection      ! reflection along the y-axis (before rotation)
-        real*8, intent(in)    :: angle            ! counter-clockwise rotation angle in degrees (before translation)
-        real*8, intent(in)    :: xcenter, ycenter ! coordinates of the grid center
-        real*8, intent(inout) :: coords(2,n,m)    ! output coordinates of the detector corners (first dimension is x and y)
+        integer(int64), intent(in)  :: m                ! number of rows
+        integer(int64), intent(in)  :: n                ! number of columns
+        real(real64), intent(in)    :: spacing          ! size of the detector placeholder
+        logical, intent(in)         :: xreflection      ! reflection along the x-axis (before rotation)
+        logical, intent(in)         :: yreflection      ! reflection along the y-axis (before rotation)
+        real(real64), intent(in)    :: angle            ! counter-clockwise rotation angle in degrees (before translation)
+        real(real64), intent(in)    :: xcenter, ycenter ! coordinates of the grid center
+        real(real64), intent(inout) :: coords(2,n,m)    ! output coordinates of the detector corners (first dimension is x and y)
 
-        integer :: i, j
-        real*8  :: x, y, x0, y0, r11, r12, r21, r22
+        integer(int64) :: i, j
+        real(real64)   :: x, y, x0, y0, r11, r12, r21, r22
 
         r11 = cos(DEG2RAD * angle)
         r21 = sin(DEG2RAD * angle)
@@ -56,18 +57,18 @@ contains
 
     subroutine create_grid_squares(m, n, spacing, filling_factor, xreflection, yreflection, angle, xcenter, ycenter, coords)
         !f2py threadsafe
-        integer, intent(in)   :: m                ! number of rows
-        integer, intent(in)   :: n                ! number of columns
-        real*8, intent(in)    :: spacing          ! size of the detector placeholder
-        real*8, intent(in)    :: filling_factor   ! fraction of transmitting detector area
-        logical, intent(in)   :: xreflection      ! reflection along the x-axis (before rotation)
-        logical, intent(in)   :: yreflection      ! reflection along the y-axis (before rotation)
-        real*8, intent(in)    :: angle            ! counter-clockwise rotation angle in degrees (before translation)
-        real*8, intent(in)    :: xcenter, ycenter ! coordinates of the grid center
-        real*8, intent(inout) :: coords(2,4,n,m)  ! output coordinates of the detector corners (first dimension is x and y)
+        integer(int64), intent(in)  :: m                ! number of rows
+        integer(int64), intent(in)  :: n                ! number of columns
+        real(real64), intent(in)    :: spacing          ! size of the detector placeholder
+        real(real64), intent(in)    :: filling_factor   ! fraction of transmitting detector area
+        logical, intent(in)         :: xreflection      ! reflection along the x-axis (before rotation)
+        logical, intent(in)         :: yreflection      ! reflection along the y-axis (before rotation)
+        real(real64), intent(in)    :: angle            ! counter-clockwise rotation angle in degrees (before translation)
+        real(real64), intent(in)    :: xcenter, ycenter ! coordinates of the grid center
+        real(real64), intent(inout) :: coords(2,4,n,m)  ! output coordinates of the detector corners (first dimension is x and y)
 
-        integer :: i, j, k
-        real*8 :: x, y, x0, y0, size_eff, r11, r12, r21, r22, tmp
+        integer(int64) :: i, j, k
+        real(real64)   :: x, y, x0, y0, size_eff, r11, r12, r21, r22, tmp
 
         size_eff = spacing * sqrt(filling_factor)
         r11 = cos(DEG2RAD * angle)
@@ -115,13 +116,13 @@ contains
 
     subroutine rotate_2d(x, y, n, angle)
         !f2py threadsafe
-        real*8, intent(in)    :: x(2,n)
-        real*8, intent(inout) :: y(2,n)
-        real*8, intent(in)    :: angle
-        integer, intent(in)   :: n
+        real(real64), intent(in)    :: x(2,n)
+        real(real64), intent(inout) :: y(2,n)
+        real(real64), intent(in)    :: angle
+        integer(int64), intent(in)  :: n
 
-        integer :: i
-        real*8  :: sinangle, cosangle
+        integer(int64) :: i
+        real(real64)   :: sinangle, cosangle
 
         sinangle = sin(angle * DEG2RAD)
         cosangle = cos(angle * DEG2RAD)
@@ -140,12 +141,12 @@ contains
 
     subroutine rotate_2d_inplace(x, n, angle)
         !f2py threadsafe
-        real*8, intent(inout) :: x(2,n)
-        real*8, intent(in)    :: angle
-        integer, intent(in)   :: n
+        real(real64), intent(inout) :: x(2,n)
+        real(real64), intent(in)    :: angle
+        integer(int64), intent(in)  :: n
 
-        integer :: i
-        real*8  :: tmp, sinangle, cosangle
+        integer(int64) :: i
+        real(real64)   :: tmp, sinangle, cosangle
 
         sinangle = sin(angle * DEG2RAD)
         cosangle = cos(angle * DEG2RAD)
@@ -165,10 +166,10 @@ contains
 
     subroutine surface_simple_polygon(xy, output, nvertices, npolygons)
         !f2py threadsafe
-        integer*8, intent(in) :: nvertices, npolygons
-        real*8, intent(in)    :: xy(2, nvertices, npolygons)
-        real*8, intent(inout) :: output(npolygons)
-        integer*8             :: i, j, k
+        integer(int64), intent(in)  :: nvertices, npolygons
+        real(real64), intent(in)    :: xy(2, nvertices, npolygons)
+        real(real64), intent(inout) :: output(npolygons)
+        integer(int64)              :: i, j, k
 
         !$omp parallel do private(j)
         do k=1, npolygons
