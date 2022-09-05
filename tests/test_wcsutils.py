@@ -1,8 +1,9 @@
-import os
+from pathlib import Path
 
 import numpy as np
 import pytest
 from astropy.io import fits as pyfits
+from astropy.utils.exceptions import AstropyUserWarning
 from astropy.wcs import WCS
 
 from pyoperators.utils.testing import assert_eq, assert_same
@@ -18,6 +19,8 @@ from pysimulators.wcsutils import (
     has_wcs,
     mean_degrees,
 )
+
+DATAPATH = Path(__file__).parent / 'data'
 
 
 def test_mean_degrees():
@@ -141,8 +144,8 @@ def test_fitsheader2shape(naxes):
 
 @pytest.mark.parametrize('origin', [0, 1])
 def test_wcsoperator(origin):
-    path = os.path.join(os.path.dirname(__file__), 'data/header_gnomonic.fits')
-    header = pyfits.open(path)[0].header
+    with pytest.warns(AstropyUserWarning, match='File may have been truncated'):
+        header = pyfits.open(DATAPATH / 'header_gnomonic.fits')[0].header
 
     crval = (header['CRVAL1'], header['CRVAL2'])
     crpix = np.array((header['CRPIX1'], header['CRPIX2'])) - 1 + origin
