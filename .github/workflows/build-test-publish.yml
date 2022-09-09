@@ -36,10 +36,10 @@ jobs:
         platform:
           - os: ubuntu-20.04
             arch: x86_64
-            fflags: -march=x86-64
+            fflags: -march=x86-64 -mavx
           - os: macos-11
             arch: x86_64
-            fflags: -march=x86-64
+            fflags: -march=x86-64 -mavx
 #          - os: macos-11
 #            arch: arm64
 #            fflags: -march=armv8.5-a
