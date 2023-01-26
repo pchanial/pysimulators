@@ -85,15 +85,16 @@ class Acquisition:
         if comm is None:
             comm = MPI.COMM_WORLD
         if nprocs_instrument is None and nprocs_sampling is None:
+            nprocs_instrument = 1
             nprocs_sampling = comm.size
-        if nprocs_instrument is None:
+        elif nprocs_instrument is None:
             if nprocs_sampling < 1 or nprocs_sampling > comm.size:
                 raise ValueError(
                     f"Invalid value for nprocs_sampling '{nprocs_sampling}'."
                 )
             nprocs_instrument = comm.size // nprocs_sampling
-        elif nprocs_sampling is None:
-            if nprocs_instrument < 1 or nprocs_sampling > comm.size:
+        else:
+            if nprocs_instrument < 1 or nprocs_instrument > comm.size:
                 raise ValueError(
                     f"Invalid value for nprocs_instrument '{nprocs_instrument}'."
                 )
