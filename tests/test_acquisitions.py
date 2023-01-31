@@ -39,7 +39,7 @@ def test_get_noise1(shape, fknee):
     fsamp = 5
     sigma = 0.3
     scene = Scene(10)
-    sampling = Sampling(2e4, period=1 / fsamp)
+    sampling = Sampling(20_000, period=1 / fsamp)
     np.random.seed(0)
 
     class MyAcquisition1(Acquisition):
@@ -58,7 +58,7 @@ def test_get_noise2(shape):
     fsamp = 5
     sigma = 0.3
     scene = Scene(10)
-    sampling = Sampling(2e4, period=1 / fsamp)
+    sampling = Sampling(20_000, period=1 / fsamp)
     freq = np.arange(6) / 6 * fsamp
     psd = np.array([0, 1, 1, 1, 1, 1], float) * sigma**2 / fsamp
 
@@ -80,7 +80,7 @@ def test_get_noise3(shape):
     fsamp = 5
     sigma = 0.3
     scene = Scene(10)
-    sampling = Sampling(2e4, period=1 / fsamp)
+    sampling = Sampling(20_000, period=1 / fsamp)
     freq = np.arange(4) / 6 * fsamp
     psd = np.array([0, 2, 2, 1], float) * sigma**2 / fsamp
 

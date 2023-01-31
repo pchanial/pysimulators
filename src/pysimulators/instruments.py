@@ -57,6 +57,10 @@ class Instrument:
     def __len__(self):
         return len(self.detector)
 
+    @property
+    def comm(self):
+        return self.detector.comm
+
     def pack(self, x):
         return self.detector.pack(x)
 

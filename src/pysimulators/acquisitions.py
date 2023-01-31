@@ -144,23 +144,43 @@ class Acquisition:
         Restrict to the first 10 pixels of the scene:
         >>> new_acq = acq[..., :10]
         """
+
+        def is_colon(x):
+            return isinstance(x, slice) and x == slice(None)
+
         out = copy(self)
         if not isinstance(x, tuple):
-            out.instrument = self.instrument[x]
-            return out
-        if len(x) == 2 and x[0] is Ellipsis:
-            x = Ellipsis, Ellipsis, x[1]
-        if len(x) > 3:
+            x = (x,)
+        elif len(x) == 2 and x[0] is Ellipsis:
+            x = slice(None), slice(None), x[1]
+        elif len(x) > 3:
             raise ValueError('Invalid selection.')
-        x = x + (3 - len(x)) * (Ellipsis,)
-        if x[2] is not Ellipsis and (
-            not isinstance(x[2], slice) or x[2] == slice(None)
-        ):
+
+        x = tuple(slice(None) if _ is Ellipsis else _ for _ in x)
+        x = x + (3 - len(x)) * (slice(None),)
+
+        if all(is_colon(_) for _ in x):
+            return out
+
+        if any(not is_colon(_) for _ in x):
             self._operator = None
             gc.collect()
+
         out.instrument = self.instrument[x[0]]
+        if not is_colon(x[0]):
+            object.__setattr__(out.instrument.detector, 'comm', MPI.COMM_SELF)
         out.sampling = self.sampling[x[1]]  # XXX FIX BLOCKS!!!
+        if not is_colon(x[1]):
+            object.__setattr__(out.sampling, 'comm', MPI.COMM_SELF)
         out.scene = self.scene[x[2]]
+
+        if not is_colon(x[0]) and not is_colon(x[1]):
+            out.comm = MPI.COMM_SELF
+        elif not is_colon(x[0]):
+            out.comm = self.sampling.comm.Create_cart([1, self.sampling.comm.size])
+        elif not is_colon(x[1]):
+            out.comm = self.instrument.comm.Create_cart([self.instrument.comm.size, 1])
+
         return out
 
     def __str__(self):

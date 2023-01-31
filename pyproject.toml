@@ -82,6 +82,9 @@ addopts = "-ra --cov=pysimulators"
 testpaths = [
     "tests",
 ]
+markers = [
+    "mpi: mark tests to be run using mpirun.",
+]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
