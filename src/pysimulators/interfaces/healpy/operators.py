@@ -342,7 +342,6 @@ class HealpixConvolutionGaussianOperator(Operator):
             use_weights=self.use_weights,
             datapath=self.datapath,
             pol=self.pol,
-            verbose=False,
         )
 
     def validatein(self, shape):
