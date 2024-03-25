@@ -174,22 +174,24 @@ def test_function(array, func):
 
 @pytest.mark.parametrize(
     'value, expected_type',
-    [
-        (Quantity(1), float),
-        (Quantity(1, dtype='float32'), np.float32),
-        (Quantity(1.0), float),
-        (Quantity(complex(1, 0)), np.complex128),
-        (Quantity(1.0, dtype=np.complex64), np.complex64),
-        (Quantity(1.0, dtype=np.complex128), np.complex128),
-        (Quantity(np.array(complex(1, 0))), complex),
-        (Quantity(np.array(np.complex64(1.0))), np.complex64),
-        (Quantity(np.array(np.complex128(1.0))), complex),
-    ]
-    + [
-        (Quantity(1.0, dtype=np.complex256), np.complex256),
-    ]
-    if hasattr(np, 'complex256')
-    else [],
+    (
+        [
+            (Quantity(1), float),
+            (Quantity(1, dtype='float32'), np.float32),
+            (Quantity(1.0), float),
+            (Quantity(complex(1, 0)), np.complex128),
+            (Quantity(1.0, dtype=np.complex64), np.complex64),
+            (Quantity(1.0, dtype=np.complex128), np.complex128),
+            (Quantity(np.array(complex(1, 0))), complex),
+            (Quantity(np.array(np.complex64(1.0))), np.complex64),
+            (Quantity(np.array(np.complex128(1.0))), complex),
+        ]
+        + [
+            (Quantity(1.0, dtype=np.complex256), np.complex256),
+        ]
+        if hasattr(np, 'complex256')
+        else []
+    ),
 )
 def test_dtype(value, expected_type):
     assert value.dtype == expected_type
