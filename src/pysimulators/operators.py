@@ -177,9 +177,11 @@ def block_diagonal(*partition_args, **keywords):
             n = len(partitionin)
             argss = tuple(
                 tuple(
-                    a[i]
-                    if class_args[j] in partition_args and not isscalarlike(a)
-                    else a
+                    (
+                        a[i]
+                        if class_args[j] in partition_args and not isscalarlike(a)
+                        else a
+                    )
                     for j, a in enumerate(args)
                 )
                 for i in range(n)
