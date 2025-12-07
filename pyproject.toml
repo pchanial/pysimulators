@@ -1,11 +1,12 @@
 [build-system]
-build-backend = "setuptools.build_meta"
+build-backend = "mesonpy"
 requires = [
-    "oldest-supported-numpy",
-    "pchanial-legacy-install-hooks>=1.5",
-    "setuptools==64.0.3",
+    "meson-python>=0.15.0",
+    "meson>=1.1.0",
+    "ninja",
+    "numpy>=2.0.0",
     "setuptools_scm[toml]>=6.2",
-    "wheel",
+    "Jinja2>=3.0",
 ]
 
 [project]
@@ -23,9 +24,11 @@ keywords = [
 ]
 classifiers = [
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Fortran",
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
@@ -37,13 +40,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
     "Topic :: Scientific/Engineering :: Physics",
 ]
-requires-python = ">=3.8, <3.11"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 dependencies = [
-    "pyoperators[fft]>=0.12.5",
+    "pyoperators[fft]>=1.0.0-beta.1",
     "astropy>=0.3.2",
     "numexpr",
-    "numpy>=1.17",
+    "numpy>=2.0.0",
     "scipy>=0.9",
 ]
 dynamic = ["version"]
@@ -56,8 +59,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
-    "pchanial-legacy-install-hooks",
-    "setuptools_scm",
+    "pytest-insubprocess>=1.2",
 ]
 
 [project.urls]
@@ -77,14 +79,20 @@ skip_covered = true
 [tool.isort]
 known_first_party = ["pyoperators", "pysimulators"]
 
-[tool.pytest.ini_options]
-addopts = "-ra --cov=pysimulators"
-testpaths = [
-    "tests",
+[tool.pytest]
+addopts = [
+    "-ra",
+    "--color=yes",
 ]
+testpaths = ["tests"]
 markers = [
     "mpi: mark tests to be run using mpirun.",
 ]
+
+[tool.cibuildwheel]
+skip = "*-musllinux_*"
+test-extras = "dev"
+build-verbosity = 1
 
 [tool.setuptools_scm]
 version_scheme = "post-release"

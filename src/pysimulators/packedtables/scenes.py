@@ -218,7 +218,7 @@ class SceneGrid(Scene):
                 f'{dtype_index} and a value type {dtype}'
             )
 
-        polygons = np.array(polygons, dtype=dtype, copy=False)
+        polygons = np.asarray(polygons, dtype=dtype)
         shape = polygons.shape[:-2]
         matrix = FSRMatrix(
             (product(shape), product(self.shape)),

@@ -1,3 +1,4 @@
+{# variables: ikind=int32,int32,int32,int64,int64,int64,real32,real64; isize=4,4,4,8,8,8,4,8; rkind=real32,real32,real64,real32,real32,real64,real32,real64; rsize=4,4,8,4,4,8,4,8; vkind=real32,real64,real64,real32,real64,real64,real32,real64; vsize=4,8,8,4,8,8,4,8 #}
 module module_operators
 
     use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
@@ -7,21 +8,16 @@ module module_operators
 
 contains
 
-    ! <ikind=int32,int32,int32,int64,int64,int64>
-    ! <isize=4,4,4,8,8,8>
-    ! <rkind=real32,real32,real64,real32,real32,real64>
-    ! <rsize=4,4,8,4,4,8>
-    ! <vkind=real32,real64,real64,real32,real64,real64>
-    ! <vsize=4,8,8,4,8,8>
-
-    subroutine fsc_block_1_2_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] %}
+    subroutine fsc_block_1_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(1,ninput)
-        real(<vkind>), intent(inout) :: output(2,0:noutput-1)
-        type(PointingElementBlock_1_2_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(1,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
+        type(PointingElementBlock_1_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -38,14 +34,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_1_3_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_1_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(1,ninput)
-        real(<vkind>), intent(inout) :: output(3,0:noutput-1)
-        type(PointingElementBlock_1_3_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(1,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
+        type(PointingElementBlock_1_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -63,14 +59,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_2_1_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_2_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(2,ninput)
-        real(<vkind>), intent(inout) :: output(1,0:noutput-1)
-        type(PointingElementBlock_2_1_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(2,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(1,0:noutput-1)
+        type(PointingElementBlock_2_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -86,14 +82,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_2_2_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_2_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(2,ninput)
-        real(<vkind>), intent(inout) :: output(2,0:noutput-1)
-        type(PointingElementBlock_2_2_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(2,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
+        type(PointingElementBlock_2_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -112,14 +108,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_2_3_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_2_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(2,ninput)
-        real(<vkind>), intent(inout) :: output(3,0:noutput-1)
-        type(PointingElementBlock_2_3_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(2,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
+        type(PointingElementBlock_2_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -140,14 +136,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_3_1_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_3_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(3,ninput)
-        real(<vkind>), intent(inout) :: output(1,0:noutput-1)
-        type(PointingElementBlock_3_1_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(3,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(1,0:noutput-1)
+        type(PointingElementBlock_3_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -164,14 +160,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_3_2_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_3_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(3,ninput)
-        real(<vkind>), intent(inout) :: output(2,0:noutput-1)
-        type(PointingElementBlock_3_2_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(3,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
+        type(PointingElementBlock_3_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -192,14 +188,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsc_block_3_3_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsc_block_3_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(3,ninput)
-        real(<vkind>), intent(inout) :: output(3,0:noutput-1)
-        type(PointingElementBlock_3_3_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(3,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
+        type(PointingElementBlock_3_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: k
+        integer({{ combo.ikind }}) :: k
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(k)
@@ -223,14 +219,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_1_2_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_1_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(2,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(1,noutput)
-        type(PointingElementBlock_1_2_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(2,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(1,noutput)
+        type(PointingElementBlock_1_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -246,14 +242,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_1_3_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_1_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(3,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(1,noutput)
-        type(PointingElementBlock_1_3_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(3,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(1,noutput)
+        type(PointingElementBlock_1_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -270,14 +266,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_2_1_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_2_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(1,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(2,noutput)
-        type(PointingElementBlock_2_1_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(1,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
+        type(PointingElementBlock_2_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -294,14 +290,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_2_2_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_2_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(2,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(2,noutput)
-        type(PointingElementBlock_2_2_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(2,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
+        type(PointingElementBlock_2_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -320,14 +316,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_2_3_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_2_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(3,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(2,noutput)
-        type(PointingElementBlock_2_3_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(3,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
+        type(PointingElementBlock_2_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -348,14 +344,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_3_1_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_3_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(1,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(3,noutput)
-        type(PointingElementBlock_3_1_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(1,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
+        type(PointingElementBlock_3_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -374,14 +370,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_3_2_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_3_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(2,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(3,noutput)
-        type(PointingElementBlock_3_2_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(2,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
+        type(PointingElementBlock_3_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -403,14 +399,14 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine fsr_block_3_3_matvec_i<isize>_r<rsize>_v<vsize>(data, input, output, ninput, noutput, ncolmax)
+    subroutine fsr_block_3_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
         integer(int64), intent(in) :: ninput, noutput, ncolmax
         type(c_ptr), intent(in) :: data
-        real(<vkind>), intent(in) :: input(3,0:ninput-1)
-        real(<vkind>), intent(inout) :: output(3,noutput)
-        type(PointingElementBlock_3_3_i<isize>_r<rsize>), pointer :: matrix(:,:)
+        real({{ combo.vkind }}), intent(in) :: input(3,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
+        type(PointingElementBlock_3_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
         !$omp parallel do private(col)
@@ -435,15 +431,19 @@ contains
         !$omp end parallel do
     end subroutine
 
+{% if not loop.last and combo.ikind in ['int32', 'int64'] %}
 
-    ! <rkind=real32,real64>
-    ! <rsize=4,8>
+{% endif %}
+{% endif %}
+{% endfor %}
 
-    subroutine trexp_direct_inplace_r<rsize>(input, tau)
-        real(<rkind>), intent(inout) :: input(:)
-        real(<rkind>), intent(in)    :: tau
+{% for combo in combinations %}
+{% if combo.ikind in ['real32', 'real64'] %}
+    subroutine trexp_direct_inplace_r{{ combo.rsize }}(input, tau)
+        real({{ combo.rkind }}), intent(inout) :: input(:)
+        real({{ combo.rkind }}), intent(in)    :: tau
         integer(int64) :: i
-        real(<rkind>) :: v, w
+        real({{ combo.rkind }}) :: v, w
 
         if (tau == 0) then
             return
@@ -460,12 +460,12 @@ contains
     end subroutine
 
 
-    subroutine trexp_direct_outplace_r<rsize>(input, output, tau)
-        real(<rkind>), intent(in)    :: input(:)
-        real(<rkind>), intent(inout) :: output(size(input))
-        real(<rkind>), intent(in)    :: tau
+    subroutine trexp_direct_outplace_r{{ combo.rsize }}(input, output, tau)
+        real({{ combo.rkind }}), intent(in)    :: input(:)
+        real({{ combo.rkind }}), intent(inout) :: output(size(input))
+        real({{ combo.rkind }}), intent(in)    :: tau
         integer(int64) :: i
-        real(<rkind>) :: v, w
+        real({{ combo.rkind }}) :: v, w
 
         if (tau == 0) then
             output = input
@@ -484,11 +484,11 @@ contains
     end subroutine
 
 
-    subroutine trexp_transpose_inplace_r<rsize>(input, tau)
-        real(<rkind>), intent(inout) :: input(:)
-        real(<rkind>), intent(in)    :: tau
+    subroutine trexp_transpose_inplace_r{{ combo.rsize }}(input, tau)
+        real({{ combo.rkind }}), intent(inout) :: input(:)
+        real({{ combo.rkind }}), intent(in)    :: tau
         integer(int64) :: n, i
-        real(<rkind>) :: v, w
+        real({{ combo.rkind }}) :: v, w
 
         n = size(input)
         if (tau == 0) then
@@ -507,12 +507,12 @@ contains
     end subroutine
 
 
-    subroutine trexp_transpose_outplace_r<rsize>(input, output, tau)
-        real(<rkind>), intent(in)    :: input(:)
-        real(<rkind>), intent(inout) :: output(size(input))
-        real(<rkind>), intent(in)    :: tau
+    subroutine trexp_transpose_outplace_r{{ combo.rsize }}(input, output, tau)
+        real({{ combo.rkind }}), intent(in)    :: input(:)
+        real({{ combo.rkind }}), intent(inout) :: output(size(input))
+        real({{ combo.rkind }}), intent(in)    :: tau
         integer(int64) :: n, i
-        real(<rkind>) :: v, w
+        real({{ combo.rkind }}) :: v, w
 
         n = size(input)
         if (tau == 0) then
@@ -530,5 +530,11 @@ contains
         output(1) = output(1) / v
 
     end subroutine
+
+{% if not loop.last %}
+
+{% endif %}
+{% endif %}
+{% endfor %}
 
 end module module_operators
