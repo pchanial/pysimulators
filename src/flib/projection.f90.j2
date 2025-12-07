@@ -1,3 +1,4 @@
+{# variables: ikind=int32,int32,int64,int64; isize=4,4,8,8; rkind=real32,real64,real32,real64; rsize=4,8,4,8 #}
 module projection
 
     use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
@@ -12,38 +13,34 @@ module projection
 
 contains
 
-    ! <ikind=int32,int32,int64,int64>
-    ! <isize=4,4,8,8>
-    ! <rkind=real32,real64,real32,real64>
-    ! <rsize=4,8,4,8>
-
-    subroutine matrix_polygon_integration_i<isize>_r<rsize>(vertex, nvertices, &
+{% for combo in combinations %}
+    subroutine matrix_polygon_integration_i{{ combo.isize }}_r{{ combo.rsize }}(vertex, nvertices, &
             ninputs, nx, ny, matrix, ncolmax, min_ncolmax, out)
-        integer, parameter           :: s = <isize> + <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + {{ combo.rsize }}
         integer, intent(in)          :: nvertices
         integer(int64), intent(in)   :: ninputs
         integer, intent(in)          :: ncolmax
-        real(<rkind>), intent(in)    :: vertex(2, nvertices, ninputs)
-        integer(<ikind>), intent(in) :: nx, ny
-        !f2py integer*1, intent(in) :: matrix(max(ncolmax * ninputs * s, 1))
-        type(PointingElement_i<isize>_r<rsize>), intent(inout) ::              &
+        real({{ combo.rkind }}), intent(in)    :: vertex(2, nvertices, ninputs)
+        integer({{ combo.ikind }}), intent(in) :: nx, ny
+        !f2py integer*1, intent(in) :: matrix(max(ncolmax * ninputs * {{ combo.isize|int + combo.rsize|int }}, 1))
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(inout) ::              &
             matrix(ncolmax, ninputs)
         integer(int64), intent(out)  :: min_ncolmax
         logical, intent(out)         :: out
 
         integer(int64)   :: isample, ncols
-        integer(<ikind>) :: xmin, xmax, ymin, ymax, ix, iy
-        real(<rkind>)    :: polygon(2,nvertices), val
+        integer({{ combo.ikind }}) :: xmin, xmax, ymin, ymax, ix, iy
+        real({{ combo.rkind }})    :: polygon(2,nvertices), val
 
         min_ncolmax = 0
         !$omp parallel do private(xmin, xmax, ymin, ymax, ncols, polygon)      &
         !$omp             private(val), reduction(max: min_ncolmax)
         do isample = 1, ninputs
 
-            xmin = round_htpi_i<isize>_r<rsize>(minval(vertex(1,:,isample)))
-            xmax = round_htmi_i<isize>_r<rsize>(maxval(vertex(1,:,isample)))
-            ymin = round_htpi_i<isize>_r<rsize>(minval(vertex(2,:,isample)))
-            ymax = round_htmi_i<isize>_r<rsize>(maxval(vertex(2,:,isample)))
+            xmin = round_htpi_i{{ combo.isize }}_r{{ combo.rsize }}(minval(vertex(1,:,isample)))
+            xmax = round_htmi_i{{ combo.isize }}_r{{ combo.rsize }}(maxval(vertex(1,:,isample)))
+            ymin = round_htpi_i{{ combo.isize }}_r{{ combo.rsize }}(minval(vertex(2,:,isample)))
+            ymax = round_htmi_i{{ combo.isize }}_r{{ combo.rsize }}(maxval(vertex(2,:,isample)))
             ! we use '.ge.' instead of '>=' because of a limitation in the
             ! template parser
             if (xmin < 0 .or. xmax .ge. nx .or. ymin < 0 .or. ymax .ge. ny) then
@@ -55,9 +52,9 @@ contains
 
                 do ix = max(xmin, 0), min(xmax, nx - 1)
 
-                    polygon(1,:) = vertex(1,:,isample) - (ix - 0.5_<rkind>)
-                    polygon(2,:) = vertex(2,:,isample) - (iy - 0.5_<rkind>)
-                    val = intersection_polygon_unity_square_r<rsize>(polygon, nvertices)
+                    polygon(1,:) = vertex(1,:,isample) - (ix - 0.5_{{ combo.rkind }})
+                    polygon(2,:) = vertex(2,:,isample) - (iy - 0.5_{{ combo.rkind }})
+                    val = intersection_polygon_unity_square_r{{ combo.rsize }}(polygon, nvertices)
                     if (val == 0) cycle
                     ncols = ncols + 1
                     if (ncols <= ncolmax) then
@@ -78,5 +75,10 @@ contains
         !$omp end parallel do
 
     end subroutine
+
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
 
 end module projection

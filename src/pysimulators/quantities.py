@@ -338,9 +338,6 @@ class Quantity(np.ndarray):
         ufuncs, see http://docs.scipy.org/doc/numpy/reference/ufuncs.html
         """
 
-        if np.__version__ < '1.4.1' and self is not array:
-            array = array.view(type(self))
-
         if context is None:
             return array
 
@@ -435,13 +432,13 @@ class Quantity(np.ndarray):
 
         return array
 
-    def __getattr__(self, name):
-        if self.dtype.names is None or name not in self.dtype.names:
-            raise AttributeError(
-                "'" + self.__class__.__name__ + "' object has"
-                " no attribute '" + name + "'"
-            )
-        return self[name]
+    #    def __getattr__(self, name):
+    #        if self.dtype.names is None or name not in self.dtype.names:
+    #            raise AttributeError(
+    #                "'" + self.__class__.__name__ + "' object has"
+    #                " no attribute '" + name + "'"
+    #            )
+    #        return self[name]
 
     def __getitem__(self, key):
         """

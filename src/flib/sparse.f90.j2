@@ -1,3 +1,4 @@
+{# variables: ikind=int32,int32,int32,int64,int64,int64,int32,int32,int32,int64,int64,int64,int8,int16,int32,int64; isize=4,4,4,8,8,8,4,4,4,8,8,8,1,2,4,8; rkind=real32,real32,real64,real32,real32,real64,real32,real32,real64,real32,real32,real64,real32,real32,real32,real32; rsize=4,4,8,4,4,8,4,4,8,4,4,8,4,4,4,4; vkind=real32,real64,real64,real32,real64,real64,real32,real64,real64,real32,real64,real64,real32,real32,real32,real32; vsize=4,8,8,4,8,8,4,8,8,4,8,8,4,4,4,4 #}
 module sparse
 
     use, intrinsic :: iso_c_binding, only: c_loc
@@ -9,28 +10,25 @@ module sparse
 
 contains
 
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] and loop.index0 < 6 %}
 
-    ! <ikind=int32,int32,int32,int64,int64,int64>
-    ! <isize=4,4,4,8,8,8>
-    ! <rkind=real32,real32,real64,real32,real32,real64>
-    ! <rsize=4,4,8,4,4,8>
-    ! <vkind=real32,real64,real64,real32,real64,real64>
-    ! <vsize=4,8,8,4,8,8>
-
-    subroutine fsc_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output,    &
+    subroutine fsc_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input, output,    &
                                    nrowmax, ninput, noutput)
-        integer, parameter           :: s = <isize> + <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + {{ combo.rsize }}
         integer(int64), intent(in)   :: nrowmax
         integer(int64), intent(in)   :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=len(input)
         integer(int64), intent(in)   :: noutput
+        !f2py integer(int64), intent(in), optional, depend(output) :: noutput=len(output)
         !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
-        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
             matrix(nrowmax, ninput)
-        real(<vkind>), intent(in)    :: input(ninput)
-        real(<vkind>), intent(inout) :: output(0:noutput-1)
+        real({{ combo.vkind }}), intent(in)    :: input(ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(0:noutput-1)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         if (nrowmax == 1) then
             !$omp parallel do private(col)
@@ -58,23 +56,23 @@ contains
     end subroutine
 
 
-    subroutine fsc_homothety_matvec_i<isize>_r<rsize>_v<vsize>(                &
+    subroutine fsc_homothety_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(                &
             matrix, input, output, nrowmax, ninput, noutput, extra_size)
-        integer, parameter           :: s = <isize> + <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + {{ combo.rsize }}
         integer(int64), intent(in)   :: nrowmax
         integer(int64), intent(in)   :: ninput
         integer(int64), intent(in)   :: noutput
         integer(int64), intent(in)   :: extra_size
         !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
-        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
             matrix(nrowmax, ninput)
-        !f2py real(<vkind>)          :: input(extra_size*ninput)
-        real(<vkind>), intent(in)    :: input(extra_size, ninput)
-        !f2py real(<vkind>)          :: output(extra_size*noutput)
-        real(<vkind>), intent(inout) :: output(extra_size, 0:noutput-1)
+        !f2py real({{ combo.vkind }})          :: input(extra_size*ninput)
+        real({{ combo.vkind }}), intent(in)    :: input(extra_size, ninput)
+        !f2py real({{ combo.vkind }})          :: output(extra_size*noutput)
+        real({{ combo.vkind }}), intent(inout) :: output(extra_size, 0:noutput-1)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         if (nrowmax == 1) then
             !$omp parallel do private(col)
@@ -104,22 +102,24 @@ contains
     end subroutine
 
 
-    subroutine fsc_rot2d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsc_rot2d_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
                                          output, nrowmax, ninput, noutput)
-        integer, parameter           :: s = <isize> + 2 * <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + 2 * {{ combo.rsize }}
         integer(int64), intent(in)   :: nrowmax
         integer(int64), intent(in)   :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=size(input)/2
         integer(int64), intent(in)   :: noutput
+        !f2py integer(int64), intent(in), optional, depend(output) :: noutput=size(output)/2
         !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
-        type(PointingElementRot2d_i<isize>_r<rsize>), intent(in) ::            &
+        type(PointingElementRot2d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
             matrix(nrowmax, ninput)
-        !f2py real(<vkind>)          :: input(2*ninput)
-        real(<vkind>), intent(in)    :: input(2,ninput)
-        !f2py real(<vkind>)          :: output(2*noutput)
-        real(<vkind>), intent(inout) :: output(2,0:noutput-1)
+        !f2py real({{ combo.vkind }})          :: input(2*ninput)
+        real({{ combo.vkind }}), intent(in)    :: input(2,ninput)
+        !f2py real({{ combo.vkind }})          :: output(2*noutput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         !$omp parallel do private(col)
         do i = 1, ninput
@@ -139,22 +139,24 @@ contains
     end subroutine
 
 
-    subroutine fsc_rot3d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsc_rot3d_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
                                          output, nrowmax, ninput, noutput)
-        integer, parameter           :: s = <isize> + 3 * <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
         integer(int64), intent(in)   :: nrowmax
         integer(int64), intent(in)   :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=size(input)/3
         integer(int64), intent(in)   :: noutput
+        !f2py integer(int64), intent(in), optional, depend(output) :: noutput=size(output)/3
         !f2py integer*1, intent(in)  :: matrix(nrowmax*s*ninput)
-        type(PointingElementRot3d_i<isize>_r<rsize>), intent(in) ::            &
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
             matrix(nrowmax, ninput)
-        !f2py real(<vkind>)          :: input(3*ninput)
-        real(<vkind>), intent(in)    :: input(3,ninput)
-        !f2py real(<vkind>)          :: output(3*noutput)
-        real(<vkind>), intent(inout) :: output(3,0:noutput-1)
+        !f2py real({{ combo.vkind }})          :: input(3*ninput)
+        real({{ combo.vkind }}), intent(in)    :: input(3,ninput)
+        !f2py real({{ combo.vkind }})          :: output(3*noutput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         !$omp parallel do private(col)
         do i = 1, ninput
@@ -176,20 +178,22 @@ contains
     end subroutine
 
 
-    subroutine fsr_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input, output,    &
+    subroutine fsr_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input, output,    &
                                    ncolmax, ninput, noutput)
-        integer, parameter           :: s = <isize> + <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + {{ combo.rsize }}
         integer(int64), intent(in)   :: ncolmax
         integer(int64), intent(in)   :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=len(input)
         integer(int64), intent(in)   :: noutput
+        !f2py integer(int64), intent(in), optional, depend(output) :: noutput=len(output)
         !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
-        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
             matrix(ncolmax, noutput)
-        real(<vkind>), intent(in)    :: input(0:ninput-1)
-        real(<vkind>), intent(inout) :: output(noutput)
+        real({{ combo.vkind }}), intent(in)    :: input(0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(noutput)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         if (ncolmax == 1) then
             !$omp parallel do private(col)
@@ -218,23 +222,23 @@ contains
     end subroutine
 
 
-    subroutine fsr_homothety_matvec_i<isize>_r<rsize>_v<vsize>(                &
+    subroutine fsr_homothety_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(                &
             matrix, input, output, ncolmax, ninput, noutput, extra_size)
-        integer, parameter           :: s = <isize> + <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + {{ combo.rsize }}
         integer(int64), intent(in)   :: ncolmax
         integer(int64), intent(in)   :: ninput
         integer(int64), intent(in)   :: noutput
         integer(int64), intent(in)   :: extra_size
         !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
-        type(PointingElement_i<isize>_r<rsize>), intent(in) ::                 &
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
             matrix(ncolmax, noutput)
-        !f2py real(<vkind>)          :: input(extra_size*ninput)
-        real(<vkind>), intent(in)    :: input(extra_size, 0:ninput-1)
-        !f2py real(<vkind>)          :: output(extra_size*noutput)
-        real(<vkind>), intent(inout) :: output(extra_size, noutput)
+        !f2py real({{ combo.vkind }})          :: input(extra_size*ninput)
+        real({{ combo.vkind }}), intent(in)    :: input(extra_size, 0:ninput-1)
+        !f2py real({{ combo.vkind }})          :: output(extra_size*noutput)
+        real({{ combo.vkind }}), intent(inout) :: output(extra_size, noutput)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         if (ncolmax == 1) then
             !$omp parallel do private(col)
@@ -260,108 +264,110 @@ contains
     end subroutine
 
 
-    subroutine fsc_block_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsc_block_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
          output, ncolmax, ninput, noutput, n, m, s)
         integer(int64), intent(in)    :: ncolmax
         integer(int64), intent(in)    :: ninput
         integer(int64), intent(in)    :: noutput
         integer(int64), intent(in)    :: m
         integer(int64), intent(in)    :: n
-        !f2py integer(int64), intent(hide), depend(m, n) :: s = <isize> + m*n*<rsize>
+        !f2py integer(int64), intent(hide), depend(m, n) :: s = {{ combo.isize }} + m*n*{{ combo.rsize }}
         integer(int64), intent(in)    :: s
         !f2py integer*1, intent(in)   :: matrix(ncolmax*s*ninput)
         integer*1, intent(in), target :: matrix(ncolmax*s*ninput)
-        !f2py real(<vkind>)           :: input(m*ninput)
-        real(<vkind>), intent(in)     :: input(m,ninput)
-        !f2py real(<vkind>)           :: output(n*noutput)
-        real(<vkind>), intent(inout)  :: output(n,0:noutput-1)
+        !f2py real({{ combo.vkind }})           :: input(m*ninput)
+        real({{ combo.vkind }}), intent(in)     :: input(m,ninput)
+        !f2py real({{ combo.vkind }})           :: output(n*noutput)
+        real({{ combo.vkind }}), intent(inout)  :: output(n,0:noutput-1)
 
         if (m == 1) then
             if (n == 2) then
-                call fsc_block_1_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_1_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 3) then
-                call fsc_block_1_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_1_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             end if
         else if (m == 2) then
             if (n == 1) then
-                call fsc_block_2_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_2_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 2) then
-                call fsc_block_2_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_2_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 3) then
-                call fsc_block_2_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_2_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             end if
         else if (m == 3) then
             if (n == 1) then
-                call fsc_block_3_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_3_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 2) then
-                call fsc_block_3_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_3_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 3) then
-                call fsc_block_3_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsc_block_3_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             end if
         end if
 
     end subroutine
 
 
-    subroutine fsr_block_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsr_block_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
          output, ncolmax, ninput, noutput, m, n, s)
         integer(int64), intent(in)    :: ncolmax
         integer(int64), intent(in)    :: ninput
         integer(int64), intent(in)    :: noutput
         integer(int64), intent(in)    :: m
         integer(int64), intent(in)    :: n
-        !f2py integer(int64), intent(hide), depend(m, n) :: s = <isize> + m*n*<rsize>
+        !f2py integer(int64), intent(hide), depend(m, n) :: s = {{ combo.isize }} + m*n*{{ combo.rsize }}
         integer(int64), intent(in)    :: s
         !f2py integer*1, intent(in)   :: matrix(ncolmax*s*noutput)
         integer*1, intent(in), target :: matrix(ncolmax*s*noutput)
-        !f2py real(<vkind>)           :: input(n*ninput)
-        real(<vkind>), intent(in)     :: input(n,0:ninput-1)
-        !f2py real(<vkind>)           :: output(m*noutput)
-        real(<vkind>), intent(inout)  :: output(m,noutput)
+        !f2py real({{ combo.vkind }})           :: input(n*ninput)
+        real({{ combo.vkind }}), intent(in)     :: input(n,0:ninput-1)
+        !f2py real({{ combo.vkind }})           :: output(m*noutput)
+        real({{ combo.vkind }}), intent(inout)  :: output(m,noutput)
 
         if (m == 1) then
             if (n == 2) then
-                call fsr_block_1_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_1_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 3) then
-                call fsr_block_1_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_1_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             end if
         else if (m == 2) then
             if (n == 1) then
-                call fsr_block_2_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_2_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 2) then
-                call fsr_block_2_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_2_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 3) then
-                call fsr_block_2_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_2_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             end if
         else if (m == 3) then
             if (n == 1) then
-                call fsr_block_3_1_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_3_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 2) then
-                call fsr_block_3_2_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_3_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             else if (n == 3) then
-                call fsr_block_3_3_matvec_i<isize>_r<rsize>_v<vsize>(c_loc(matrix), input, output, ninput, noutput, ncolmax)
+                call fsr_block_3_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(c_loc(matrix), input, output, ninput, noutput, ncolmax)
             end if
         end if
 
     end subroutine
 
 
-    subroutine fsr_rot2d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsr_rot2d_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
                                          output, ncolmax, ninput, noutput)
-        integer, parameter           :: s = <isize> + 2 * <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + 2 * {{ combo.rsize }}
         integer(int64), intent(in)   :: ncolmax
         integer(int64), intent(in)   :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=size(input)/2
         integer(int64), intent(in)   :: noutput
+        !f2py integer(int64), intent(in), optional, depend(output) :: noutput=size(output)/2
         !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
-        type(PointingElementRot2d_i<isize>_r<rsize>), intent(in) ::            &
+        type(PointingElementRot2d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
             matrix(ncolmax, noutput)
-        !f2py real(<vkind>)          :: input(2*ninput)
-        real(<vkind>), intent(in)    :: input(2,0:ninput-1)
-        !f2py real(<vkind>)          :: output(2*noutput)
-        real(<vkind>), intent(inout) :: output(2,noutput)
+        !f2py real({{ combo.vkind }})          :: input(2*ninput)
+        real({{ combo.vkind }}), intent(in)    :: input(2,0:ninput-1)
+        !f2py real({{ combo.vkind }})          :: output(2*noutput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         !$omp parallel do private(col)
         do i = 1, noutput
@@ -379,22 +385,24 @@ contains
     end subroutine
 
 
-    subroutine fsr_rot3d_matvec_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsr_rot3d_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
                                          output, ncolmax, ninput, noutput)
-        integer, parameter           :: s = <isize> + 3 * <rsize>
+        integer, parameter           :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
         integer(int64), intent(in)   :: ncolmax
         integer(int64), intent(in)   :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=size(input)/3
         integer(int64), intent(in)   :: noutput
+        !f2py integer(int64), intent(in), optional, depend(output) :: noutput=size(output)/3
         !f2py integer*1, intent(in)  :: matrix(ncolmax*s*noutput)
-        type(PointingElementRot3d_i<isize>_r<rsize>), intent(in) ::            &
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
             matrix(ncolmax, noutput)
-        !f2py real(<vkind>)          :: input(3*ninput)
-        real(<vkind>), intent(in)    :: input(3,0:ninput-1)
-        !f2py real(<vkind>)          :: output(3*noutput)
-        real(<vkind>), intent(inout) :: output(3,noutput)
+        !f2py real({{ combo.vkind }})          :: input(3*ninput)
+        real({{ combo.vkind }}), intent(in)    :: input(3,0:ninput-1)
+        !f2py real({{ combo.vkind }})          :: output(3*noutput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
 
         integer(int64) :: i, j
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         !$omp parallel do private(col)
         do i = 1, noutput
@@ -412,25 +420,25 @@ contains
 
     end subroutine
 
+{% endif %}
+{% endfor %}
 
-    ! <ikind=int32,int32,int32,int64,int64,int64>
-    ! <isize=4,4,4,8,8,8>
-    ! <rkind=real32,real32,real64,real32,real32,real64>
-    ! <rsize=4,4,8,4,4,8>
-    ! <vkind=real32,real64,real64,real32,real64,real64>
-    ! <vsize=4,8,8,4,8,8>
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] and loop.index0 >= 6 and loop.index0 < 12 %}
 
-    subroutine fsc_fsr_ncolmax1_i<isize>_r<rsize>_v<vsize>(matrix, input,      &
+    subroutine fsc_fsr_ncolmax1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,      &
             ninput, noutput)
-        integer, parameter          :: s = <isize> + <rsize>
+        integer, parameter          :: s = {{ combo.isize }} + {{ combo.rsize }}
         integer(int64), intent(in)  :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=len(input)
         integer(int64), intent(in)  :: noutput
+        !f2py integer(int64), intent(in), optional, depend(matrix) :: noutput=len(matrix)/{{ combo.isize|int + combo.rsize|int }}
         !f2py integer*1, intent(in) :: matrix(s*noutput)
-        type(PointingElement_i<isize>_r<rsize>), intent(in) :: matrix(noutput)
-        real(<vkind>), intent(inout) :: input(0:ninput-1)
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) :: matrix(noutput)
+        real({{ combo.vkind }}), intent(inout) :: input(0:ninput-1)
 
         integer(int64)   :: i
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         !$omp parallel do private(col)
         do i = 1, noutput
@@ -444,18 +452,20 @@ contains
     end subroutine
 
 
-    subroutine fsc_fsr_rot2d_ncolmax1_i<isize>_r<rsize>_v<vsize>(matrix, input,&
+    subroutine fsc_fsr_rot2d_ncolmax1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,&
             ninput, noutput)
-        integer, parameter          :: s = <isize> + 2 * <rsize>
+        integer, parameter          :: s = {{ combo.isize }} + 2 * {{ combo.rsize }}
         integer(int64), intent(in)  :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=size(input)/2
         integer(int64), intent(in)  :: noutput
+        !f2py integer(int64), intent(in), optional, depend(matrix) :: noutput=len(matrix)/{{ combo.isize|int + 2 * combo.rsize|int }}
         !f2py integer*1, intent(in) :: matrix(s*noutput)
-        type(PointingElementRot2d_i<isize>_r<rsize>), intent(in) :: matrix(noutput)
-        !f2py real(<vkind>)          :: input(2*ninput)
-        real(<vkind>), intent(inout) :: input(2,0:ninput-1)
+        type(PointingElementRot2d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) :: matrix(noutput)
+        !f2py real({{ combo.vkind }})          :: input(2*ninput)
+        real({{ combo.vkind }}), intent(inout) :: input(2,0:ninput-1)
 
         integer(int64)   :: i
-        integer(<ikind>) :: col
+        integer({{ combo.ikind }}) :: col
 
         !$omp parallel do private(col)
         do i = 1, noutput
@@ -470,19 +480,21 @@ contains
     end subroutine
 
 
-    subroutine fsc_fsr_rot3d_ncolmax1_i<isize>_r<rsize>_v<vsize>(matrix, input,&
+    subroutine fsc_fsr_rot3d_ncolmax1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(matrix, input,&
             ninput, noutput)
-        integer, parameter          :: s = <isize> + 3 * <rsize>
+        integer, parameter          :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
         integer(int64), intent(in)  :: ninput
+        !f2py integer(int64), intent(in), optional, depend(input) :: ninput=size(input)/3
         integer(int64), intent(in)  :: noutput
+        !f2py integer(int64), intent(in), optional, depend(matrix) :: noutput=len(matrix)/{{ combo.isize|int + 3 * combo.rsize|int }}
         !f2py integer*1, intent(in) :: matrix(s*noutput)
-        type(PointingElementRot3d_i<isize>_r<rsize>), intent(in) :: matrix(noutput)
-        !f2py real(<vkind>)          :: input(3*ninput)
-        real(<vkind>), intent(inout) :: input(3,0:ninput-1)
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) :: matrix(noutput)
+        !f2py real({{ combo.vkind }})          :: input(3*ninput)
+        real({{ combo.vkind }}), intent(inout) :: input(3,0:ninput-1)
 
         integer(int64)   :: i
-        integer(<ikind>) :: col
-        real(<vkind>)    :: val
+        integer({{ combo.ikind }}) :: col
+        real({{ combo.vkind }})    :: val
 
         !$omp parallel do private(col, val)
         do i = 1, noutput
@@ -499,18 +511,20 @@ contains
 
     end subroutine
 
+{% endif %}
+{% endfor %}
 
-    ! <ikind=int8,int16,int32,int64>
-    ! <isize=1,2,4,8>
+{% for combo in combinations %}
+{% if combo.ikind in ['int8', 'int16', 'int32', 'int64'] and loop.index0 >= 12 %}
 
-    subroutine fsr_kernel_i<isize>(matrix, kernel, ncolmax, m, n, stride)
+    subroutine fsr_kernel_i{{ combo.isize }}(matrix, kernel, ncolmax, m, n, stride)
         integer(int64), intent(in)        :: ncolmax
         integer(int64), intent(in)        :: m
         integer(int64), intent(in)        :: n
         integer(int64), intent(in)        :: stride
         integer(int8), intent(in), target :: matrix(0:ncolmax*m*stride-1)
         logical(1), intent(inout)         :: kernel(0:n-1)
-        integer(<ikind>), pointer :: k
+        integer({{ combo.ikind }}), pointer :: k
         integer(int32), pointer :: val(:)
         integer(int64) :: i, j, pos
 
@@ -520,8 +534,8 @@ contains
                 pos = ((i - 1) * ncolmax + j - 1) * stride
                 call c_f_pointer(c_loc(matrix(pos)), k)
                 if (k < 0) cycle
-                call c_f_pointer(c_loc(matrix(pos + <isize>)), val,            &
-                                 [(stride - <isize>) / 4])
+                call c_f_pointer(c_loc(matrix(pos + {{ combo.isize }})), val,            &
+                                 [(stride - {{ combo.isize }}) / 4])
                 if (any(val /= 0)) kernel(k) = .false.
             end do
         end do
@@ -529,26 +543,26 @@ contains
 
     end subroutine
 
-    subroutine fsr_restrict_i<isize>(matrix, mask, ncolmax, m, n, stride, ncol)
+    subroutine fsr_restrict_i{{ combo.isize }}(matrix, mask, ncolmax, m, n, stride, ncol)
         integer(int64), intent(in)           :: ncolmax
         integer(int64), intent(in)           :: m
         integer(int64), intent(in)           :: n
         integer(int64), intent(in)           :: stride
         integer(int8), intent(inout), target :: matrix(0:ncolmax*m*stride-1)
         logical(1), intent(in)               :: mask(0:n-1)
-        integer(<ikind>), intent(out)        :: ncol
+        integer({{ combo.ikind }}), intent(out)        :: ncol
 
-        integer(<ikind>), pointer :: col
+        integer({{ combo.ikind }}), pointer :: col
         integer(int64) :: i, j, pos
-        integer(<ikind>) :: new_index(0:n-1)
+        integer({{ combo.ikind }}) :: new_index(0:n-1)
 
         ncol = 0
         do i = 0, n-1
             if (mask(i)) then
                 new_index(i) = ncol
-                ncol = ncol + 1_<ikind>
+                ncol = ncol + 1_{{ combo.ikind }}
             else
-                new_index(i) = -1_<ikind>
+                new_index(i) = -1_{{ combo.ikind }}
             end if
         end do
 
@@ -565,6 +579,9 @@ contains
 
 
     end subroutine
+
+{% endif %}
+{% endfor %}
 
 
 end module sparse

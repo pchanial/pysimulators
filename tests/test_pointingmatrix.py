@@ -14,7 +14,7 @@ CONSTRUCTOR_SHAPE_INPUT = (3, 4)
         PointingMatrix(
             np.zeros(CONSTRUCTOR_SHAPE, dtype=np.int64),
             CONSTRUCTOR_SHAPE_INPUT,
-            copy=False,
+            copy=None,
         ),
         PointingMatrix.empty(CONSTRUCTOR_SHAPE, CONSTRUCTOR_SHAPE_INPUT),
         PointingMatrix.zeros(CONSTRUCTOR_SHAPE, CONSTRUCTOR_SHAPE_INPUT),

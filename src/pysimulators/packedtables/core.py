@@ -507,7 +507,7 @@ class PackedTable:
         def func(x):
             x = np.asarray(x)
             out = np.empty((ntot,) + x.shape[1:], x.dtype)
-            nbytes = product(x.shape[1:]) * x.itemsize
+            nbytes = product(x.shape[1:]) * int(x.itemsize)
             self.comm.Allgatherv(
                 x.view(np.byte),
                 [
@@ -599,7 +599,7 @@ class PackedTable:
         """
         if x is None:
             return None
-        x = np.array(x, copy=False, ndmin=1, subok=True)
+        x = np.atleast_1d(x)
         if x.shape[0] not in (1, len(self)):
             raise ValueError(
                 f"Invalid input packed shape '{x.shape}'. The expected first dimension "

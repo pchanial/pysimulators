@@ -31,7 +31,7 @@ def get_datatypes_objects():
 
     m = Map(f, origin='upper', error=a * 2, coverage=a * 3)
 
-    mask = np.zeros((4, 3), np.bool8)
+    mask = np.zeros((4, 3), np.bool_)
     mask[0, 2] = True
     t = Tod(f, mask=mask)
     return q, f, m, t

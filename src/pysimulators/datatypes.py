@@ -539,7 +539,7 @@ class FitsArray(Quantity):
         # load array
         input = self.view(np.ndarray)
         if input.dtype.kind in ('b', 'i'):
-            input = np.array(input, np.int32, copy=False)
+            input = np.asarray(input, np.int32)
         d.set_np2arr(input.T)
 
         # load header
@@ -1051,7 +1051,7 @@ class Tod(FitsArray):
 
             try:
                 mask, junk = read_fits(data, 'mask', comm)
-                mask = mask.view(np.bool8)
+                mask = mask.view(np.bool_)
                 copy = False
             except Exception:  # FIXME
                 pass
@@ -1060,7 +1060,7 @@ class Tod(FitsArray):
             mask = data.mask
 
         if mask is not None:
-            result._mask = np.array(mask, np.bool8, copy=copy)
+            result._mask = np.array(mask, np.bool_, copy=copy)
 
         return result
 
@@ -1076,18 +1076,18 @@ class Tod(FitsArray):
 
         # enforce bool8 dtype
         if not isinstance(mask, np.ndarray):
-            mask = np.array(mask, np.bool8)
-        elif mask.dtype.type != np.bool8:
+            mask = np.array(mask, np.bool_)
+        elif mask.dtype.type != np.bool_:
             if mask.dtype.itemsize == 1:
-                mask = mask.view(np.bool8)
+                mask = mask.view(np.bool_)
             else:
-                mask = np.asarray(mask, np.bool8)
+                mask = np.asarray(mask, np.bool_)
 
         # handle the scalar case
         if mask.ndim == 0:
             if self._mask is None:
                 func = np.zeros if mask == 0 else np.ones
-                self._mask = func(self.shape, dtype=np.bool8)
+                self._mask = func(self.shape, dtype=np.bool_)
             else:
                 self._mask[:] = mask
             return

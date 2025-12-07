@@ -54,13 +54,15 @@ def angle_lonlat(lon1, lat1, lon2=None, lat2=None):
     if lon2 is None and lat2 is None:
         lon2, lat2 = lat1
         lon1, lat1 = lon1
-    lon1 = np.array(lon1, float, ndmin=1, copy=False).ravel()
-    lat1 = np.array(lat1, float, ndmin=1, copy=False).ravel()
-    lon2 = np.array(lon2, float, ndmin=1, copy=False).ravel()
-    lat2 = np.array(lat2, float, ndmin=1, copy=False).ravel()
-    angle = flib.wcsutils.angle_lonlat(lon1, lat1, lon2, lat2)
-    if angle.size == 1:
-        angle = float(angle)
+    lon1 = np.asarray(lon1, float)
+    lat1 = np.asarray(lat1, float)
+    lon2 = np.asarray(lon2, float)
+    lat2 = np.asarray(lat2, float)
+    angle = flib.wcsutils.angle_lonlat(
+        lon1.ravel(), lat1.ravel(), lon2.ravel(), lat2.ravel()
+    )
+    if all(_.ndim == 0 for _ in (lon1, lat1, lon2, lat2)):
+        angle = angle[0]
     return angle
 
 
@@ -75,8 +77,8 @@ def barycenter_lonlat(lon, lat):
     lat : array of numbers
         Latitude in degrees.
     """
-    lon = np.array(lon, float, ndmin=1, copy=False).ravel()
-    lat = np.array(lat, float, ndmin=1, copy=False).ravel()
+    lon = np.atleast_1d(np.asarray(lon, float)).ravel()
+    lat = np.atleast_1d(np.asarray(lat, float)).ravel()
     return flib.wcsutils.barycenter_lonlat(lon, lat)
 
 
@@ -228,7 +230,7 @@ def create_fitsheader(
             'will be removed in an upcoming release. Use the function create'
             '_fitsheader_for instead.'
         )
-        array = np.array(fromdata, copy=False)
+        array = np.asarray(fromdata)
         naxes = tuple(reversed(array.shape))
         if dtype is not None:
             array = array.astype(dtype)
