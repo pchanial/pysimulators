@@ -77,9 +77,7 @@ def test_partitioning_chunk(cls, partitionin, value, key):
     nn = (
         max(n1, n2)
         if partitionin is None
-        else 1
-        if isscalarlike(partitionin)
-        else len(partitionin)
+        else 1 if isscalarlike(partitionin) else len(partitionin)
     )
     if n1 != n2 and not isscalarlike(value) and not isscalarlike(key):
         # the partitioned arguments do not have the same length
