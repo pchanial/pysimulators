@@ -539,7 +539,7 @@ class FitsArray(Quantity):
         # load array
         input = self.view(np.ndarray)
         if input.dtype.kind in ('b', 'i'):
-            input = np.array(input, np.int32, copy=False)
+            input = np.asarray(input, np.int32)
         d.set_np2arr(input.T)
 
         # load header

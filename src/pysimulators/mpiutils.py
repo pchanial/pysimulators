@@ -325,7 +325,7 @@ def write_fits(filename, data, header, extension, extname, comm):
 
     # pad FITS file with zeros
     if comm.rank == 0:
-        datasize = nglobal * chunk * data.dtype.itemsize
+        datasize = nglobal * chunk * int(data.dtype.itemsize)
         BLOCK_SIZE = 2880
         padding = BLOCK_SIZE - (datasize % BLOCK_SIZE)
         with open(filename, 'a') as f:

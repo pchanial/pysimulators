@@ -474,9 +474,9 @@ def profile(input, bin=1, nbins=None, histogram=False, center=None, scale=1):
         The inter-pixel distance.
 
     """
-    input = np.array(input, order='c', copy=False)
+    input = np.asarray(input, order='c')
     dtype = float_intrinsic_dtype(input.dtype)
-    input = np.array(input, dtype=dtype, copy=False)
+    input = np.asarray(input, dtype=dtype)
     if center is None:
         center = (np.array(input.shape[::-1], dtype) - 1) / 2
     else:
