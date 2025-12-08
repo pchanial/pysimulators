@@ -59,6 +59,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
+    "pytest-insubprocess>=1.2",
 ]
 
 [project.urls]

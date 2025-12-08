@@ -1,6 +1,6 @@
 project('pysimulators',
   'c', 'fortran',
-  version: run_command('python3', '-c',
+  version: run_command('python', '-c',
     'from setuptools_scm import get_version; print(get_version())',
     check: false).stdout().strip(),
   meson_version: '>= 1.1.0',

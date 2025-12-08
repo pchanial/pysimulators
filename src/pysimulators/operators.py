@@ -585,7 +585,7 @@ class PointingMatrix(FitsArray):
 
     def get_mask(self, out=None):
         if out is None:
-            out = empty(self.shape_input, np.bool8, description='as new mask')
+            out = empty(self.shape_input, np.bool_, description='as new mask')
             out[...] = True
         elif out.dtype != bool:
             raise TypeError('The output mask argument has an invalid type.')
@@ -704,7 +704,7 @@ class ProjectionBaseOperator(Operator):
         if out is None:
             out = empty((npixels, npixels), bool, description='for pTp array')
             out[...] = 0
-        elif out.dtype != np.bool8:
+        elif out.dtype != np.bool_:
             raise TypeError('The output ptp argument has an invalid type.')
         elif out.shape != (npixels, npixels):
             raise ValueError('The output ptp argument has an incompatible shap' 'e.')
@@ -836,7 +836,7 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         self.set_rule((DiagonalOperator, '.'), self._rule_diagonal, CompositionOperator)
 
     def apply_mask(self, mask):
-        mask = np.asarray(mask, np.bool8)
+        mask = np.asarray(mask, np.bool_)
         matrix = self.matrix
         if mask.shape != self.shapeout:
             raise ValueError(

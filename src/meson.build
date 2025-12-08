@@ -26,6 +26,7 @@ py.install_sources(
 py.install_sources(
   [
     'pysimulators/interfaces/__init__.py',
+    'pysimulators/interfaces/madmap1.py',
   ],
   preserve_path: true,
 )
@@ -34,6 +35,8 @@ py.install_sources(
 py.install_sources(
   [
     'pysimulators/interfaces/healpy/__init__.py',
+    'pysimulators/interfaces/healpy/operators.py',
+    'pysimulators/interfaces/healpy/scenes.py',
   ],
   preserve_path: true,
 )
