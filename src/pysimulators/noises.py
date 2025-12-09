@@ -184,7 +184,8 @@ def _interp(z, x, y, out=None):
     y = np.asarray(y)
     if out is None:
         out = empty(y.shape[:-1] + (z.size,))
-    z = np.array(z, ndmin=1, copy=False)
+    z = np.asarray(z)
+    z = np.atleast_1d(z)
     ix = 1
     x1 = x[0]
     x2 = x[1]

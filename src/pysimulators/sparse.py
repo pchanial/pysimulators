@@ -115,7 +115,7 @@ class _FSMatrix:
         if out is None:
             out = np.zeros(
                 v.size * self.shape[0] // self.shape[1],
-                np.find_common_type([self.dtype, v.dtype], []),
+                np.result_type(self.dtype, v.dtype),
             )
         elif not isinstance(out, np.ndarray):
             raise TypeError('The output array is not an ndarray.')

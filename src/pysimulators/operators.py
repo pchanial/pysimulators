@@ -585,7 +585,7 @@ class PointingMatrix(FitsArray):
 
     def get_mask(self, out=None):
         if out is None:
-            out = empty(self.shape_input, np.bool8, description='as new mask')
+            out = empty(self.shape_input, np.bool_, description='as new mask')
             out[...] = True
         elif out.dtype != bool:
             raise TypeError('The output mask argument has an invalid type.')
@@ -704,7 +704,7 @@ class ProjectionBaseOperator(Operator):
         if out is None:
             out = empty((npixels, npixels), bool, description='for pTp array')
             out[...] = 0
-        elif out.dtype != np.bool8:
+        elif out.dtype != np.bool_:
             raise TypeError('The output ptp argument has an invalid type.')
         elif out.shape != (npixels, npixels):
             raise ValueError('The output ptp argument has an incompatible shap' 'e.')
@@ -836,7 +836,7 @@ class ProjectionInMemoryOperator(ProjectionBaseOperator):
         self.set_rule((DiagonalOperator, '.'), self._rule_diagonal, CompositionOperator)
 
     def apply_mask(self, mask):
-        mask = np.asarray(mask, np.bool8)
+        mask = np.asarray(mask, np.bool_)
         matrix = self.matrix
         if mask.shape != self.shapeout:
             raise ValueError(
@@ -970,7 +970,7 @@ class ProjectionOperator(SparseOperator):
             operation(out, True)
             return out
 
-        i, m = (_.dtype.itemsize for _ in (data.index, self.matrix))
+        i, m = (int(_.dtype.itemsize) for _ in (data.index, self.matrix))
         f = f'fsr{self._flib_id}_kernel_i{i}_r{m}'
         n = product(shape)
         if hasattr(flib.operators, f):
@@ -1038,7 +1038,7 @@ class ProjectionOperator(SparseOperator):
             else:
                 kernel = np.ones_like(out)
 
-            f = f'fsr_kernel_i{itype.itemsize}'
+            f = f'fsr_kernel_i{int(itype.itemsize)}'
             func = getattr(flib.sparse, f)
             func(
                 data.view(np.int8).ravel(),
@@ -1084,9 +1084,9 @@ class ProjectionOperator(SparseOperator):
         if operation not in (operation_assignment, operator.iadd):
             raise ValueError('Invalid reduction operation.')
 
-        isize = self.matrix.data.index.dtype.itemsize
-        rsize = self.matrix.dtype.itemsize
-        vsize = out.dtype.itemsize
+        isize = int(self.matrix.data.index.dtype.itemsize)
+        rsize = int(self.matrix.dtype.itemsize)
+        vsize = int(out.dtype.itemsize)
         f = f'fsr{self._flib_id}_pt1_i{isize}_r{rsize}_v{vsize}'
         if hasattr(flib.operators, f):
             if operation is operation_assignment:
@@ -1170,9 +1170,9 @@ class ProjectionOperator(SparseOperator):
         if operation not in (operation_assignment, operator.iadd):
             raise ValueError('Invalid reduction operation.')
 
-        isize = self.matrix.data.index.dtype.itemsize
-        rsize = self.matrix.dtype.itemsize
-        vsize = dtypeout.itemsize
+        isize = int(self.matrix.data.index.dtype.itemsize)
+        rsize = int(self.matrix.dtype.itemsize)
+        vsize = int(dtypeout.itemsize)
         f = f'fsr{self._flib_id}_ptx_pt1_i{isize}_r{rsize}_v{vsize}'
         if hasattr(flib.operators, f):
             if operation is operation_assignment:
@@ -1330,9 +1330,7 @@ class _CartesianEquatorialHorizontal(DenseBlockDiagonalOperator):
         lst = np.radians(lst * 15)
         latitude = np.radians(latitude)
         if dtype is None:
-            dtype = np.find_common_type(
-                [float_dtype(lst.dtype), float_dtype(latitude.dtype)], []
-            )
+            dtype = np.result_type(float_dtype(lst.dtype), float_dtype(latitude.dtype))
         slat = np.sin(latitude)
         clat = np.cos(latitude)
         slst = np.sin(lst)

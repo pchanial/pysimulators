@@ -1,0 +1,540 @@
+{# variables: ikind=int32,int32,int32,int64,int64,int64,real32,real64; isize=4,4,4,8,8,8,4,8; rkind=real32,real32,real64,real32,real32,real64,real32,real64; rsize=4,4,8,4,4,8,4,8; vkind=real32,real64,real64,real32,real64,real64,real32,real64; vsize=4,8,8,4,8,8,4,8 #}
+module module_operators
+
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
+    use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
+    use module_pointingmatrix
+    implicit none
+
+contains
+
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] %}
+    subroutine fsc_block_1_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(1,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
+        type(PointingElementBlock_1_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp critical
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)
+                output(2,k) = output(2,k) + matrix(j,i)%value(2,1) * input(1,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_1_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(1,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
+        type(PointingElementBlock_1_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp critical
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)
+                output(2,k) = output(2,k) + matrix(j,i)%value(2,1) * input(1,i)
+                output(3,k) = output(3,k) + matrix(j,i)%value(3,1) * input(1,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_2_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(2,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(1,0:noutput-1)
+        type(PointingElementBlock_2_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp atomic
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)&
+                                          + matrix(j,i)%value(1,2) * input(2,i)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_2_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(2,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
+        type(PointingElementBlock_2_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp critical
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)&
+                                          + matrix(j,i)%value(1,2) * input(2,i)
+                output(2,k) = output(2,k) + matrix(j,i)%value(2,1) * input(1,i)&
+                                          + matrix(j,i)%value(2,2) * input(2,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_2_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(2,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
+        type(PointingElementBlock_2_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp critical
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)&
+                                          + matrix(j,i)%value(1,2) * input(2,i)
+                output(2,k) = output(2,k) + matrix(j,i)%value(2,1) * input(1,i)&
+                                          + matrix(j,i)%value(2,2) * input(2,i)
+                output(3,k) = output(3,k) + matrix(j,i)%value(3,1) * input(1,i)&
+                                          + matrix(j,i)%value(3,2) * input(2,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_3_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(3,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(1,0:noutput-1)
+        type(PointingElementBlock_3_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp atomic
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)&
+                                          + matrix(j,i)%value(1,2) * input(2,i)&
+                                          + matrix(j,i)%value(1,3) * input(3,i)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_3_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(3,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(2,0:noutput-1)
+        type(PointingElementBlock_3_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp critical
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)&
+                                          + matrix(j,i)%value(1,2) * input(2,i)&
+                                          + matrix(j,i)%value(1,3) * input(3,i)
+                output(2,k) = output(2,k) + matrix(j,i)%value(2,1) * input(1,i)&
+                                          + matrix(j,i)%value(2,2) * input(2,i)&
+                                          + matrix(j,i)%value(2,3) * input(3,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsc_block_3_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(3,ninput)
+        real({{ combo.vkind }}), intent(inout) :: output(3,0:noutput-1)
+        type(PointingElementBlock_3_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: k
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(k)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                k = matrix(j,i)%index
+                if (k < 0) cycle
+                !$omp critical
+                output(1,k) = output(1,k) + matrix(j,i)%value(1,1) * input(1,i)&
+                                          + matrix(j,i)%value(1,2) * input(2,i)&
+                                          + matrix(j,i)%value(1,3) * input(3,i)
+                output(2,k) = output(2,k) + matrix(j,i)%value(2,1) * input(1,i)&
+                                          + matrix(j,i)%value(2,2) * input(2,i)&
+                                          + matrix(j,i)%value(2,3) * input(3,i)
+                output(3,k) = output(3,k) + matrix(j,i)%value(3,1) * input(1,i)&
+                                          + matrix(j,i)%value(3,2) * input(2,i)&
+                                          + matrix(j,i)%value(3,3) * input(3,i)
+                !$omp end critical
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_1_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(2,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(1,noutput)
+        type(PointingElementBlock_1_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                    matrix(j,i)%value(1,1) * input(1,col) +                    &
+                    matrix(j,i)%value(2,1) * input(2,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_1_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(3,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(1,noutput)
+        type(PointingElementBlock_1_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                    matrix(j,i)%value(1,1) * input(1,col) +                    &
+                    matrix(j,i)%value(2,1) * input(2,col) +                    &
+                    matrix(j,i)%value(3,1) * input(3,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_2_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(1,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
+        type(PointingElementBlock_2_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                     matrix(j,i)%value(1,1) * input(1,col)
+                output(2,i) = output(2,i) +                                    &
+                     matrix(j,i)%value(1,2) * input(1,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_2_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(2,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
+        type(PointingElementBlock_2_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                    matrix(j,i)%value(1,1) * input(1,col) +                    &
+                    matrix(j,i)%value(2,1) * input(2,col)
+                output(2,i) = output(2,i) +                                    &
+                    matrix(j,i)%value(1,2) * input(1,col) +                    &
+                    matrix(j,i)%value(2,2) * input(2,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_2_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(3,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(2,noutput)
+        type(PointingElementBlock_2_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                    matrix(j,i)%value(1,1) * input(1,col) +                    &
+                    matrix(j,i)%value(2,1) * input(2,col) +                    &
+                    matrix(j,i)%value(3,1) * input(3,col)
+                output(2,i) = output(2,i) +                                    &
+                    matrix(j,i)%value(1,2) * input(1,col) +                    &
+                    matrix(j,i)%value(2,2) * input(2,col) +                    &
+                    matrix(j,i)%value(3,2) * input(3,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_3_1_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(1,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
+        type(PointingElementBlock_3_1_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                     matrix(j,i)%value(1,1) * input(1,col)
+                output(2,i) = output(2,i) +                                    &
+                     matrix(j,i)%value(1,2) * input(1,col)
+                output(3,i) = output(3,i) +                                    &
+                     matrix(j,i)%value(1,3) * input(1,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_3_2_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(2,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
+        type(PointingElementBlock_3_2_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                    matrix(j,i)%value(1,1) * input(1,col) +                    &
+                    matrix(j,i)%value(2,1) * input(2,col)
+                output(2,i) = output(2,i) +                                    &
+                    matrix(j,i)%value(1,2) * input(1,col) +                    &
+                    matrix(j,i)%value(2,2) * input(2,col)
+                output(3,i) = output(3,i) +                                    &
+                    matrix(j,i)%value(1,3) * input(1,col) +                    &
+                    matrix(j,i)%value(2,3) * input(2,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+    subroutine fsr_block_3_3_matvec_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.vsize }}(data, input, output, ninput, noutput, ncolmax)
+        integer(int64), intent(in) :: ninput, noutput, ncolmax
+        type(c_ptr), intent(in) :: data
+        real({{ combo.vkind }}), intent(in) :: input(3,0:ninput-1)
+        real({{ combo.vkind }}), intent(inout) :: output(3,noutput)
+        type(PointingElementBlock_3_3_i{{ combo.isize }}_r{{ combo.rsize }}), pointer :: matrix(:,:)
+        integer(int64) :: i, j
+        integer({{ combo.ikind }}) :: col
+
+        call c_f_pointer(data, matrix, shape=[ncolmax, noutput])
+        !$omp parallel do private(col)
+        do i = 1, noutput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                output(1,i) = output(1,i) +                                    &
+                    matrix(j,i)%value(1,1) * input(1,col) +                    &
+                    matrix(j,i)%value(2,1) * input(2,col) +                    &
+                    matrix(j,i)%value(3,1) * input(3,col)
+                output(2,i) = output(2,i) +                                    &
+                    matrix(j,i)%value(1,2) * input(1,col) +                    &
+                    matrix(j,i)%value(2,2) * input(2,col) +                    &
+                    matrix(j,i)%value(3,2) * input(3,col)
+                output(3,i) = output(3,i) +                                    &
+                    matrix(j,i)%value(1,3) * input(1,col) +                    &
+                    matrix(j,i)%value(2,3) * input(2,col) +                    &
+                    matrix(j,i)%value(3,3) * input(3,col)
+            end do
+        end do
+        !$omp end parallel do
+    end subroutine
+
+{% if not loop.last and combo.ikind in ['int32', 'int64'] %}
+
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for combo in combinations %}
+{% if combo.ikind in ['real32', 'real64'] %}
+    subroutine trexp_direct_inplace_r{{ combo.rsize }}(input, tau)
+        real({{ combo.rkind }}), intent(inout) :: input(:)
+        real({{ combo.rkind }}), intent(in)    :: tau
+        integer(int64) :: i
+        real({{ combo.rkind }}) :: v, w
+
+        if (tau == 0) then
+            return
+        else if (tau < 0) then
+            input = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        do i = 2, size(input)
+            input(i) = w * input(i-1) + v * input(i)
+        end do
+
+    end subroutine
+
+
+    subroutine trexp_direct_outplace_r{{ combo.rsize }}(input, output, tau)
+        real({{ combo.rkind }}), intent(in)    :: input(:)
+        real({{ combo.rkind }}), intent(inout) :: output(size(input))
+        real({{ combo.rkind }}), intent(in)    :: tau
+        integer(int64) :: i
+        real({{ combo.rkind }}) :: v, w
+
+        if (tau == 0) then
+            output = input
+            return
+        else if (tau < 0) then
+            output = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        output(1) = input(1)
+        do i = 2, size(input)
+            output(i) = w * output(i-1) + v * input(i)
+        end do
+
+    end subroutine
+
+
+    subroutine trexp_transpose_inplace_r{{ combo.rsize }}(input, tau)
+        real({{ combo.rkind }}), intent(inout) :: input(:)
+        real({{ combo.rkind }}), intent(in)    :: tau
+        integer(int64) :: n, i
+        real({{ combo.rkind }}) :: v, w
+
+        n = size(input)
+        if (tau == 0) then
+            return
+        else if (tau < 0) then
+            input = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        do i = n - 1, 1, -1
+            input(i) = w * input(i+1) + v * input(i)
+        end do
+        input(1) = input(1) / v
+
+    end subroutine
+
+
+    subroutine trexp_transpose_outplace_r{{ combo.rsize }}(input, output, tau)
+        real({{ combo.rkind }}), intent(in)    :: input(:)
+        real({{ combo.rkind }}), intent(inout) :: output(size(input))
+        real({{ combo.rkind }}), intent(in)    :: tau
+        integer(int64) :: n, i
+        real({{ combo.rkind }}) :: v, w
+
+        n = size(input)
+        if (tau == 0) then
+            output = input
+        else if (tau < 0) then
+            output = 0
+            return
+        end if
+        w = exp(-1 / tau)
+        v = 1 - w
+        output(n) = v * input(n)
+        do i = n - 1, 1, -1
+            output(i) = w * output(i+1) + v * input(i)
+        end do
+        output(1) = output(1) / v
+
+    end subroutine
+
+{% if not loop.last %}
+
+{% endif %}
+{% endif %}
+{% endfor %}
+
+end module module_operators

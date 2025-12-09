@@ -1,0 +1,46 @@
+{# variables: ikind=int32,int32,int64,int64; isize=4,4,8,8; rkind=real32,real64,real32,real64; rsize=4,8,4,8 #}
+module module_math
+
+    use, intrinsic :: iso_fortran_env, only :                                  &
+        int32, int64, real32, real64, real128
+    implicit none
+
+    real(real32), parameter :: NAN_4  = real(z'FFFFFFFF', real32)
+    real(real32), parameter :: MINF_4 = real(z'FF700000', real32)
+    real(real32), parameter :: PINF_4 = real(z'7F700000', real32)
+    real(real32), parameter :: PI_4 = 4._real32 * atan(1._real32)
+    real(real64), parameter :: NAN_8  = real(z'FFF800000000000', real64)
+    real(real64), parameter :: MINF_8 = real(z'FFF000000000000', real64)
+    real(real64), parameter :: PINF_8 = real(z'7FF0000000000000', real64)
+    real(real64), parameter :: PI_8 = 4._real64 * atan(1._real64)
+{% if PRECISION_REAL == 16 %}
+    real(real128), parameter :: NAN_16  = real(z'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', real128)
+    real(real128), parameter :: MINF_16 = real(z'FFFF0000000000000000000000000000', real128)
+    real(real128), parameter :: PINF_16 = real(z'7FFF0000000000000000000000000000', real128)
+    real(real128), parameter :: PI_16 = 4._real128 * atan(1._real128)
+{% endif %}
+
+contains
+
+{% for combo in combinations %}
+    elemental function round_htmi_i{{ combo.isize }}_r{{ combo.rsize }}(x) result(y)
+        real({{ combo.rkind }}), intent(in) :: x
+        integer({{ combo.ikind }})          :: y
+        y = ceiling(x - 0.5_{{ combo.rkind }}, {{ combo.ikind }})
+    end function
+
+
+    !---------------------------------------------------------------------------
+
+
+    elemental function round_htpi_i{{ combo.isize }}_r{{ combo.rsize }}(x) result(y)
+        real({{ combo.rkind }}), intent(in) :: x
+        integer({{ combo.ikind }})          :: y
+        y = floor(x + 0.5_{{ combo.rkind }}, {{ combo.ikind }})
+    end function
+
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+end module module_math

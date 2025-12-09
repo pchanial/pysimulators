@@ -1,0 +1,2 @@
+option('precision_real', type: 'integer', value: 8,
+       description: 'Fortran real precision (4, 8, or 16)')

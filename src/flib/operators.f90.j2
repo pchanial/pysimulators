@@ -1,0 +1,429 @@
+{# variables: ikind=int32,int32,int64,int64,int32,int32,int32,int64,int64,int64,int32,int32,int32,int64,int64,int64,real32,real64; isize=4,4,8,8,4,4,4,8,8,8,4,4,4,8,8,8,4,8; rkind=real32,real64,real32,real64,real32,real32,real64,real32,real32,real64,real32,real64,real32,real64,real32,real64,real32,real64; rsize=4,8,4,8,4,4,8,4,4,8,4,8,4,8,4,8,4,8 #}
+module operators
+
+    use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
+    use module_pointingmatrix
+    implicit none
+
+contains
+
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] and combo.rsize in [4, 8] and combo.isize <= 8 %}
+    subroutine fsr_kernel_i{{ combo.isize }}_r{{ combo.rsize }}(matrix, kernel, ncolmax, m, n)
+        integer, parameter          :: s = {{ combo.isize }} + {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: m
+        integer(int64), intent(in)       :: n
+        !f2py integer*1, intent(in) :: matrix(ncolmax*m*s)
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
+            matrix(ncolmax, m)
+        logical(1), intent(inout)   :: kernel(0:n-1)
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0 .or. matrix(j,i)%value == 0) cycle
+                kernel(col) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_rot2d_kernel_i{{ combo.isize }}_r{{ combo.rsize }}(matrix, kernel, ncolmax, m, n)
+        integer, parameter          :: s = {{ combo.isize }} + 2 * {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: m
+        integer(int64), intent(in)       :: n
+        !f2py integer*1, intent(in) :: matrix(ncolmax*m*s)
+        type(PointingElementRot2d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
+            matrix(ncolmax, m)
+        logical(1), intent(inout)   :: kernel(0:n-1)
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0 .or.                                               &
+                    matrix(j,i)%r11 == 0 .and. matrix(j,i)%r21 == 0) cycle
+                kernel(col) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_rot3d_kernel_i{{ combo.isize }}_r{{ combo.rsize }}(matrix, kernel, ncolmax, m, n)
+        integer, parameter          :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(in) :: matrix(ncolmax*m*s)
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
+            matrix(ncolmax, m)
+        logical(1), intent(inout)   :: kernel(0:n-1)
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0 .or. matrix(j,i)%r11 == 0) cycle
+                kernel(col) = .false.
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+{% endif %}
+{% endfor %}
+
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] and combo.isize in [4, 8] and loop.index0 < 12 %}
+    subroutine fsr_pT1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.isize }}(matrix, pT1, ncolmax, ninput,&
+                                noutput)
+        integer, parameter          :: s = {{ combo.isize }} + {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: ninput
+        integer(int64), intent(in)       :: noutput
+        !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
+            matrix(ncolmax, ninput)
+        real({{ combo.rkind }}), intent(inout) :: pT1(0:noutput-1)
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                !$omp atomic
+                pT1(col) = pT1(col) + matrix(j,i)%value
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_rot2d_pT1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.isize }}(matrix, pT1, ncolmax,  &
+                                      ninput, noutput)
+        integer, parameter          :: s = {{ combo.isize }} + 2 * {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: ninput
+        integer(int64), intent(in)       :: noutput
+        !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
+        type(PointingElementRot2d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
+            matrix(ncolmax, ninput)
+        real({{ combo.rkind }}), intent(inout) :: pT1(0:noutput-1)
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                !$omp atomic
+                pT1(col) = pT1(col) + sqrt(matrix(j,i)%r11**2 +                &
+                     matrix(j,i)%r21**2)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_rot3d_pT1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.isize }}(matrix, pT1, ncolmax,  &
+                                      ninput, noutput)
+        integer, parameter          :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: ninput
+        integer(int64), intent(in)       :: noutput
+        !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
+            matrix(ncolmax, ninput)
+        real({{ combo.rkind }}), intent(inout) :: pT1(0:noutput-1)
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                !$omp atomic
+                pT1(col) = pT1(col) + matrix(j,i)%r11
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_pTx_pT1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.isize }}(matrix, input, pTx, pT1, &
+                                    ncolmax, ninput, noutput)
+        integer, parameter          :: s = {{ combo.isize }} + {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: ninput
+        integer(int64), intent(in)       :: noutput
+        !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::                 &
+            matrix(ncolmax, ninput)
+        real({{ combo.rkind }}), intent(in)    :: input(ninput)
+        real({{ combo.rkind }}), intent(inout) :: pTx(0:noutput-1)
+        real({{ combo.rkind }}), intent(inout) :: pT1(0:noutput-1)
+        real({{ combo.rkind }}) :: val
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col, val)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                val = matrix(j,i)%value
+                !$omp atomic
+                pTx(col) = pTx(col) + val * input(i)
+                !$omp atomic
+                pT1(col) = pT1(col) + val
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+
+    subroutine fsr_rot3d_pTx_pT1_i{{ combo.isize }}_r{{ combo.rsize }}_v{{ combo.isize }}(matrix, input, pTx,&
+                                          pT1, ncolmax, ninput, noutput)
+        integer, parameter          :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
+        integer(int64), intent(in)       :: ncolmax
+        integer(int64), intent(in)       :: ninput
+        integer(int64), intent(in)       :: noutput
+        !f2py integer*1, intent(in) :: matrix(ncolmax*ninput*s)
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(in) ::            &
+            matrix(ncolmax, ninput)
+        real({{ combo.rkind }}), intent(in)    :: input(3,ninput)
+        real({{ combo.rkind }}), intent(inout) :: pTx(0:noutput-1)
+        real({{ combo.rkind }}), intent(inout) :: pT1(0:noutput-1)
+        real({{ combo.rkind }}) :: val
+        integer({{ combo.ikind }}) :: col
+        integer(int64) :: i, j
+
+        !$omp parallel do private(col, val)
+        do i = 1, ninput
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                val = matrix(j,i)%r11
+                !$omp atomic
+                pTx(col) = pTx(col) + val * input(1,i)
+                !$omp atomic
+                pT1(col) = pT1(col) + val
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+{% endif %}
+{% endfor %}
+
+{% for combo in combinations %}
+{% if combo.ikind in ['int32', 'int64'] and combo.isize in [4, 8] and loop.index0 >= 12 and loop.index0 < 16 %}
+    subroutine fsr_restrict_i{{ combo.isize }}_r{{ combo.rsize }}(matrix, mask, ncolmax, m, n, ncol)
+        integer, parameter          :: s = {{ combo.isize }} + {{ combo.rsize }}
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(inout) :: matrix(ncolmax*m*s)
+        type(PointingElement_i{{ combo.isize }}_r{{ combo.rsize }}), intent(inout) ::              &
+            matrix(ncolmax, m)
+        logical*1, intent(in)         :: mask(0:n-1)
+        integer({{ combo.ikind }}), intent(out) :: ncol
+        integer({{ combo.ikind }})              :: new_index(0:n-1), col
+        integer(int64)                :: i, j
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1
+            else
+                new_index(i) = -1
+            end if
+        end do
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                matrix(j,i)%index = new_index(col)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+    subroutine fsr_rot2d_restrict_i{{ combo.isize }}_r{{ combo.rsize }}(matrix, mask, ncolmax, m,  &
+                                                    n, ncol)
+        integer, parameter          :: s = {{ combo.isize }} + 2 * {{ combo.rsize }}
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(inout) :: matrix(ncolmax*m*s)
+        type(PointingElementRot2d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(inout) ::         &
+            matrix(ncolmax, m)
+        logical*1, intent(in)         :: mask(0:n-1)
+        integer({{ combo.ikind }}), intent(out) :: ncol
+        integer({{ combo.ikind }})              :: new_index(0:n-1), col
+        integer(int64)                :: i, j
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1
+            else
+                new_index(i) = -1
+            end if
+        end do
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                matrix(j,i)%index = new_index(col)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+    subroutine fsr_rot3d_restrict_i{{ combo.isize }}_r{{ combo.rsize }}(matrix, mask, ncolmax, m,  &
+                                                    n, ncol)
+        integer, parameter          :: s = {{ combo.isize }} + 3 * {{ combo.rsize }}
+        integer(int64), intent(in)  :: ncolmax
+        integer(int64), intent(in)  :: m
+        integer(int64), intent(in)  :: n
+        !f2py integer*1, intent(inout) :: matrix(ncolmax*m*s)
+        type(PointingElementRot3d_i{{ combo.isize }}_r{{ combo.rsize }}), intent(inout) ::         &
+            matrix(ncolmax, m)
+        logical*1, intent(in)         :: mask(0:n-1)
+        integer({{ combo.ikind }})              :: new_index(0:n-1), col
+        integer({{ combo.ikind }}), intent(out) :: ncol
+        integer(int64)                :: i, j
+
+        ncol = 0
+        do i = 0, n-1
+            if (mask(i)) then
+                new_index(i) = ncol
+                ncol = ncol + 1
+            else
+                new_index(i) = -1
+            end if
+        end do
+
+        !$omp parallel do private(col)
+        do i = 1, m
+            do j = 1, ncolmax
+                col = matrix(j,i)%index
+                if (col < 0) cycle
+                matrix(j,i)%index = new_index(col)
+            end do
+        end do
+        !$omp end parallel do
+
+    end subroutine
+
+{% endif %}
+{% endfor %}
+
+{% for combo in combinations %}
+{% if combo.ikind in ['real32', 'real64'] %}
+    subroutine trexp_direct_r{{ combo.rsize }}(input, ninputs, ndetectors, isize,        &
+            istride, output, noutputs, osize, ostride, tau, ntaus)
+
+        use module_operators, only : trexp_direct_inplace_r{{ combo.rsize }},            &
+                                     trexp_direct_outplace_r{{ combo.rsize }}
+        integer(int64), intent(in)   :: ninputs, ndetectors, isize, istride
+        integer(int64), intent(in)   :: noutputs, osize, ostride, ntaus
+        real({{ combo.rkind }}), intent(inout) :: input(ninputs)
+        real({{ combo.rkind }}), intent(inout) :: output(noutputs)
+        real({{ combo.rkind }}), intent(in)    :: tau(ntaus)
+
+        integer(int64) :: i
+
+        if (loc(input) == loc(output)) then
+            !$omp parallel do
+            do i = 1, ndetectors
+                call trexp_direct_inplace_r{{ combo.rsize }}(                            &
+                         input((i-1)*istride+1:(i-1)*istride+isize),           &
+                         tau(min(i, ntaus)))
+            end do
+            !$omp end parallel do
+        else
+            !$omp parallel do
+            do i = 1, ndetectors
+                call trexp_direct_outplace_r{{ combo.rsize }}(                           &
+                         input((i-1)*istride+1:(i-1)*istride+isize),           &
+                         output((i-1)*ostride+1:(i-1)*ostride+osize),          &
+                         tau(min(i, ntaus)))
+            end do
+            !$omp end parallel do
+        end if
+
+    end subroutine
+
+
+    subroutine trexp_transpose_r{{ combo.rsize }}(input, ninputs, ndetectors, isize,     &
+            istride, output, noutputs, osize, ostride, tau, ntaus)
+
+        use module_operators, only : trexp_transpose_inplace_r{{ combo.rsize }},         &
+                                     trexp_transpose_outplace_r{{ combo.rsize }}
+        integer(int64), intent(in)   :: ninputs, ndetectors, isize, istride
+        integer(int64), intent(in)   :: noutputs, osize, ostride, ntaus
+        real({{ combo.rkind }}), intent(inout) :: input(ninputs)
+        real({{ combo.rkind }}), intent(inout) :: output(noutputs)
+        real({{ combo.rkind }}), intent(in)    :: tau(ntaus)
+
+        integer(int64) :: i
+
+        if (loc(input) == loc(output)) then
+            !$omp parallel do
+            do i = 1, ndetectors
+                call trexp_transpose_inplace_r{{ combo.rsize }}(                         &
+                         input((i-1)*istride+1:(i-1)*istride+isize),           &
+                         tau(min(i, ntaus)))
+            end do
+            !$omp end parallel do
+        else
+            !$omp parallel do
+            do i = 1, ndetectors
+                call trexp_transpose_outplace_r{{ combo.rsize }}(                        &
+                         input((i-1)*istride+1:(i-1)*istride+isize),           &
+                         output((i-1)*ostride+1:(i-1)*ostride+osize),          &
+                         tau(min(i, ntaus)))
+            end do
+            !$omp end parallel do
+        end if
+
+    end subroutine
+
+{% endif %}
+{% endfor %}
+
+
+end module operators
