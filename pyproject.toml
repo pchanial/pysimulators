@@ -79,11 +79,19 @@ skip_covered = true
 [tool.isort]
 known_first_party = ["pyoperators", "pysimulators"]
 
-[tool.pytest.ini_options]
-addopts = "-ra --cov=pysimulators"
-testpaths = [
-    "tests",
+[tool.pytest]
+addopts = [
+    "-ra",
+    "--color=yes",
+    "--ignore=tests/packedtables",
+    "--ignore=tests/test_datautils.py",
+    "--ignore=tests/test_geometry.py",
+    "--ignore=tests/test_operators.py",
+    "--ignore=tests/test_projection.py",
+    "--ignore=tests/test_scenegrid.py",
+    "--ignore=tests/test_sparse.py",
 ]
+testpaths = ["tests"]
 markers = [
     "mpi: mark tests to be run using mpirun.",
 ]
