@@ -4,6 +4,7 @@
 
 import re
 from collections.abc import Callable
+from typing import Self
 
 import numpy as np
 
@@ -20,7 +21,10 @@ class UnitError(Exception):
     pass
 
 
-def _extract_unit(string):
+UnitType = dict[str, float]
+
+
+def _extract_unit(string: str | UnitType) -> UnitType:
     """
     Convert the input string into a unit as a dictionary.
 
@@ -285,152 +289,124 @@ class Quantity(np.ndarray):
     def __array_priority__(self):
         return 1.0 if len(self._unit) == 0 else 1.5
 
-    def __array_prepare__(self, array, context=None):
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """
-        Homogenise ufunc's argument units and cast array to the class of the
-        argument of highest __array_priority__
+        Handle ufunc operations on Quantity objects.
+
+        This method replaces the deprecated __array_prepare__ and __array_wrap__
+        methods for NumPy 2.0 compatibility.
         """
+        # Get the output if provided
+        out = kwargs.get('out', None)
 
-        if self is not array:
-            if not isinstance(array, type(self)):
-                array = array.view(type(self))
-            # copy over attributes
-            array.__dict__.update(self.__dict__)
+        input_units = [{} if not isinstance(_, Quantity) else _._unit for _ in inputs]
 
-        if context is None or len(self._unit) == 0:
-            return array
-
-        ufunc = context[0]
+        # Handle comparison and unit homogenization for specific ufuncs
         if ufunc in (
             np.add,
-            np.subtract,
+            np.clip,
+            np.equal,
+            np.fmod,
+            np.greater,
+            np.greater_equal,
+            np.hypot,
+            np.less,
+            np.less_equal,
             np.maximum,
             np.minimum,
-            np.greater,
-            np.greater_equal,
-            np.less,
-            np.less_equal,
-            np.equal,
             np.not_equal,
+            np.subtract,
         ):
-            for arg in context[1]:
-                u = getattr(arg, '_unit', {})
-                if len(u) == 0 or u == self._unit:
-                    continue
+            output_unit = next((_ for _ in input_units if _), {})
+            inputs = tuple(
+                input.tounit(output_unit) if unit and unit != output_unit else input
+                for input, unit in zip(inputs, input_units)
+            )
 
-                print(
-                    "Warning: applying function '" + str(ufunc) + "' to Quan"
-                    'tities of different units may have changed operands to '
-                    "common unit '" + _strunit(self._unit) + "'."
-                )
-                arg.inunit(self._unit)
-
-        return array
-
-    def __array_wrap__(self, array, context=None):
-        """
-        Set unit of the result of a ufunc.
-
-        Since different quantities can share their _unit attribute, a
-        a change in unit of the ufunc result must be preceded by a copy
-        of the argument unit.
-        Not all ufuncs are currently handled. For an exhaustive list of
-        ufuncs, see http://docs.scipy.org/doc/numpy/reference/ufuncs.html
-        """
-
-        if context is None:
-            return array
-
-        ufunc = context[0]
-        args = context[1]
-        if ufunc in (np.add, np.subtract, np.maximum, np.minimum):
-            if self is not array:
-                # self has highest __array_priority__
-                array._unit = self._unit
-            else:
-                # inplace operation
-                if len(self._unit) == 0:
-                    self._unit = getattr(args[1], '_unit', {})
+        elif ufunc in (
+            np.absolute,
+            np.ceil,
+            np.conjugate,
+            np.copysign,
+            np.fabs,
+            np.float_power,
+            np.floor,
+            np.fmax,
+            np.fmin,
+            np.hypot,
+            np.negative,
+            np.rint,
+            np.trunc,
+        ):
+            output_unit = self._unit
 
         elif ufunc is np.reciprocal:
-            array._unit = _power_unit(args[0]._unit, -1)
+            output_unit = _power_unit(input_units[0], -1)
+
+        elif ufunc is np.cbrt:
+            output_unit = _power_unit(input_units[0], 1 / 3)
 
         elif ufunc is np.sqrt:
-            array._unit = _power_unit(args[0]._unit, 0.5)
+            output_unit = _power_unit(input_units[0], 0.5)
 
-        elif ufunc in (np.square, np.var):
-            array._unit = _power_unit(args[0]._unit, 2)
+        elif ufunc is np.square:
+            output_unit = _power_unit(input_units[0], 2)
 
         elif ufunc is np.power:
-            array._unit = _power_unit(args[0]._unit, args[1])
+            power = (
+                inputs[1].view(np.ndarray)
+                if isinstance(inputs[1], Quantity)
+                else inputs[1]
+            )
+            output_unit = _power_unit(input_units[0], power)
 
-        elif ufunc in (np.multiply, np.vdot):
-            units = _get_units(args)
-            array._unit = _multiply_unit(units[0], units[1])
+        elif ufunc in (np.matmul, np.matvec, np.multiply, np.vecdot, np.vecmat):
+            output_unit = _multiply_unit(input_units[0], input_units[1])
 
-        elif ufunc in (np.floor_divide, np.true_divide):
-            units = _get_units(args)
-            array._unit = _divide_unit(units[0], units[1])
+        elif ufunc in (np.floor_divide, np.true_divide, np.divide):
+            output_unit = _divide_unit(input_units[0], input_units[1])
 
-        elif ufunc is np.divide:
-            units = _get_units(args)
-            array._unit = _divide_unit(units[0], units[1])
-
-        elif ufunc in (
-            np.greater,
-            np.greater_equal,
-            np.less,
-            np.less_equal,
-            np.equal,
-            np.not_equal,
-            np.iscomplex,
-            np.isfinite,
-            np.isinf,
-            np.isnan,
-            np.isreal,
-            np.bitwise_or,
-            np.invert,
-            np.logical_and,
-            np.logical_not,
-            np.logical_or,
-            np.logical_xor,
-        ):
-            if array.ndim == 0:
-                return bool(array)
-            if hasattr(array, 'coverage'):
-                array.coverage = None
-            if hasattr(array, '_mask'):
-                array._mask = None
-            array._unit = {}
-
-        elif ufunc in (
-            np.arccos,
-            np.arccosh,
-            np.arcsin,
-            np.arcsinh,
-            np.arctan,
-            np.arctanh,
-            np.arctan2,
-            np.cos,
-            np.cosh,
-            np.exp,
-            np.exp2,
-            np.log,
-            np.log2,
-            np.log10,
-            np.sin,
-            np.sinh,
-            np.tan,
-            np.tanh,
-        ):
-            array._unit = {}
-
-        elif ufunc in (np.abs, np.negative):
-            array._unit = self._unit
         else:
-            array._unit = {}
+            output_unit = None
 
-        return array
+        # Process outputs if provided
+        # TODO: check me
+        if out is not None:
+            kwargs['out'] = tuple(
+                o.view(np.ndarray) if isinstance(o, Quantity) else o
+                for o in (out if isinstance(out, tuple) else (out,))
+            )
+
+        # Call the ufunc
+        result = super().__array_ufunc__(
+            ufunc,
+            method,
+            *[
+                input.view(np.ndarray) if isinstance(input, Quantity) else input
+                for input in inputs
+            ],
+            **kwargs,
+        )
+        if result is None or result is NotImplemented or output_unit is None:
+            return result
+
+        # Handle tuple results (for ufuncs with multiple outputs)
+        if isinstance(result, tuple):
+            return tuple(self._process_ufunc_result(r, output_unit) for r in result)
+
+        return self._process_ufunc_result(result, output_unit)
+
+    def _process_ufunc_result(self, result, output_unit):
+        """
+        Process the result of a ufunc call, setting the appropriate unit.
+        """
+        if np.isscalar(result):
+            result = type(self)(result)
+        else:
+            result = result.view(type(self))
+        result.__array_finalize__(self)
+        result._unit = output_unit
+        return result
 
     #    def __getattr__(self, name):
     #        if self.dtype.names is None or name not in self.dtype.names:
@@ -584,7 +560,7 @@ class Quantity(np.ndarray):
                     )
         self._derived_units = derived_units
 
-    def tounit(self, unit):
+    def tounit(self, unit: str | UnitType) -> Self:
         """
         Convert a Quantity into a new unit
 
@@ -610,7 +586,7 @@ class Quantity(np.ndarray):
         result.inunit(unit)
         return result
 
-    def inunit(self, unit):
+    def inunit(self, unit: str | UnitType) -> None:
         """
         In-place conversion of a Quantity into a new unit
 
@@ -789,60 +765,6 @@ class Quantity(np.ndarray):
             **keywords,
         )
 
-    def min(self, *args, **kw):
-        return self._wrap_func(np.min, self.unit, *args, **kw)
-
-    min.__doc__ = np.ndarray.min.__doc__
-
-    def max(self, *args, **kw):
-        return self._wrap_func(np.max, self.unit, *args, **kw)
-
-    max.__doc__ = np.ndarray.max.__doc__
-
-    def sum(self, *args, **kw):
-        return self._wrap_func(np.sum, self.unit, *args, **kw)
-
-    sum.__doc__ = np.ndarray.sum.__doc__
-
-    def mean(self, *args, **kw):
-        return self._wrap_func(np.mean, self.unit, *args, **kw)
-
-    mean.__doc__ = np.ndarray.mean.__doc__
-
-    def median(self, *args, **kw):
-        return self._wrap_func(np.median, self.unit, *args, **kw)
-
-    median.__doc__ = np.median.__doc__
-
-    def ptp(self, *args, **kw):
-        return self._wrap_func(np.ptp, self.unit, *args, **kw)
-
-    ptp.__doc__ = np.ndarray.ptp.__doc__
-
-    def round(self, *args, **kw):
-        return self._wrap_func(np.round, self.unit, *args, **kw)
-
-    round.__doc__ = np.ndarray.round.__doc__
-
-    def std(self, *args, **kw):
-        return self._wrap_func(np.std, self.unit, *args, **kw)
-
-    std.__doc__ = np.ndarray.std.__doc__
-
-    def var(self, *args, **kw):
-        return self._wrap_func(np.var, _power_unit(self._unit, 2), *args, **kw)
-
-    var.__doc__ = np.ndarray.var.__doc__
-
-    def _wrap_func(self, func, unit, *args, **kw):
-        result = func(self.magnitude, *args, **kw).view(type(self))
-        if not isinstance(result, np.ndarray):
-            return result
-        result.__array_finalize__(self)
-        if unit is not None:
-            result.unit = unit
-        return result
-
 
 def _check_du(input, key, val, derived_units):
     if len(derived_units) == 0:
@@ -888,7 +810,7 @@ def _check_in_du(key, derived_units):
         except ValueError:
             if key == du:
                 return value, 'leftward'
-    raise ValueError()
+    raise ValueError
 
 
 def pixel_to_pixel_reference(input):
