@@ -1060,6 +1060,8 @@ class Tod(FitsArray):
             mask = data.mask
 
         if mask is not None:
+            if not isinstance(mask, np.ndarray) or mask.dtype != bool:
+                copy = True
             result._mask = np.array(mask, np.bool_, copy=copy)
 
         return result

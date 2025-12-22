@@ -144,7 +144,7 @@ def test_conversion_sr2():
     assert a.unit == ''
 
 
-def test_array_prepare():
+def test_array_ufunc():
     assert Quantity(10, 'm') <= Quantity(1, 'km')
     assert Quantity(10, 'm') < Quantity(1, 'km')
     assert Quantity(1, 'km') >= Quantity(10, 'm')
@@ -163,7 +163,7 @@ def test_function(array, func):
     a = Quantity(array, unit='Jy')
     b = func(a)
     if func not in (np.round,):
-        assert np.isscalar(b)
+        assert b.ndim == 0
     assert_array_equal(b, func(a.view(np.ndarray)))
     if func in (np.round,) or a.ndim == 1:
         return

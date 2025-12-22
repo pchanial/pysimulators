@@ -141,7 +141,7 @@ def test_dtype2(type_, dtype):
 @pytest.mark.parametrize('type_', TYPES)
 @pytest.mark.parametrize('dtype', DTYPES)
 def test_dtype3(type_, dtype):
-    a = type_(np.ones((4, 3)), dtype=dtype, copy=False)
+    a = type_(np.ones((4, 3)), dtype=dtype, copy=None)
     assert a.dtype == dtype
 
 
