@@ -19,6 +19,38 @@ KEYWORDS = [KEYWORDS_Q, KEYWORDS_F, KEYWORDS_M, KEYWORDS_T]
 DTYPES = [bool, int, np.float32, np.float64, np.complex64, np.complex128]
 
 
+def assert_datatype_allclose(d1, d2) -> None:
+    assert isinstance(d2, Quantity)
+    cls = type(d2)
+    assert type(d1) is cls
+    assert_allclose(d1.magnitude, d2.magnitude)
+
+    assert d1._unit == d2._unit
+    assert d1._derived_units == d2._derived_units
+
+    if cls is FitsArray:
+        assert d1._header == d2._header
+
+    elif cls is Map:
+        if d2.coverage is None:
+            assert d1.coverage is None
+        else:
+            assert d1.coverage.shape == d2.coverage.shape
+            assert_equal(d1.coverage, d2.coverage)
+        if d2.error is None:
+            assert d1.error is None
+        else:
+            assert d1.error.shape == d2.error.shape
+            assert_equal(d1.error, d2.error)
+
+    elif cls is Tod:
+        if d2.mask is None:
+            assert d1.mask is None
+        else:
+            assert d1.mask.shape == d2.mask.shape
+            assert_equal(d1.mask, d2.mask)
+
+
 def get_datatypes_objects():
     a = np.ones((4, 3))
     a[1, 2] = 4
@@ -194,80 +226,55 @@ def test_save(tmp_path, obj):
 
 @pytest.mark.parametrize('cls', [Quantity, FitsArray, Map, Tod])
 @pytest.mark.parametrize(
-    'func, expected_unit_power',
+    'func, expected_unit',
     [
-        (np.min, 1),
-        (np.max, 1),
-        (np.sum, 1),
-        (np.mean, 1),
-        (np.ptp, 1),
-        (np.std, 1),
-        (np.var, 2),
+        (np.min, {'u': 1}),
+        (np.max, {'u': 1}),
+        (np.sum, {'u': 1}),
+        (np.mean, {'u': 1}),
+        (np.ptp, {'u': 1}),
+        (np.std, {'u': 1}),
+        (np.var, {'u': 2}),
     ],
 )
 @pytest.mark.parametrize('axis', [None, 0, 1])
-def test_ndarray_reduction(cls, func, expected_unit_power, axis):
+def test_function_reduction(cls, func, expected_unit, axis):
     data = [[1.0, 2, 3, 4], [5, 6, 7, 8]]
-
     array = cls(data, unit='u')
-    result = func(array, axis=axis)
 
-    if cls in {Quantity, FitsArray} and axis is None:
-        assert type(result) is not cls
-        pytest.xfail(f'{func.__name__}({cls.__name__}(...)) is not a {cls.__name__}.')
+    actual = func(array, axis=axis)
 
-    assert type(result) is cls
-    assert 'u' in result._unit
-    assert result._unit['u'] == expected_unit_power
-
-    ref = func(data, axis=axis)
-    assert_allclose(result.view(np.ndarray), ref)
-
-    if cls is Map:
-        assert result.coverage is None
-        assert result.error is None
-
-    elif cls is Tod:
-        if axis in {0, 1} and func not in {np.var}:
-            assert result.mask is not None
-            pytest.xfail(
-                f'{func.__name__}({cls.__name__}(..., axis={axis}, mask=None)).mask is not None'
-            )
-        assert result.mask is None
+    np_output = func(data, axis=axis)
+    expected = cls(np_output, unit=expected_unit)
+    assert_datatype_allclose(actual, expected)
 
 
 @pytest.mark.parametrize(
-    'func, expected_unit_power',
+    'func, expected_unit',
     [
-        (np.min, 1),
-        (np.max, 1),
-        (np.sum, 1),
-        (np.mean, 1),
-        (np.ptp, 1),
-        (np.std, 1),
-        (np.var, 2),
+        (np.min, {'u': 1}),
+        (np.max, {'u': 1}),
+        (np.sum, {'u': 1}),
+        (np.mean, {'u': 1}),
+        (np.ptp, {'u': 1}),
+        (np.std, {'u': 1}),
+        (np.var, {'u': 2}),
     ],
 )
 @pytest.mark.parametrize('axis', [None, 0, 1])
-def test_ndarray_reduction_tod(func, expected_unit_power, axis):
+def test_function_reduction_tod(func, expected_unit, axis):
     data = [[1.0, 2, 3, 4], [5, 6, 7, 8]]
     mask = [[True, False, False, False], [False, True, True, False]]
-
     array = Tod(data, mask=mask, unit='u')
-    result = func(array, axis=axis)
-    ref = func(np.ma.MaskedArray(data, mask=mask), axis=axis)
-    if not isinstance(ref, np.ndarray):
-        ref = np.ma.MaskedArray(ref)
-    assert_allclose(result.view(np.ndarray), ref.view(np.ndarray))
 
-    assert 'u' in result._unit
-    assert result._unit['u'] == expected_unit_power
+    actual = func(array, axis=axis)
 
-    if result.mask is None and ref.mask is not None:
-        pytest.xfail('Tod should emulate MaskedArrays.')
-    assert result.mask is not None
-    assert result.mask.shape == ref.mask.shape
-    assert_equal(result.mask, ref.mask)
+    ma_output = func(np.ma.MaskedArray(data, mask=mask), axis=axis)
+    if np.isscalar(ma_output):
+        expected = Tod(ma_output, mask=None, unit=expected_unit)
+    else:
+        expected = Tod(ma_output.data, mask=ma_output.mask, unit=expected_unit)
+    assert_datatype_allclose(actual, expected)
 
 
 @pytest.mark.parametrize('cls', [Quantity, FitsArray, Map, Tod])
@@ -280,27 +287,14 @@ def test_ndarray_reduction_tod(func, expected_unit_power, axis):
         (np.reciprocal, {'u': -1}),
     ],
 )
-def test_ndarray_elementwise(cls, func, expected_unit):
-    data = [[1.0, 2, 3, 4], [5, 6, 7, 8]]
+def test_ufunc(cls, func, expected_unit):
+    array = cls([[1.0, 2, 3, 4], [5, 6, 7, 8]], unit='u')
 
-    array = cls(data, unit='u')
-    result = func(array)
-    assert type(result) is cls
+    actual = func(array)
 
-    ref = func(data)
-    assert_allclose(result.view(np.ndarray), ref.view(np.ndarray))
-
-    assert result._unit == expected_unit
-
-    if cls is Map:
-        assert result.coverage is None
-        assert result.error is None
-
-    if cls is Tod:
-        if func is np.round:
-            assert result.mask is not None
-            pytest.xfail('tod.mask is not None')
-        assert result.mask is None
+    output = func(array.view(np.ndarray))
+    expected = cls(output, unit=expected_unit)
+    assert_datatype_allclose(actual, expected)
 
 
 @pytest.mark.parametrize(
@@ -312,22 +306,58 @@ def test_ndarray_elementwise(cls, func, expected_unit):
         (np.reciprocal, {'u': -1}),
     ],
 )
-def test_ndarray_elementwise_tod(func, expected_unit):
+def test_ufunc_tod(func, expected_unit):
     data = [[1, 2, 3, 4], [5, 6, 7, 8]]
     mask = [[True, False, False, False], [False, True, True, False]]
-
     array = Tod(data, mask=mask, unit='u')
-    result = func(array)
-    assert type(result) is Tod
 
-    ref = func(array.view(np.ndarray))
-    assert_allclose(result.view(np.ndarray), ref)
+    actual = func(array)
 
-    assert result._unit == expected_unit
+    output = func(array.view(np.ndarray))
+    expected = Tod(output, mask=mask, unit=expected_unit)
+    assert_datatype_allclose(actual, expected)
 
-    assert result.mask is not None
-    assert result.mask.shape == (2, 4)
-    assert_equal(result.mask, mask)
+
+@pytest.mark.parametrize(
+    'array',
+    [
+        Quantity([[1.0, 2]], unit='u'),
+        FitsArray([[1.0, 2]], unit='u'),
+        Map([[1.0, 2]], unit='u'),
+        Map([[1.0, 2]], coverage=[[0.0, 1]], error=[[0.5, 1]], unit='u'),
+        Tod([[1.0, 2]], unit='u'),
+        Tod([[1.0, 2]], mask=[[True, False]], unit='u'),
+    ],
+)
+@pytest.mark.parametrize(
+    'func, new_shape',
+    [
+        (lambda a: np.ravel(a), (2,)),
+        (lambda a: a.ravel(), (2,)),
+        (lambda a: np.reshape(a, (2, 1)), (2, 1)),
+        (lambda a: a.reshape(2, 1), (2, 1)),
+        (lambda a: a.reshape((2, 1)), (2, 1)),
+    ],
+)
+def test_ravel_reshape(array, func, new_shape):
+    reshaped_array = func(array)
+
+    assert type(reshaped_array) is type(array)
+    assert reshaped_array.shape == new_shape
+    if isinstance(array, Map):
+        if array.coverage is None:
+            assert reshaped_array.coverage is None
+        else:
+            assert reshaped_array.coverage.shape == new_shape
+        if array.error is None:
+            assert reshaped_array.error is None
+        else:
+            assert reshaped_array.error.shape == new_shape
+    elif isinstance(array, Tod):
+        if array.mask is None:
+            assert reshaped_array.mask is None
+        else:
+            assert reshaped_array.mask.shape == new_shape
 
 
 @pytest.mark.parametrize(

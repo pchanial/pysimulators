@@ -3,16 +3,32 @@
 #
 
 import re
-from collections.abc import Callable
-from typing import Self
+import sys
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Any
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import numpy as np
+from numpy.lib import NumpyVersion
 
 from pyoperators.memory import empty
 
 from . import _flib as flib
 
-__all__ = ['Quantity', 'UnitError', 'units']
+__all__ = ['ConversionInput', 'ConversionType', 'Quantity', 'UnitError', 'units']
+
+
+numpy_version = NumpyVersion(np.__version__)
+if numpy_version < '2.2.0':
+    np.matvec = None
+    np.vecmat = None
+
 
 _RE_UNIT = re.compile(r' *([/*])? *([a-zA-Z_"\']+|\?+)(\^-?[0-9]+(\.[0-9]*)?)? *')
 
@@ -22,6 +38,192 @@ class UnitError(Exception):
 
 
 UnitType = dict[str, float]
+
+
+class ConversionInput(Enum):
+    FIRST = auto()
+    SECOND = auto()
+    SEQUENCE = auto()
+    SEQUENCE_EXCEPT_FIRST = auto()
+    FIRST_SEQUENCE = auto()
+    FIRST_NESTED = auto()
+    SECOND_SEQUENCE = auto()
+    FIRST_AND_SECOND = auto()
+    FIRST_AND_THIRD = auto()
+    SECOND_AND_THIRD = auto()
+
+
+class ConversionOutput(Enum):
+    DEFAULT = auto()  # The function simply returns an array
+    SEQUENCE = auto()  # The function returns a sequence of arrays
+    FIRST_IF_SEQUENCE = (
+        auto()
+    )  # If the output is a sequence, only convert the first element
+    FIRST_IN_SEQUENCE = auto()  # Only convert the first element of the output sequence
+    NONE = auto()  # Function returns None
+
+
+class ConversionAction(Enum):
+    SAME = auto()  # homogenize and propagate the input units to the output
+    EACH = (
+        auto()
+    )  # when the input is *args and output is a sequence, each quantity is propagated
+    SQUARE = auto()  # square the input units
+    PROD = auto()  # output units is the product of the inputs
+    UNITLESS = auto()  # the output is an ndarray
+
+
+@dataclass
+class ConversionType:
+    input: ConversionInput = ConversionInput.FIRST
+    output: ConversionOutput = ConversionOutput.DEFAULT
+    action: ConversionAction = ConversionAction.SAME
+
+
+DEFAULT_CONVERSION = ConversionType()
+
+FUNCTIONS = {
+    np.amax: DEFAULT_CONVERSION,
+    np.amin: DEFAULT_CONVERSION,
+    np.append: ConversionType(ConversionInput.FIRST_AND_SECOND),
+    np.around: DEFAULT_CONVERSION,
+    np.array_split: ConversionType(output=ConversionOutput.SEQUENCE),
+    np.atleast_1d: DEFAULT_CONVERSION,
+    np.atleast_2d: DEFAULT_CONVERSION,
+    np.atleast_3d: DEFAULT_CONVERSION,
+    np.average: DEFAULT_CONVERSION,
+    # np.block: ConversionType(ConversionInput.FIRST_NESTED),
+    np.broadcast_arrays: ConversionType(
+        ConversionInput.SEQUENCE, ConversionOutput.SEQUENCE, ConversionAction.EACH
+    ),
+    np.broadcast_to: DEFAULT_CONVERSION,
+    np.choose: ConversionType(ConversionInput.SECOND_SEQUENCE),
+    np.clip: DEFAULT_CONVERSION,
+    np.column_stack: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.compress: ConversionType(ConversionInput.SECOND),
+    np.concat: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.concatenate: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.convolve: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.copy: DEFAULT_CONVERSION,
+    # np.corrcoef: NO_CONVERSION,
+    np.correlate: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.cov: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.cross: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.cumsum: DEFAULT_CONVERSION,
+    getattr(np, 'cumulative_sum', None): DEFAULT_CONVERSION,  # Numpy 2.1
+    np.delete: DEFAULT_CONVERSION,
+    np.diag: DEFAULT_CONVERSION,
+    np.diagflat: DEFAULT_CONVERSION,
+    np.diagonal: DEFAULT_CONVERSION,
+    np.diff: DEFAULT_CONVERSION,
+    np.dot: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.dsplit: ConversionType(output=ConversionOutput.SEQUENCE),
+    np.dstack: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.einsum: ConversionType(
+        ConversionInput.SEQUENCE_EXCEPT_FIRST, action=ConversionAction.PROD
+    ),
+    np.expand_dims: DEFAULT_CONVERSION,
+    np.extract: ConversionType(ConversionInput.SECOND),
+    np.fill_diagonal: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, output=ConversionOutput.NONE
+    ),
+    np.fix: DEFAULT_CONVERSION,
+    np.flip: DEFAULT_CONVERSION,
+    np.fliplr: DEFAULT_CONVERSION,
+    np.flipud: DEFAULT_CONVERSION,
+    np.hsplit: ConversionType(output=ConversionOutput.SEQUENCE),
+    np.hstack: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.imag: DEFAULT_CONVERSION,
+    np.inner: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.insert: ConversionType(ConversionInput.FIRST_AND_THIRD),
+    np.interp: DEFAULT_CONVERSION,
+    np.intersect1d: ConversionType(ConversionInput.FIRST_AND_SECOND),
+    np.kron: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.max: DEFAULT_CONVERSION,
+    np.mean: DEFAULT_CONVERSION,
+    np.median: DEFAULT_CONVERSION,
+    np.min: DEFAULT_CONVERSION,
+    np.moveaxis: DEFAULT_CONVERSION,
+    np.nan_to_num: DEFAULT_CONVERSION,
+    np.nancumsum: DEFAULT_CONVERSION,
+    np.nanmax: DEFAULT_CONVERSION,
+    np.nanmean: DEFAULT_CONVERSION,
+    np.nanmedian: DEFAULT_CONVERSION,
+    np.nanmin: DEFAULT_CONVERSION,
+    np.nanstd: DEFAULT_CONVERSION,
+    np.nansum: DEFAULT_CONVERSION,
+    np.nanvar: ConversionType(action=ConversionAction.SQUARE),
+    np.outer: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.pad: DEFAULT_CONVERSION,
+    np.partition: DEFAULT_CONVERSION,
+    np.permute_dims: DEFAULT_CONVERSION,
+    np.ptp: DEFAULT_CONVERSION,
+    np.ravel: DEFAULT_CONVERSION,
+    np.real: DEFAULT_CONVERSION,
+    np.real_if_close: DEFAULT_CONVERSION,
+    np.repeat: DEFAULT_CONVERSION,
+    np.reshape: DEFAULT_CONVERSION,
+    np.resize: DEFAULT_CONVERSION,
+    np.roll: DEFAULT_CONVERSION,
+    np.rollaxis: DEFAULT_CONVERSION,
+    np.rot90: DEFAULT_CONVERSION,
+    np.round: DEFAULT_CONVERSION,
+    np.row_stack: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.select: ConversionType(ConversionInput.SECOND_SEQUENCE),
+    np.setdiff1d: ConversionType(ConversionInput.FIRST_AND_SECOND),
+    np.setxor1d: ConversionType(ConversionInput.FIRST_AND_SECOND),
+    np.sort: DEFAULT_CONVERSION,
+    np.sort_complex: DEFAULT_CONVERSION,
+    np.split: ConversionType(output=ConversionOutput.SEQUENCE),
+    np.squeeze: DEFAULT_CONVERSION,
+    np.stack: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.std: DEFAULT_CONVERSION,
+    np.sum: DEFAULT_CONVERSION,
+    np.swapaxes: DEFAULT_CONVERSION,
+    np.take: DEFAULT_CONVERSION,
+    np.take_along_axis: DEFAULT_CONVERSION,
+    np.tensordot: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.tile: DEFAULT_CONVERSION,
+    np.trace: DEFAULT_CONVERSION,
+    np.transpose: DEFAULT_CONVERSION,
+    np.trim_zeros: DEFAULT_CONVERSION,
+    np.union1d: ConversionType(ConversionInput.FIRST_AND_SECOND),
+    np.unique: ConversionType(output=ConversionOutput.FIRST_IF_SEQUENCE),
+    np.unique_all: ConversionType(output=ConversionOutput.FIRST_IN_SEQUENCE),
+    # np.unique_counts: NO_CONVERSION,
+    # np.unique_inverse: NO_CONVERSION,
+    np.unique_values: DEFAULT_CONVERSION,
+    getattr(np, 'unstack', None): ConversionType(
+        output=ConversionOutput.SEQUENCE
+    ),  # Numpy 2.1
+    np.unwrap: DEFAULT_CONVERSION,
+    np.var: ConversionType(action=ConversionAction.SQUARE),
+    np.vdot: ConversionType(
+        ConversionInput.FIRST_AND_SECOND, action=ConversionAction.PROD
+    ),
+    np.vsplit: ConversionType(output=ConversionOutput.SEQUENCE),
+    np.vstack: ConversionType(ConversionInput.FIRST_SEQUENCE),
+    np.where: ConversionType(ConversionInput.SECOND_AND_THIRD),
+}
+FUNCTIONS.pop(None, None)
 
 
 def _extract_unit(string: str | UnitType) -> UnitType:
@@ -126,10 +328,6 @@ def _divide_unit(unit1, unit2):
         else:
             unit[key] = -val
     return unit
-
-
-def _get_units(units):
-    return [getattr(q, '_unit', {}) for q in units]
 
 
 def _strunit(unit):
@@ -289,39 +487,276 @@ class Quantity(np.ndarray):
     def __array_priority__(self):
         return 1.0 if len(self._unit) == 0 else 1.5
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        """
-        Handle ufunc operations on Quantity objects.
+    def __array_function__(self, func, types, args, kwargs):
+        """Handle NumPy functions on Quantity objects.
 
-        This method replaces the deprecated __array_prepare__ and __array_wrap__
-        methods for NumPy 2.0 compatibility.
+        This method intercepts NumPy function calls to provide custom behavior,
+        ensuring that functions use the Quantity methods instead of going through
+        ufuncs when appropriate.
         """
+        conversion = FUNCTIONS.get(func)
+        if conversion is None:
+            return super().__array_function__(func, types, args, kwargs)
+
+        input_units = self._get_function_input_units(args, conversion)
+        output_units = self._get_function_output_units(input_units, conversion)
+
+        converted_inputs, kwargs = self._convert_function_inputs(
+            args, kwargs, output_units, conversion
+        )
+        converted_inputs = self._view_function_inputs(converted_inputs, conversion)
+        outputs = func(*converted_inputs, **kwargs)
+        if conversion.output is ConversionOutput.NONE:
+            return None
+
+        converted_outputs = self._convert_function_outputs(
+            outputs, output_units, conversion
+        )
+        return converted_outputs
+
+    @classmethod
+    def _get_function_input_units(
+        cls, arrays: Iterable[Any], conversion: ConversionType
+    ) -> tuple[UnitType, ...]:
+        match conversion.input:
+            case ConversionInput.FIRST:
+                return (cls._get_units(arrays[0]),)
+            case ConversionInput.SECOND:
+                return (cls._get_units(arrays[1]),)
+            case ConversionInput.SEQUENCE:
+                return cls._get_sequence_units(arrays)
+            case ConversionInput.SEQUENCE_EXCEPT_FIRST:
+                return cls._get_sequence_units(arrays[1:])
+            case ConversionInput.FIRST_AND_SECOND:
+                return cls._get_sequence_units([arrays[0], arrays[1]])
+            case ConversionInput.SECOND_AND_THIRD:
+                return cls._get_sequence_units([arrays[1], arrays[2]])
+            case ConversionInput.FIRST_AND_THIRD:
+                return cls._get_sequence_units([arrays[0], arrays[2]])
+            case ConversionInput.FIRST_SEQUENCE:
+                return cls._get_sequence_units(arrays[0])
+            case ConversionInput.SECOND_SEQUENCE:
+                return cls._get_sequence_units(arrays[1])
+            case _:
+                assert False, 'unreachable'
+
+    @classmethod
+    def _get_function_output_units(
+        cls, input_units: tuple[UnitType, ...], conversion: ConversionType
+    ) -> UnitType | tuple[UnitType, ...]:
+        match conversion.action:
+            case ConversionAction.SAME:
+                return next((_ for _ in input_units if _), {})
+            case ConversionAction.EACH:
+                return input_units
+            case ConversionAction.SQUARE:
+                return _power_unit(input_units[0], 2)
+            case ConversionAction.PROD:
+                output_unit = input_units[0]
+                for input_unit in input_units[1:]:
+                    output_unit = _multiply_unit(output_unit, input_unit)
+                return output_unit
+            case _:
+                assert False, 'unreachable'
+
+    @classmethod
+    def _convert_function_inputs(
+        cls,
+        arrays: Any,
+        keywords: dict[str, Any],
+        output_units: UnitType | Sequence[UnitType],
+        conversion: ConversionType,
+    ) -> tuple[Any, ...]:
+        out = keywords.get('out')
+        if out is not None:
+            keywords['out'] = cls._view_function_input(out)
+
+        if conversion.action is not ConversionAction.SAME or conversion.input in (
+            ConversionInput.FIRST,
+            ConversionInput.SECOND,
+        ):
+            return arrays, keywords
+        assert isinstance(output_units, dict)
+
+        common_unit = output_units
+        if not common_unit:
+            return arrays, keywords
+
+        homogenized_args = []
+        for iarray, array in enumerate(arrays):
+            if (
+                iarray == 0
+                and conversion.input is ConversionInput.FIRST_SEQUENCE
+                or iarray == 1
+                and conversion.input is ConversionInput.SECOND_SEQUENCE
+            ):
+                array = tuple(
+                    (
+                        input.tounit(common_unit)
+                        if isinstance(input, Quantity) and unit and unit != common_unit
+                        else input
+                    )
+                    for input, unit in zip(array, cls._get_sequence_units(array))
+                )
+            elif (
+                iarray == 0
+                and conversion.input
+                in (
+                    ConversionInput.FIRST,
+                    ConversionInput.FIRST_AND_SECOND,
+                    ConversionInput.FIRST_AND_THIRD,
+                )
+                or iarray == 1
+                and conversion.input
+                in (
+                    ConversionInput.SECOND,
+                    ConversionInput.FIRST_AND_SECOND,
+                    ConversionInput.SECOND_AND_THIRD,
+                )
+                or iarray == 2
+                and conversion.input
+                in (ConversionInput.FIRST_AND_THIRD, ConversionInput.SECOND_AND_THIRD)
+                or iarray > 0
+                and conversion.input is ConversionInput.SEQUENCE_EXCEPT_FIRST
+                or conversion.input is ConversionInput.SEQUENCE
+            ):
+                if (
+                    isinstance(array, Quantity)
+                    and array._unit
+                    and array._unit != common_unit
+                ):
+                    array = array.tounit(common_unit)
+            homogenized_args.append(array)
+        return tuple(homogenized_args), keywords
+
+    @classmethod
+    def _view_function_inputs(
+        cls, arrays: Any, conversion: ConversionType
+    ) -> tuple[Any, ...]:
+        viewed_arrays = []
+        for iarray, array in enumerate(arrays):
+            if (
+                iarray == 0
+                and conversion.input is ConversionInput.FIRST_SEQUENCE
+                or iarray == 1
+                and conversion.input is ConversionInput.SECOND_SEQUENCE
+            ):
+                array = cls._view_function_input_iterable(array)
+            else:
+                array = cls._view_function_input(array)
+            viewed_arrays.append(array)
+        return tuple(viewed_arrays)
+
+    @classmethod
+    def _view_function_input(cls, array):
+        if isinstance(array, np.ndarray) and type(array) is not np.ndarray:
+            return array.view(np.ndarray)
+        return array
+
+    @classmethod
+    def _view_function_input_iterable(cls, arrays: Iterable[Any]) -> list[Any]:
+        return [cls._view_function_input(array) for array in arrays]
+
+    def _convert_function_outputs(
+        self,
+        arrays: Any,
+        output_units: UnitType | Sequence[UnitType],
+        conversion: ConversionType,
+    ) -> Any | tuple[Any, ...]:
+        if np.isscalar(arrays) or isinstance(arrays, np.ndarray):
+            # covers the case DEFAULT and FIRST_IF_SEQUENCE when then the output is not
+            # a sequence
+            if np.isscalar(arrays):
+                output = type(self)(arrays)
+            else:
+                output = arrays.view(type(self))
+            output.__array_finalize__(self)
+            output._unit = output_units
+            return output
+
+        if isinstance(output_units, dict):
+            output_units = len(arrays) * [output_units]
+
+        # Check if arrays is a namedtuple
+        is_namedtuple = (
+            isinstance(arrays, tuple)
+            and hasattr(arrays, '_fields')
+            and hasattr(arrays, '_make')
+        )
+
+        outputs = []
+        for iarray, (array, units) in enumerate(zip(arrays, output_units)):
+            if (
+                iarray == 0
+                and conversion.output
+                in (
+                    ConversionOutput.FIRST_IF_SEQUENCE,
+                    ConversionOutput.FIRST_IN_SEQUENCE,
+                )
+                or conversion.output is ConversionOutput.SEQUENCE
+            ):
+                array = array.view(type(self))
+                array.__array_finalize__(self)
+                array._unit = units
+            outputs.append(array)
+
+        # If input was a namedtuple, reconstruct it with the same type
+        if is_namedtuple:
+            return type(arrays)(*outputs)
+
+        return outputs
+
+    @classmethod
+    def _get_sequence_units(cls, arrays) -> tuple[UnitType, ...]:
+        return tuple(cls._get_units(_) for _ in arrays)
+
+    @classmethod
+    def _get_units(cls, array) -> UnitType:
+        if not isinstance(array, Quantity):
+            return {}
+        return array._unit
+
+    @classmethod
+    def _get_inputs_with_common_units(
+        cls,
+        arrays: Sequence[Any, ...],
+    ) -> tuple[Any, UnitType]:
+        input_units = cls._get_sequence_units(arrays)
+        common_unit = next((_ for _ in input_units if _), {})
+        inputs = tuple(
+            input.tounit(common_unit) if unit and unit != common_unit else input
+            for input, unit in zip(arrays, input_units)
+        )
+        return inputs, common_unit
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """Handle ufunc operations on Quantity objects."""
         # Get the output if provided
         out = kwargs.get('out', None)
 
-        input_units = [{} if not isinstance(_, Quantity) else _._unit for _ in inputs]
+        input_units = self._get_sequence_units(inputs)
 
-        # Handle comparison and unit homogenization for specific ufuncs
         if ufunc in (
             np.add,
             np.clip,
-            np.equal,
             np.fmod,
-            np.greater,
-            np.greater_equal,
             np.hypot,
-            np.less,
-            np.less_equal,
             np.maximum,
             np.minimum,
-            np.not_equal,
             np.subtract,
         ):
-            output_unit = next((_ for _ in input_units if _), {})
-            inputs = tuple(
-                input.tounit(output_unit) if unit and unit != output_unit else input
-                for input, unit in zip(inputs, input_units)
-            )
+            inputs, output_unit = self._get_inputs_with_common_units(inputs)
+
+        elif ufunc in (
+            np.equal,
+            np.greater,
+            np.greater_equal,
+            np.less,
+            np.less_equal,
+            np.not_equal,
+        ):
+            inputs, _ = self._get_inputs_with_common_units(inputs)
+            output_unit = None
 
         elif ufunc in (
             np.absolute,
@@ -365,6 +800,10 @@ class Quantity(np.ndarray):
 
         elif ufunc in (np.floor_divide, np.true_divide, np.divide):
             output_unit = _divide_unit(input_units[0], input_units[1])
+
+        elif ufunc in (np.exp, np.expm1, np.exp2, np.log, np.log10, np.log2, np.log1p):
+            # Transcendental functions return dimensionless results
+            output_unit = {}
 
         else:
             output_unit = None

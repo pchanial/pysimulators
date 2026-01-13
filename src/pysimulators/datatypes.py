@@ -158,7 +158,7 @@ class FitsArray(Quantity):
         return result
 
     def __array_finalize__(self, array):
-        Quantity.__array_finalize__(self, array)
+        super().__array_finalize__(array)
         self._header = getattr(array, '_header', None)
 
     def __getattr__(self, name):
@@ -700,10 +700,17 @@ class Map(FitsArray):
         return result
 
     def __array_finalize__(self, array):
-        FitsArray.__array_finalize__(self, array)
+        super().__array_finalize__(array)
         self.coverage = getattr(array, 'coverage', None)
         self.error = getattr(array, 'error', None)
         self.origin = getattr(array, 'origin', 'lower')
+
+    def __array_function__(self, func, types, args, kwargs):
+        if func is np.reshape:
+            return args[0].reshape(*args[1:], **kwargs)
+        if func is np.ravel:
+            return args[0].ravel(*args[1:], **kwargs)
+        return super().__array_function__(func, types, args, kwargs)
 
     def __getitem__(self, key):
         item = super().__getitem__(key)
@@ -939,12 +946,26 @@ class Map(FitsArray):
         if self.error is not None:
             write_fits(filename, self.error, None, True, 'Error', comm)
 
-    def _wrap_func(self, func, unit, *args, **kw):
-        result = super()._wrap_func(func, unit, *args, **kw)
-        if not isinstance(result, np.ndarray):
-            return type(self)(result, unit=unit, derived_units=self.derived_units)
-        result.coverage = None
-        result.error = None
+    def ravel(self, order='C'):
+        result = super().ravel(order)
+        coverage = None if self.coverage is None else self.coverage.ravel(order)
+        error = None if self.error is None else self.error.ravel(order)
+        result.coverage = coverage
+        result.error = error
+        return result
+
+    def reshape(self, *newdims, order='C'):
+        result = super().reshape(*newdims, order=order)
+        coverage = (
+            None
+            if self.coverage is None
+            else self.coverage.reshape(*newdims, order=order)
+        )
+        error = (
+            None if self.error is None else self.error.reshape(*newdims, order=order)
+        )
+        result.coverage = coverage
+        result.error = error
         return result
 
 
@@ -1076,7 +1097,7 @@ class Tod(FitsArray):
             self._mask = None
             return
 
-        # enforce bool8 dtype
+        # enforce bool dtype
         if not isinstance(mask, np.ndarray):
             mask = np.array(mask, np.bool_)
         elif mask.dtype.type != np.bool_:
@@ -1107,8 +1128,61 @@ class Tod(FitsArray):
         self._mask = mask
 
     def __array_finalize__(self, array):
-        FitsArray.__array_finalize__(self, array)
+        super().__array_finalize__(array)
         self._mask = getattr(array, 'mask', None)
+
+    def __array_function__(self, func, types, args, kwargs):
+        """Handle NumPy functions on Tod objects, respecting the mask."""
+        if func is np.reshape:
+            return args[0].reshape(*args[1:], **kwargs)
+        if func is np.ravel:
+            return args[0].ravel(*args[1:], **kwargs)
+        return super().__array_function__(func, types, args, kwargs)
+
+    @classmethod
+    def _view_function_input(cls, array):
+        if isinstance(array, Tod) and array.mask is not None:
+            return np.ma.MaskedArray(
+                array.view(np.ndarray), mask=array.mask, copy=False
+            )
+        return super()._view_function_input(array)
+
+    def _convert_function_outputs(self, arrays, output_units, conversion):
+        """Convert function outputs back to Tod, extracting mask from MaskedArray."""
+        # Handle MaskedConstant (all values masked)
+        if isinstance(arrays, np.ma.core.MaskedConstant):
+            output = type(self)(np.nan, mask=True)
+            output.__array_finalize__(self)
+            output._unit = output_units
+            return output
+
+        # Handle MaskedArray results
+        if isinstance(arrays, np.ma.MaskedArray):
+            mask = arrays.mask if arrays.mask is not np.ma.nomask else None
+            output = arrays.data.view(type(self))
+            output.__array_finalize__(self)
+            output.mask = mask
+            output._unit = output_units
+            return output
+
+        # Handle scalar results (no mask from MaskedArray, so no mask on output)
+        if np.isscalar(arrays):
+            output = type(self)(arrays, mask=None)
+            output.__array_finalize__(self)
+            output._mask = None  # Explicitly clear mask (not inherited from self)
+            output._unit = output_units
+            return output
+
+        # Handle ndarray results (no mask from MaskedArray, so no mask on output)
+        if isinstance(arrays, np.ndarray):
+            output = arrays.view(type(self))
+            output.__array_finalize__(self)
+            output._mask = None  # Explicitly clear mask (not inherited from self)
+            output._unit = output_units
+            return output
+
+        # For other results (sequences, etc.), delegate to parent
+        return super()._convert_function_outputs(arrays, output_units, conversion)
 
     def __getitem__(self, key):
         item = super().__getitem__(key)
@@ -1117,13 +1191,6 @@ class Tod(FitsArray):
         if item.mask is not None:
             item.mask = item.mask[key]
         return item
-
-    def reshape(self, newdims, order='C'):
-        result = np.ndarray.reshape(self, newdims, order=order)
-        if self.mask is not None:
-            result.mask = self.mask.reshape(newdims, order=order)
-        result.derived_units = self.derived_units.copy()
-        return result
 
     @classmethod
     def empty(
@@ -1246,6 +1313,18 @@ class Tod(FitsArray):
             mask = self.mask.view('uint8')
             write_fits(filename, mask, None, True, 'Mask', comm)
 
+    def ravel(self, order='C'):
+        result = super().ravel(order)
+        mask = None if self.mask is None else self.mask.ravel(order)
+        result.mask = mask
+        return result
+
+    def reshape(self, *newdims, order='C'):
+        result = super().reshape(*newdims, order=order)
+        mask = None if self.mask is None else self.mask.reshape(*newdims, order=order)
+        result.mask = mask
+        return result
+
     def median(self, axis=None):
         #        result = Tod(median(self, mask=self.mask, axis=axis),
         result = Tod(
@@ -1254,9 +1333,9 @@ class Tod(FitsArray):
             unit=self.unit,
             derived_units=self.derived_units,
             dtype=self.dtype,
-            copy=False,
+            copy=None,
         )
-        result.mask = np.zeros_like(result, bool)
+        result.mask = None
         #        # median might introduce NaN from the mask, let's remove them
         #        tmf.processing.filter_nonfinite_mask_inplace(result.ravel(),
         #            result.mask.view(np.int8).ravel())
@@ -1264,39 +1343,6 @@ class Tod(FitsArray):
 
     median.__doc__ = np.median.__doc__
 
-    def ravel(self, order='c'):
-        mask = self.mask.ravel() if self.mask is not None else None
-        return Tod(
-            self.magnitude.ravel(),
-            mask=mask,
-            header=self.header.copy(),
-            unit=self.unit,
-            derived_units=self.derived_units,
-            dtype=self.dtype,
-            copy=False,
-        )
-
     def sort(self, axis=-1, kind='quicksort', order=None):
         self.magnitude.sort(axis, kind, order)
         self.mask = None
-
-    def _wrap_func(self, func, unit, *args, **kw):
-        self_ma = np.ma.MaskedArray(self.magnitude, mask=self.mask, copy=False)
-        output = func(self_ma, *args, **kw)
-        if isinstance(output, np.ma.core.MaskedConstant):
-            return type(self)(
-                np.nan,
-                mask=True,
-                unit=unit,
-                derived_units=self.derived_units,
-                dtype=self.dtype,
-            )
-        if not isinstance(output, np.ndarray):
-            return type(self)(
-                output, unit=unit, derived_units=self.derived_units, dtype=self.dtype
-            )
-        result = output.view(type(self))
-        result.__array_finalize__(self)
-        result.mask = output.mask if output.mask is not np.ma.nomask else None
-        result.unit = unit
-        return result

@@ -191,7 +191,7 @@ def read_fits(filename, extname, comm):
     output = pyfits.Section(hdu)[s]
 
     if not output.dtype.isnative:
-        output = output.byteswap().newbyteorder('=')
+        output = output.byteswap().view(output.dtype.newbyteorder('='))
 
     # update the header
     header['NAXIS' + str(header['NAXIS'])] = s.stop - s.start

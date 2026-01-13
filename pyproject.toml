@@ -48,6 +48,7 @@ dependencies = [
     "numexpr",
     "numpy>=2.0.0",
     "scipy>=0.9",
+    "typing_extensions>=4.0; python_version<'3.11'",
 ]
 dynamic = ["version"]
 
