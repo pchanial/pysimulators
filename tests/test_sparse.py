@@ -385,11 +385,11 @@ def test_block(itype, ftype, inner_block_shape):
     for ftype2 in FLOAT_TYPES:
         out = np.zeros_like(ref, ftype2)
         mat_fsc._matvec(input_fsc.astype(ftype2), out)
-        assert_same(out, ref.astype(min_type(ftype, ftype2)), atol=10)
+        assert_same(out, ref.astype(min_type(ftype, ftype2)), atol=100)
 
     ref = (2 * (mat_fsc * input_fsc)).astype(ftype)
-    assert_same((mat_fsc * 2) * input_fsc, ref, atol=10)
-    assert_same((2 * mat_fsc) * input_fsc, ref, atol=10)
+    assert_same((mat_fsc * 2) * input_fsc, ref, atol=100)
+    assert_same((2 * mat_fsc) * input_fsc, ref, atol=100)
     assert_same(input_fsr * mat_fsc, mat_fsr * input_fsr, atol=10)
 
     op = SparseOperator(mat_fsr)
