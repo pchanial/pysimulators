@@ -92,8 +92,35 @@ markers = [
 
 [tool.cibuildwheel]
 skip = "*-musllinux_*"
-test-extras = "dev"
 build-verbosity = 1
+
+[tool.cibuildwheel.macos]
+# Set MACOSX_DEPLOYMENT_TARGET to match gfortran libraries (require macOS 14.0)
+# Use GCC from Homebrew (not Apple Clang) so that -fopenmp works
+environment = { MACOSX_DEPLOYMENT_TARGET = "14.0", CC = "/usr/local/bin/gcc", CXX = "/usr/local/bin/g++" }
+
+before-build = """
+# Find GCC version from Homebrew (gcc installs as gcc-XX)
+# Detect architecture to choose correct Homebrew prefix
+if [[ "$(uname -m)" == "arm64" ]]; then
+  BREW_PREFIX=/opt/homebrew
+else
+  BREW_PREFIX=/usr/local
+fi
+GCC_VERSION=$(ls $BREW_PREFIX/bin/gcc-* 2>/dev/null | grep -oE '[0-9]+$' | head -1)
+if [ -n "$GCC_VERSION" ]; then
+  echo "Found GCC version: $GCC_VERSION"
+  # Create symlinks for gcc, g++, gfortran in /usr/local/bin
+  sudo ln -sf $BREW_PREFIX/bin/gcc-$GCC_VERSION /usr/local/bin/gcc
+  sudo ln -sf $BREW_PREFIX/bin/g++-$GCC_VERSION /usr/local/bin/g++
+  sudo ln -sf $BREW_PREFIX/bin/gfortran-$GCC_VERSION /usr/local/bin/gfortran
+else
+  echo "ERROR: GCC not found!"
+  exit 1
+fi
+gcc --version
+gfortran --version
+"""
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
