@@ -20,6 +20,7 @@ import sys
 import time
 import uuid
 from functools import reduce
+from pathlib import Path
 
 import numpy as np
 import scipy.stats
@@ -110,7 +111,7 @@ class FitsArray(Quantity):
         comm=None,
     ):
 
-        if isinstance(data, str):
+        if isinstance(data, (str, Path)):
 
             if comm is None:
                 comm = MPI.COMM_SELF
