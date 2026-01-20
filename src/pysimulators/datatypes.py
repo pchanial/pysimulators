@@ -51,7 +51,7 @@ class FitsArray(Quantity):
 
     Parameters
     ----------
-    filename : str
+    filename : str | Path
         The FITS file name.
     object : array_like
         An array, any object exposing the array interface, an
@@ -570,7 +570,7 @@ class Map(FitsArray):
 
     Parameters
     ----------
-    filename : str
+    filename : str | Path
         The FITS file name.
     object : array_like
         An array, any object exposing the array interface, an
@@ -983,7 +983,7 @@ class Tod(FitsArray):
 
     Parameters
     ----------
-    filename : str
+    filename : str | Path
         The FITS file name.
     object : array_like
         An array, any object exposing the array interface, an

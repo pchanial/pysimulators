@@ -4,6 +4,7 @@
 
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 from astropy.io import fits as pyfits
@@ -162,8 +163,10 @@ def read_fits(filename, extname, comm):
         The MPI communicator of the local arrays.
     """
 
+    if isinstance(filename, str):
+        filename = Path(filename)
     # check if the file name is the same for all MPI jobs
-    files = comm.allgather(filename + str(extname))
+    files = comm.allgather(filename.as_posix() + str(extname))
     all_equal = all([f == files[0] for f in files])
     if comm.size > 1 and not all_equal:
         raise ValueError('The file name is not the same for all MPI jobs.')
@@ -229,8 +232,11 @@ def write_fits(filename, data, header, extension, extname, comm):
         MPI processes are not executing this routine with the same file name.
 
     """
+    if isinstance(filename, str):
+        filename = Path(filename)
+
     # check if the file name is the same for all MPI jobs
-    files = comm.allgather(filename + str(extname))
+    files = comm.allgather(filename.as_posix() + str(extname))
     all_equal = all(f == files[0] for f in files)
     if comm.size > 1 and not all_equal:
         raise ValueError('The file name is not the same for all MPI jobs.')
