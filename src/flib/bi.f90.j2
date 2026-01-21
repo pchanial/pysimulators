@@ -1,7 +1,7 @@
 {# variables: ikind=int32,int64,int32,int64; isize=4,8,4,8; rkind=real32,real32,real64,real64; rsize=4,4,8,8 #}
-module ib
+module bi
 
-    ! Interferometric Bolometry
+    ! Bolometric Interferometry
 
     use, intrinsic :: iso_fortran_env, only : int32, int64, real32, real64
     use module_pointingmatrix
@@ -213,4 +213,4 @@ contains
 {% endfor %}
 
 
-end module ib
+end module bi
