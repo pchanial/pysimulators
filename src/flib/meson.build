@@ -12,6 +12,7 @@ template_files = [
   'module_math.f90.j2',
   'module_operators.f90.j2',
   'datautils.f90.j2',
+  'ib.f90.j2',
   'operators.f90.j2',
   'projection.f90.j2',
   'sparse.f90.j2',
@@ -95,6 +96,7 @@ flib_sources = [
 # Generated sources for f2py (excluding files with type(c_ptr) that f2py can't handle)
 flib_generated = [
   'datautils.f90',
+  'ib.f90',
   'operators.f90',
   'projection.f90',
   'sparse.f90',
